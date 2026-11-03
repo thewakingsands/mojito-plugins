@@ -1,0 +1,175 @@
+--- a/overlay/index.js
++++ b/overlay/index.js
+@@ -27,6 +27,16 @@
+ 
+ window.hist = new History()
+ 
++// The local locale module can finish after the host's initial DOM event.
++// Retain only that current state until the original renderer is ready.
++let initialState
++layer.on('data', (d) => {
++  if (!window.renderer) { initialState = d; return }
++  window.hist.push(d)
++  window.renderer.update()
++})
++layer.connect()
++
+ window.addEventListener('load', (e) => {
+   // locale
+   window.l = new Locale(window.config.get('lang'), (e) => {
+@@ -43,13 +53,11 @@
+     })
+ 
+     // listen
+-    layer.connect()
+-    layer.on('data', (d) => {
+-      window.hist.push(d)
+-      if (window.renderer) {
+-        window.renderer.update()
+-      }
+-    })
++    if (initialState) {
++      window.hist.push(initialState)
++      window.renderer.update()
++      initialState = undefined
++    }
+     // layer.on('status')
+     // layer.emit('restyle')
+   })
+--- a/overlay/lib/render.js
++++ b/overlay/lib/render.js
+@@ -200,14 +200,14 @@
+           el.lastChild.textContent = '/' + d.length
+         }
+         if (this.config.footer.rdps) {
+-          this.elem.rdps.innerHTML = formatDps(
++          this.elem.rdps.innerHTML = rdps === undefined ? '—' : formatDps(
+             pFloat(rdps),
+             this.config.format,
+             'dps',
+           )
+         }
+         if (this.config.footer.rhps) {
+-          this.elem.rhps.innerHTML = formatDps(
++          this.elem.rhps.innerHTML = rhps === undefined ? '—' : formatDps(
+             pFloat(rhps),
+             this.config.format,
+             'hps',
+@@ -232,7 +232,14 @@
+ 
+     _value(v, data) {
+       if (typeof v === 'string') return data[v]
+-      else if (typeof v === 'function') return v(data)
++      else if (typeof v === 'function') {
++        let missing = false
++        const value = v(new Proxy(data, { get(target, key) {
++          if (typeof key === 'string' && target[key] === undefined) missing = true
++          return target[key]
++        } }))
++        return missing || (typeof value === 'number' && !Number.isFinite(value)) || (Array.isArray(value) && value.some(item => typeof item === 'number' && !Number.isFinite(item))) ? undefined : value
++      }
+     }
+ 
+     part(c, data) {
+@@ -253,9 +260,10 @@
+         } else {
+           text = this._value(col.v, data)
+ 
+-          if (typeof col.f === 'function')
++          if (text !== undefined && text !== null && typeof col.f === 'function')
+             text = col.f(text, window.config.get())
+         }
++        if (text === undefined || text === null || (typeof text === 'number' && !Number.isFinite(text))) text = '—'
+         if (text == 0 || text === '0%' || text === '---') {
+           classes += ' zero'
+         }
+--- a/overlay/lib/listen.js
++++ b/overlay/lib/listen.js
+@@ -11,13 +11,15 @@
+     SORTABLE[k] = o.v || o
+   })
+ 
++  let nextDataId = 0
++
+   class Data {
+     constructor(data) {
+       // reconstruct
+       this.update(data)
+       this.isCurrent = true
+       this.saveid =
+-        `kagerou_save_${Date.now()}` + sanitize(this.header.CurrentZoneName)
++        `kagerou_save_${Date.now()}_${++nextDataId}` + sanitize(this.header.CurrentZoneName)
+     }
+ 
+     update(data) {
+@@ -58,7 +60,7 @@
+             for (let k of COLUMN_MERGEABLE) {
+               let v1 = pFloat(o[k])
+               let v2 = pFloat(players[owner][k])
+-              patch[k] = (isNaN(v1) ? 0 : v1) + (isNaN(v2) ? 0 : v2)
++              patch[k] = o[k] === undefined || players[owner][k] === undefined ? undefined : (isNaN(v1) ? 0 : v1) + (isNaN(v2) ? 0 : v2)
+             }
+ 
+             for (let t in COLUMN_USE_LARGER) {
+@@ -170,7 +172,7 @@
+       let really =
+         !this.lastEncounter ||
+         this.lastEncounter.region !== encounter.CurrentZoneName ||
+-        this.lastEncounter.isActive !== isActive
++        (this.lastEncounter.isActive === 'false' && isActive === 'true')
+         // ACT-side bug (scrambling data) making this invalid!
+         // || this.lastEncounter.duration > parseInt(encounter.DURATION)
+         // || this.lastEncounter.damage > encounter.damage
+--- a/share/lib/config.js
++++ b/share/lib/config.js
+@@ -426,7 +426,7 @@
+     miss: 'misses',
+     hitfail: 'hitfailed',
+     critical: {
+-      v: (_) => ((parseInt(_.crithits) || 0) / (parseInt(_.swings) || 1)) * 100,
++      v: (_) => ((parseInt(_.crithits) || 0) / (parseInt(_.hits) || NaN)) * 100,
+       f: (_, conf) =>
+         _.toFixed(conf.format.significant_digit.critical) +
+         (conf.format.use_tailing_pct ? '<small>%</small>' : ''),
+@@ -434,7 +434,7 @@
+     direct: {
+       v: (_) =>
+         'DirectHitCount' in _
+-          ? ((parseInt(_.DirectHitCount) || 0) / (parseInt(_.swings) || 1)) *
++          ? ((parseInt(_.DirectHitCount) || 0) / (parseInt(_.hits) || NaN)) *
+             100
+           : null,
+       f: (_, conf) =>
+@@ -447,7 +447,7 @@
+       v: (_) =>
+         'CritDirectHitCount' in _
+           ? ((parseInt(_.CritDirectHitCount) || 0) /
+-              (parseInt(_.swings) || 1)) *
++              (parseInt(_.hits) || NaN)) *
+             100
+           : null,
+       f: (_, conf) =>
+@@ -469,10 +469,10 @@
+         _.DirectHitCount || 0,
+         _.crithits || 0,
+         _.CritDirectHitCount || 0,
+-        _.swings || 1,
++        _.hits || NaN,
+       ],
+       f: (_, conf) => {
+-        const swings = parseInt(_.pop()) || 1
++        const swings = parseInt(_.pop()) || NaN
+         _ = _.map((_) => ((parseInt(_) / swings) * 100).toFixed(0))
+ 
+         if (conf.format.use_tailing_pct) {
+--- a/config/lib/ui.js
++++ b/config/lib/ui.js
+@@ -15,7 +15,7 @@
+ }
+ 
+ window.sendMessage = function sendMessage(message) {
+-  if (window.OverlayPluginApi) {
++  if (typeof window.OverlayPluginApi?.broadcastMessage === 'function') {
+     OverlayPluginApi.broadcastMessage(message)
+   } else if (window.opener) {
+     window.opener.postMessage(message, '*')

@@ -1,0 +1,42 @@
+import Conditions from '../../../../../resources/conditions';
+import ZoneId from '../../../../../resources/zone_id';
+import { RaidbossData } from '../../../../../types/data';
+import { TriggerSet } from '../../../../../types/trigger';
+
+export type Data = RaidbossData;
+
+const triggerSet: TriggerSet<Data> = {
+  id: 'TheAurumVale',
+  zoneId: ZoneId.TheAurumVale,
+  comments: {
+    en: 'pre-7.4 rework',
+    de: 'Vor der 7.4 Überarbeitung',
+    fr: 'Avant le remaniement 7.4',
+    cn: '7.4改版前',
+    ko: '7.4 개편 전',
+    tc: '7.4改版前',
+  },
+  triggers: [
+    {
+      id: 'Aurum Vale GoldLungs/Burrs',
+      type: 'GainsEffect',
+      // Count `0[2-9]` here is to filter out the first stack
+      netRegex: { effectId: ['12E', '12F'], count: '0[2-9]' },
+      condition: Conditions.targetIsYou(),
+      alertText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Eat Fruit',
+          de: 'Frucht essen',
+          fr: 'Mangez un fruit',
+          ja: '果実を食べる',
+          cn: '吃果实',
+          ko: '열매 먹기',
+          tc: '吃果實',
+        },
+      },
+    },
+  ],
+};
+
+export default triggerSet;

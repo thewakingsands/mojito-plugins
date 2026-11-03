@@ -1,0 +1,652 @@
+import {
+  OverlayHandlerRequests,
+  OverlayHandlerResponseTypes,
+  PluginCombatantState,
+} from '../types/event';
+import { Job, Role } from '../types/job';
+import { NetMatches } from '../types/net_matches';
+import { OutputStrings } from '../types/trigger';
+
+import { actorControlType, gameLogCodes } from './netregexes';
+import Outputs from './outputs';
+import { callOverlayHandler } from './overlay_plugin_api';
+
+// TODO: it'd be nice to not repeat job names, but at least Record enforces that all are set.
+const nameToJobEnum: Record<Job, number> = {
+  NONE: 0,
+  GLA: 1,
+  PGL: 2,
+  MRD: 3,
+  LNC: 4,
+  ARC: 5,
+  CNJ: 6,
+  THM: 7,
+  CRP: 8,
+  BSM: 9,
+  ARM: 10,
+  GSM: 11,
+  LTW: 12,
+  WVR: 13,
+  ALC: 14,
+  CUL: 15,
+  MIN: 16,
+  BTN: 17,
+  FSH: 18,
+  PLD: 19,
+  MNK: 20,
+  WAR: 21,
+  DRG: 22,
+  BRD: 23,
+  WHM: 24,
+  BLM: 25,
+  ACN: 26,
+  SMN: 27,
+  SCH: 28,
+  ROG: 29,
+  NIN: 30,
+  MCH: 31,
+  DRK: 32,
+  AST: 33,
+  SAM: 34,
+  RDM: 35,
+  BLU: 36,
+  GNB: 37,
+  DNC: 38,
+  RPR: 39,
+  SGE: 40,
+  VPR: 41,
+  PCT: 42,
+  BST: 43,
+};
+
+export const allJobs = Object.keys(nameToJobEnum) as Job[];
+const allRoles = ['tank', 'healer', 'dps', 'crafter', 'gatherer', 'none'] as Role[];
+
+export const tankJobs: Job[] = ['GLA', 'PLD', 'MRD', 'WAR', 'DRK', 'GNB'];
+export const healerJobs: Job[] = ['CNJ', 'WHM', 'SCH', 'AST', 'SGE'];
+export const meleeDpsJobs: Job[] = [
+  'PGL',
+  'MNK',
+  'LNC',
+  'DRG',
+  'ROG',
+  'NIN',
+  'SAM',
+  'RPR',
+  'VPR',
+  'BST',
+];
+export const rangedDpsJobs: Job[] = ['ARC', 'BRD', 'DNC', 'MCH'];
+export const casterDpsJobs: Job[] = ['BLU', 'RDM', 'BLM', 'SMN', 'ACN', 'THM', 'PCT'];
+export const dpsJobs: Job[] = [...meleeDpsJobs, ...rangedDpsJobs, ...casterDpsJobs];
+export const craftingJobs: Job[] = ['CRP', 'BSM', 'ARM', 'GSM', 'LTW', 'WVR', 'ALC', 'CUL'];
+export const gatheringJobs: Job[] = ['MIN', 'BTN', 'FSH'];
+export const limitedJobs: Job[] = ['BLU', 'BST'];
+
+const stunJobs: Job[] = ['BLU', ...tankJobs, ...meleeDpsJobs];
+const silenceJobs: Job[] = ['BLU', 'BST', ...tankJobs, ...rangedDpsJobs];
+const sleepJobs: Job[] = ['BST', ...casterDpsJobs, ...healerJobs];
+const feintJobs: Job[] = meleeDpsJobs.filter((job) => job !== 'BST');
+const addleJobs: Job[] = [...casterDpsJobs];
+const cleanseJobs: Job[] = ['BLU', 'BRD', 'BST', ...healerJobs];
+
+const jobToRoleMap: Map<Job, Role> = (() => {
+  const addToMap = (map: Map<Job, Role>, jobs: Job[], role: Role) => {
+    jobs.forEach((job) => map.set(job, role));
+  };
+
+  const map: Map<Job, Role> = new Map([['NONE', 'none']]);
+  addToMap(map, tankJobs, 'tank');
+  addToMap(map, healerJobs, 'healer');
+  addToMap(map, dpsJobs, 'dps');
+  addToMap(map, craftingJobs, 'crafter');
+  addToMap(map, gatheringJobs, 'gatherer');
+
+  return map;
+})();
+
+export type WatchCombatantParams = {
+  ids?: number[];
+  names?: string[];
+  props?: string[];
+  delay?: number;
+  maxDuration?: number;
+};
+
+export type WatchCombatantFunc = (
+  params: WatchCombatantParams,
+  func: (ret: OverlayHandlerResponseTypes['getCombatants']) => boolean,
+) => Promise<void>;
+
+type WatchCombatantMapEntry = {
+  cancel: boolean;
+  start: number;
+};
+
+const watchCombatantMap: WatchCombatantMapEntry[] = [];
+
+const shouldCancelWatch = (
+  params: WatchCombatantParams,
+  entry: WatchCombatantMapEntry,
+): boolean => {
+  if (entry.cancel)
+    return true;
+  if (params.maxDuration !== undefined && Date.now() - entry.start > params.maxDuration)
+    return true;
+  return false;
+};
+
+const defaultWatchCombatant: WatchCombatantFunc = (params, func) => {
+  return new Promise<void>((res, rej) => {
+    const delay = params.delay ?? 1000;
+
+    const call: OverlayHandlerRequests['getCombatants'] = {
+      call: 'getCombatants',
+    };
+
+    if (params.ids)
+      call.ids = params.ids;
+
+    if (params.names)
+      call.names = params.names;
+
+    if (params.props)
+      call.props = params.props;
+
+    const entry: WatchCombatantMapEntry = {
+      cancel: false,
+      start: Date.now(),
+    };
+
+    watchCombatantMap.push(entry);
+
+    const checkFunc = () => {
+      if (shouldCancelWatch(params, entry)) {
+        rej(new Error('cancelled'));
+        return;
+      }
+      void callOverlayHandler(call).then((response) => {
+        if (entry.cancel) {
+          rej(new Error('was cancelled'));
+          return;
+        }
+        if (func(response))
+          res();
+        else
+          window.setTimeout(checkFunc, delay);
+      });
+    };
+
+    window.setTimeout(checkFunc, delay);
+  });
+};
+
+let watchCombatantOverride: WatchCombatantFunc | undefined;
+let clearCombatantsOverride: () => void | undefined;
+
+const defaultClearCombatants = () => {
+  while (watchCombatantMap.length > 0) {
+    const watch = watchCombatantMap.pop();
+    if (watch)
+      watch.cancel = true;
+  }
+};
+
+const watchCombatant: WatchCombatantFunc = (params, func) => {
+  if (watchCombatantOverride)
+    return watchCombatantOverride(params, func);
+
+  return defaultWatchCombatant(params, func);
+};
+
+export type DirectionOutput16 =
+  | 'dirN'
+  | 'dirNNE'
+  | 'dirNE'
+  | 'dirENE'
+  | 'dirE'
+  | 'dirESE'
+  | 'dirSE'
+  | 'dirSSE'
+  | 'dirS'
+  | 'dirSSW'
+  | 'dirSW'
+  | 'dirWSW'
+  | 'dirW'
+  | 'dirWNW'
+  | 'dirNW'
+  | 'dirNNW'
+  | 'unknown';
+
+export type DirectionOutput8 =
+  | 'dirN'
+  | 'dirNE'
+  | 'dirE'
+  | 'dirSE'
+  | 'dirS'
+  | 'dirSW'
+  | 'dirW'
+  | 'dirNW'
+  | 'unknown';
+
+export type DirectionOutputCardinal =
+  | 'dirN'
+  | 'dirE'
+  | 'dirS'
+  | 'dirW'
+  | 'unknown';
+
+export type DirectionOutputIntercard =
+  | 'dirNE'
+  | 'dirSE'
+  | 'dirSW'
+  | 'dirNW'
+  | 'unknown';
+
+const output8Dir: DirectionOutput8[] = [
+  'dirN',
+  'dirNE',
+  'dirE',
+  'dirSE',
+  'dirS',
+  'dirSW',
+  'dirW',
+  'dirNW',
+];
+
+const output16Dir: DirectionOutput16[] = [
+  'dirN',
+  'dirNNE',
+  'dirNE',
+  'dirENE',
+  'dirE',
+  'dirESE',
+  'dirSE',
+  'dirSSE',
+  'dirS',
+  'dirSSW',
+  'dirSW',
+  'dirWSW',
+  'dirW',
+  'dirWNW',
+  'dirNW',
+  'dirNNW',
+];
+
+const outputCardinalDir: DirectionOutputCardinal[] = ['dirN', 'dirE', 'dirS', 'dirW'];
+const outputIntercardDir: DirectionOutputIntercard[] = ['dirNE', 'dirSE', 'dirSW', 'dirNW'];
+
+const getDirectionIndex = (n: DirectionOutput16) => {
+  const index = output16Dir.indexOf(n);
+  // Values outside of output16Dir (i.e. 'unknown') sort last
+  if (index < 0)
+    return output16Dir.length;
+  return index;
+};
+
+const compareDirectionOutput = (a: DirectionOutput16, b: DirectionOutput16): number => {
+  return getDirectionIndex(a) - getDirectionIndex(b);
+};
+
+const outputStrings16Dir: OutputStrings = {
+  dirN: Outputs.dirN,
+  dirNNE: Outputs.dirNNE,
+  dirNE: Outputs.dirNE,
+  dirENE: Outputs.dirENE,
+  dirE: Outputs.dirE,
+  dirESE: Outputs.dirESE,
+  dirSE: Outputs.dirSE,
+  dirSSE: Outputs.dirSSE,
+  dirS: Outputs.dirS,
+  dirSSW: Outputs.dirSSW,
+  dirSW: Outputs.dirSW,
+  dirWSW: Outputs.dirWSW,
+  dirW: Outputs.dirW,
+  dirWNW: Outputs.dirWNW,
+  dirNW: Outputs.dirNW,
+  dirNNW: Outputs.dirNNW,
+  unknown: Outputs.unknown,
+};
+
+const outputStrings8Dir: OutputStrings = {
+  dirN: Outputs.dirN,
+  dirNE: Outputs.dirNE,
+  dirE: Outputs.dirE,
+  dirSE: Outputs.dirSE,
+  dirS: Outputs.dirS,
+  dirSW: Outputs.dirSW,
+  dirW: Outputs.dirW,
+  dirNW: Outputs.dirNW,
+  unknown: Outputs.unknown,
+};
+
+const outputStringsCardinalDir: OutputStrings = {
+  dirN: Outputs.dirN,
+  dirE: Outputs.dirE,
+  dirS: Outputs.dirS,
+  dirW: Outputs.dirW,
+  unknown: Outputs.unknown,
+};
+
+const outputStringsIntercardDir: OutputStrings = {
+  dirNE: Outputs.dirNE,
+  dirSE: Outputs.dirSE,
+  dirSW: Outputs.dirSW,
+  dirNW: Outputs.dirNW,
+  unknown: Outputs.unknown,
+};
+
+// TODO: Accept 'north' as a function input and adjust output accordingly.
+// E.g. Math.round((north + 4) - 4 * Math.atan2(x, y) / Math.PI) % 8;
+// Will need to adjust the output arrays as well though.
+
+const xyTo16DirNum = (x: number, y: number, centerX: number, centerY: number): number => {
+  // N = 0, NNE = 1, ..., NNW = 15
+  x = x - centerX;
+  y = y - centerY;
+  return Math.round(8 - 8 * Math.atan2(x, y) / Math.PI) % 16;
+};
+
+const xyTo8DirNum = (x: number, y: number, centerX: number, centerY: number): number => {
+  // N = 0, NE = 1, ..., NW = 7
+  x = x - centerX;
+  y = y - centerY;
+  return Math.round(4 - 4 * Math.atan2(x, y) / Math.PI) % 8;
+};
+
+const xyTo4DirNum = (x: number, y: number, centerX: number, centerY: number): number => {
+  // N = 0, E = 1, S = 2, W = 3
+  x = x - centerX;
+  y = y - centerY;
+  return Math.round(2 - 2 * Math.atan2(x, y) / Math.PI) % 4;
+};
+
+const xyTo4DirIntercardNum = (x: number, y: number, centerX: number, centerY: number): number => {
+  // NE = 0, SE = 1, SW = 2, NW = 3
+  x = x - centerX;
+  y = y - centerY;
+  return Math.round(2 - 2 * ((Math.PI / 4) + Math.atan2(x, y)) / Math.PI) % 4;
+};
+
+const xyToHeading = (x: number, y: number, centerX: number, centerY: number): number => {
+  x = x - centerX;
+  y = y - centerY;
+  return Math.atan2(x, y);
+};
+
+const hdgTo16DirNum = (heading: number): number => {
+  // N = 0, NNE = 1, ..., NNW = 15
+  return (Math.round(8 - 8 * heading / Math.PI) % 16 + 16) % 16;
+};
+
+const hdgTo8DirNum = (heading: number): number => {
+  // N = 0, NE = 1, ..., NW = 7
+  return (Math.round(4 - 4 * heading / Math.PI) % 8 + 8) % 8;
+};
+
+const hdgTo4DirNum = (heading: number): number => {
+  // N = 0, E = 1, S = 2, W = 3
+  return (Math.round(2 - heading * 2 / Math.PI) % 4 + 4) % 4;
+};
+
+const outputFrom16DirNum = (dirNum: number): DirectionOutput16 => {
+  return output16Dir[dirNum] ?? 'unknown';
+};
+
+const outputFrom8DirNum = (dirNum: number): DirectionOutput8 => {
+  return output8Dir[dirNum] ?? 'unknown';
+};
+
+const outputFromCardinalNum = (dirNum: number): DirectionOutputCardinal => {
+  return outputCardinalDir[dirNum] ?? 'unknown';
+};
+
+const outputFromIntercardNum = (dirNum: number): DirectionOutputIntercard => {
+  return outputIntercardDir[dirNum] ?? 'unknown';
+};
+
+export type AnyDirection =
+  | DirectionOutputCardinal
+  | DirectionOutputIntercard
+  | DirectionOutput8
+  | DirectionOutput16;
+
+/**
+ * Get a function to pass to Array.sort to sort an array of DirectionOutput entries
+ *
+ * @example
+ * const dirs: DirectionOutputCardinal[] = ['dirN', 'dirW'];
+ *
+ * dirs.sort(getSortDirectionsClockwiseFunction('dirE'));
+ *
+ * // `dirs` should equal `['dirW', 'dirN']`
+ *
+ * @param from The DirectionOutput to treat as the start point for sort comparison
+ * @returns A function to pass to the Array.sort function
+ */
+export const getSortDirectionsClockwiseFunction = (
+  from?: AnyDirection,
+): (left: AnyDirection, right: AnyDirection) => number => {
+  // Default to dirN
+  let offset = 0;
+  if (from !== undefined && from !== 'unknown')
+    offset = getDirectionIndex(from);
+
+  const count = output16Dir.length;
+
+  return (left: AnyDirection, right: AnyDirection) => {
+    if (left === 'unknown' || right === 'unknown') {
+      return left === right ? 0 : left === 'unknown' ? 1 : -1;
+    }
+    const rightIndex = (count + getDirectionIndex(right) - offset) % count;
+    const leftIndex = (count + getDirectionIndex(left) - offset) % count;
+    return leftIndex - rightIndex;
+  };
+};
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+/**
+ * Get a function to pass to Array.sort to sort an array of objects with `x` and `y` properties
+ *
+ * @example
+ * const points = [{ x: 101, y: 101 }, { x: 99, y: 99 }];
+ *
+ * points.sort(getSortPointsClockwiseFunction({x: 100, y: 100}, {x: 99, y: 101}));
+ *
+ * // `points` should now equal `[{ x: 99, y: 99 }, { x: 101, y: 101 }]`
+ *
+ * @param center The x/y point to treat as the center to calculate headings from
+ * @param reference The heading or x/y point to treat as the start point for sort comparison
+ * @returns A function to pass to the Array.sort function
+ */
+export const getSortPointsClockwiseFunction = <T extends Point>(
+  center: T,
+  reference: number | T = Math.PI, // Default to north
+): (left: T, right: T) => number => {
+  // Convert point to heading if needed
+  const offset = typeof reference === 'object'
+    ? xyToHeading(reference.x, reference.y, center.x, center.y)
+    : reference;
+
+  const twoPI = Math.PI * 2;
+
+  return (left: T, right: T) => {
+    // Get our base headings for the two points
+    const rightHeading = xyToHeading(right.x, right.y, center.x, center.y);
+    const leftHeading = xyToHeading(left.x, left.y, center.x, center.y);
+
+    // Adjust by reference offset
+    const rightHeadingOffset = (twoPI + (offset - rightHeading)) % twoPI;
+    const leftHeadingOffset = (twoPI + (offset - leftHeading)) % twoPI;
+
+    return leftHeadingOffset - rightHeadingOffset;
+  };
+};
+
+export const Directions = {
+  output8Dir: output8Dir,
+  output16Dir: output16Dir,
+  outputCardinalDir: outputCardinalDir,
+  outputIntercardDir: outputIntercardDir,
+  compareDirectionOutput: compareDirectionOutput,
+  outputStrings16Dir: outputStrings16Dir,
+  outputStrings8Dir: outputStrings8Dir,
+  outputStringsCardinalDir: outputStringsCardinalDir,
+  outputStringsIntercardDir: outputStringsIntercardDir,
+  xyTo4DirIntercardNum: xyTo4DirIntercardNum,
+  xyTo16DirNum: xyTo16DirNum,
+  xyTo8DirNum: xyTo8DirNum,
+  xyTo4DirNum: xyTo4DirNum,
+  xyToHeading: xyToHeading,
+  hdgTo16DirNum: hdgTo16DirNum,
+  hdgTo8DirNum: hdgTo8DirNum,
+  hdgTo4DirNum: hdgTo4DirNum,
+  outputFrom16DirNum: outputFrom16DirNum,
+  outputFrom8DirNum: outputFrom8DirNum,
+  outputFromCardinalNum: outputFromCardinalNum,
+  outputFromIntercardNum: outputFromIntercardNum,
+  combatantStatePosTo8Dir: (
+    combatant: PluginCombatantState,
+    centerX: number,
+    centerY: number,
+  ): number => {
+    return xyTo8DirNum(combatant.PosX, combatant.PosY, centerX, centerY);
+  },
+  combatantStatePosTo8DirOutput: (
+    combatant: PluginCombatantState,
+    centerX: number,
+    centerY: number,
+  ): DirectionOutput8 => {
+    const dirNum = xyTo8DirNum(combatant.PosX, combatant.PosY, centerX, centerY);
+    return outputFrom8DirNum(dirNum);
+  },
+  combatantStateHdgTo8Dir: (combatant: PluginCombatantState): number => {
+    return hdgTo8DirNum(combatant.Heading);
+  },
+  combatantStateHdgTo8DirOutput: (combatant: PluginCombatantState): DirectionOutput8 => {
+    const dirNum = hdgTo8DirNum(combatant.Heading);
+    return outputFrom8DirNum(dirNum);
+  },
+  addedCombatantPosTo8Dir: (
+    combatant: NetMatches['AddedCombatant'],
+    centerX: number,
+    centerY: number,
+  ): number => {
+    const x = parseFloat(combatant.x);
+    const y = parseFloat(combatant.y);
+    return xyTo8DirNum(x, y, centerX, centerY);
+  },
+  addedCombatantPosTo8DirOutput: (
+    combatant: NetMatches['AddedCombatant'],
+    centerX: number,
+    centerY: number,
+  ): DirectionOutput8 => {
+    const x = parseFloat(combatant.x);
+    const y = parseFloat(combatant.y);
+    const dirNum = xyTo8DirNum(x, y, centerX, centerY);
+    return outputFrom8DirNum(dirNum);
+  },
+  addedCombatantHdgTo8Dir: (combatant: NetMatches['AddedCombatant']): number => {
+    const heading = parseFloat(combatant.heading);
+    return hdgTo8DirNum(heading);
+  },
+  addedCombatantHdgTo8DirOutput: (combatant: NetMatches['AddedCombatant']): DirectionOutput8 => {
+    const heading = parseFloat(combatant.heading);
+    const dirNum = hdgTo8DirNum(heading);
+    return outputFrom8DirNum(dirNum);
+  },
+  xyTo16DirOutput: (x: number, y: number, centerX: number, centerY: number): DirectionOutput16 => {
+    const dirNum = xyTo16DirNum(x, y, centerX, centerY);
+    return outputFrom16DirNum(dirNum);
+  },
+  xyTo8DirOutput: (x: number, y: number, centerX: number, centerY: number): DirectionOutput8 => {
+    const dirNum = xyTo8DirNum(x, y, centerX, centerY);
+    return outputFrom8DirNum(dirNum);
+  },
+  xyToCardinalDirOutput: (
+    x: number,
+    y: number,
+    centerX: number,
+    centerY: number,
+  ): DirectionOutputCardinal => {
+    const dirNum = xyTo4DirNum(x, y, centerX, centerY);
+    return outputFromCardinalNum(dirNum);
+  },
+  xyToIntercardDirOutput: (
+    x: number,
+    y: number,
+    centerX: number,
+    centerY: number,
+  ): DirectionOutputIntercard => {
+    const dirNum = xyTo4DirIntercardNum(x, y, centerX, centerY);
+    return outputFromIntercardNum(dirNum);
+  },
+};
+
+const Util = {
+  jobEnumToJob: (id: number) => {
+    const job = allJobs.find((job: Job) => nameToJobEnum[job] === id);
+    return job ?? 'NONE';
+  },
+  jobToJobEnum: (job: Job) => nameToJobEnum[job],
+  jobToRole: (job: Job) => {
+    const role = jobToRoleMap.get(job);
+    return role ?? 'none';
+  },
+  getAllRoles: (): readonly Role[] => allRoles,
+  isTankJob: (job: Job) => tankJobs.includes(job),
+  isHealerJob: (job: Job) => healerJobs.includes(job),
+  isMeleeDpsJob: (job: Job) => meleeDpsJobs.includes(job),
+  isRangedDpsJob: (job: Job) => rangedDpsJobs.includes(job),
+  isCasterDpsJob: (job: Job) => casterDpsJobs.includes(job),
+  isDpsJob: (job: Job) => dpsJobs.includes(job),
+  isCraftingJob: (job: Job) => craftingJobs.includes(job),
+  isGatheringJob: (job: Job) => gatheringJobs.includes(job),
+  isCombatJob: (job: Job) => {
+    return !craftingJobs.includes(job) && !gatheringJobs.includes(job);
+  },
+  isLimitedJob: (job: Job) => limitedJobs.includes(job),
+  canStun: (job: Job) => stunJobs.includes(job),
+  canSilence: (job: Job) => silenceJobs.includes(job),
+  canSleep: (job: Job) => sleepJobs.includes(job),
+  canCleanse: (job: Job) => cleanseJobs.includes(job),
+  canFeint: (job: Job) => feintJobs.includes(job),
+  canAddle: (job: Job) => addleJobs.includes(job),
+  watchCombatant: watchCombatant,
+  clearWatchCombatants: () => {
+    if (clearCombatantsOverride !== undefined)
+      clearCombatantsOverride();
+    else
+      defaultClearCombatants();
+  },
+  setWatchCombatantOverride: (watchFunc: WatchCombatantFunc, clearFunc: () => void) => {
+    watchCombatantOverride = watchFunc;
+    clearCombatantsOverride = clearFunc;
+  },
+  gameLogCodes: gameLogCodes,
+  actorControlType: actorControlType,
+  shortName: (
+    name: string | undefined,
+    playerNicks: { [name: string]: string },
+  ): string => {
+    // TODO: make this unique among the party in case of first name collisions.
+    if (typeof name !== 'string') {
+      if (typeof name !== 'undefined')
+        console.error('called ShortNamify with non-string');
+      return '???';
+    }
+
+    const nick = playerNicks[name];
+    if (nick !== undefined)
+      return nick;
+
+    const idx = name.indexOf(' ');
+    return idx < 0 ? name : name.slice(0, idx);
+  },
+} as const;
+
+export default Util;

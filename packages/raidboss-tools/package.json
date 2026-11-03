@@ -1,0 +1,16 @@
+{
+  "name": "@ffcafe/mojito-raidboss-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "pack": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@ffcafe/mojito-raidboss": "workspace:*",
+    "esbuild": "0.28.2",
+    "@ffcafe/mojito-plugin-sdk": "workspace:*",
+    "@ffcafe/mojito-plugin-raidboss": "workspace:*"
+  }
+}

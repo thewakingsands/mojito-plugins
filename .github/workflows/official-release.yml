@@ -1,0 +1,62 @@
+name: Official plugin packages
+on:
+  push:
+    tags: ['official-v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:official
+      - uses: actions/upload-artifact@v4
+        with:
+          name: official-build
+          if-no-files-found: error
+          path: |
+            packages/plugin-sdk/dist
+            packages/combat-statistics/dist
+            packages/plugin-raidboss/dist
+            packages/overlay-plugins/dist
+            target/release/mojito-package
+  sign:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: official-build
+      - run: chmod +x target/release/mojito-package
+      - name: Sign and verify official packages
+        env:
+          OFFICIAL_SIGNING_JWK: ${{ secrets.OFFICIAL_SIGNING_JWK }}
+          OFFICIAL_SIGNER_FINGERPRINT: ${{ vars.OFFICIAL_SIGNER_FINGERPRINT }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs'
+          import path from 'node:path'
+          writeFileSync(path.join(process.env.RUNNER_TEMP, 'official.jwk'), process.env.OFFICIAL_SIGNING_JWK, { mode: 0o600 })
+          NODE
+          pnpm pack:official "$RUNNER_TEMP/official.jwk" "$OFFICIAL_SIGNER_FINGERPRINT"
+      - name: Remove temporary signing file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/official.jwk"
+      - name: Upload release attachments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/official/* --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; upload to Mojito server through its administration interface.'

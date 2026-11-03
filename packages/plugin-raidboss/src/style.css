@@ -1,0 +1,125 @@
+html {
+  color: var(--mojito-fg);
+  background: var(--mojito-bg);
+  font-family: var(--mojito-font-sans);
+  font-size: var(--mojito-text-base);
+}
+body {
+  margin: 0;
+  padding: var(--mojito-space-page);
+}
+main {
+  max-width: 1000px;
+  margin: auto;
+}
+p {
+  line-height: 1.5;
+}
+section {
+  margin-top: var(--mojito-space-section);
+}
+.actions {
+  display: flex;
+  gap: var(--mojito-space-group);
+  flex-wrap: wrap;
+  padding: var(--mojito-space-group);
+}
+input[type="search"] {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: var(--mojito-space-section);
+}
+details {
+  border-bottom: 1px solid var(--mojito-border);
+  padding: var(--mojito-space-group) 0;
+}
+.rule-status {
+  float: right;
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--mojito-space-group);
+}
+summary {
+  cursor: pointer;
+  font-size: var(--mojito-text-sm);
+  overflow-wrap: anywhere;
+}
+details > label,
+details > select {
+  margin: var(--mojito-space-group) var(--mojito-space-group) var(--mojito-space-group) 0;
+}
+pre {
+  background: var(--mojito-bg-subtle);
+  padding: var(--mojito-space-group);
+  border-radius: var(--mojito-radius-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--mojito-text-xs) var(--mojito-font-mono);
+}
+textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  font: var(--mojito-text-sm) var(--mojito-font-mono);
+}
+[role="status"]:empty {
+  display: none;
+}
+[aria-invalid="true"] {
+  border-color: var(--mojito-danger);
+}
+html:has(body.overlay) {
+  background: transparent;
+}
+body.overlay {
+  background: transparent;
+  padding: 8px;
+}
+.overlay main {
+  max-width: none;
+}
+.overlay p {
+  margin: 4px 0;
+}
+.overlay .info,
+.overlay .alert,
+.overlay .alarm,
+.overlay .timeline-bar,
+.overlay .overlay-status {
+  background: var(--mojito-bg-subtle);
+  border-radius: var(--mojito-radius-small);
+  padding: 7px 10px;
+}
+.overlay .info {
+  font-size: var(--mojito-text-xl);
+  color: var(--mojito-fg);
+}
+.overlay .alert {
+  font-size: var(--mojito-text-xl);
+  color: var(--mojito-warn-fg);
+  font-weight: 600;
+}
+.overlay .alarm {
+  font-size: var(--mojito-text-xl);
+  color: var(--mojito-danger-fg);
+  font-weight: 700;
+}
+.overlay .timeline-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--mojito-space-group);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.overlay .overlay-status {
+  display: inline-block;
+  font-size: var(--mojito-text-xs);
+  color: var(--mojito-fg-secondary);
+}
+@media (max-width: 480px) {
+  details > select {
+    max-width: 100%;
+  }
+  .mojito-field {
+    gap: var(--mojito-space-group);
+  }
+}

@@ -1,0 +1,1325 @@
+import Conditions from '../../../../../resources/conditions';
+import { UnreachableCode } from '../../../../../resources/not_reached';
+import Outputs from '../../../../../resources/outputs';
+import { Responses } from '../../../../../resources/responses';
+import { Directions } from '../../../../../resources/util';
+import ZoneId from '../../../../../resources/zone_id';
+import { RaidbossData } from '../../../../../types/data';
+import { TriggerSet } from '../../../../../types/trigger';
+
+// TODO:
+// Bloom 3 - Seems like strats for positioning could vary here, so only calling out roses vs towers for now
+// Maybe more with Escelon 2?
+
+const phases = {
+  A8B5: 'adds', // Blessed Barricade
+  A8CD: 'phase2', // Perfumed Quietus
+  A8B9: 'bloom1', // Roseblood Bloom
+  AA14: 'bloom2', // Roseblood: 2nd Bloom
+  AA15: 'bloom3', // Roseblood: 3rd Bloom
+  AA16: 'bloom4', // Roseblood: 4th Bloom
+  AA17: 'bloom5', // Roseblood: 5th Bloom
+  AA18: 'bloom6', // Roseblood: 6th Bloom
+} as const;
+
+type Phase = (typeof phases)[keyof typeof phases] | 'phase1' | 'unknown';
+
+const bloomTileFlags = {
+  red: '01000040',
+  despawningRed: '00200004',
+  spawningGrey: '01000040',
+  grey: '00020001',
+  greyToRed: '00800040',
+  clearOnWipe: '00040004',
+  pulseSpread: '10000040',
+  pulseStack: '20000040',
+  pulseTower: '40000040',
+  overlapRoses: '80000040',
+} as const;
+
+const tileLocs = ['NNE', 'ENE', 'ESE', 'SSE', 'SSW', 'WSW', 'WNW', 'NNW'] as const;
+type TileLocsType = (typeof tileLocs)[number];
+const tileInnerOuter = ['Inner', 'Outer'] as const;
+type TileInnerOuterType = (typeof tileInnerOuter)[number];
+
+const tileSlots = [
+  '04',
+  '05',
+  '06',
+  '07',
+  '08',
+  '09',
+  '0A',
+  '0B',
+  '0C',
+  '0D',
+  '0E',
+  '0F',
+  '10',
+  '11',
+  '12',
+  '13',
+] as const;
+type TileSlotsType = (typeof tileSlots)[number];
+
+type MapEffectTile = `bloomTile${TileInnerOuterType}${TileLocsType}`;
+
+type MapEffectData = {
+  [tile in MapEffectTile]: {
+    readonly location: TileSlotsType;
+  } & typeof bloomTileFlags;
+};
+
+const mapEffectData: MapEffectData = {
+  'bloomTileInnerNNE': {
+    'location': '04',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerENE': {
+    'location': '05',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerESE': {
+    'location': '06',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerSSE': {
+    'location': '07',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerSSW': {
+    'location': '08',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerWSW': {
+    'location': '09',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerWNW': {
+    'location': '0A',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileInnerNNW': {
+    'location': '0B',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterNNE': {
+    'location': '0C',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterENE': {
+    'location': '0D',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterESE': {
+    'location': '0E',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterSSE': {
+    'location': '0F',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterSSW': {
+    'location': '10',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterWSW': {
+    'location': '11',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterWNW': {
+    'location': '12',
+    ...bloomTileFlags,
+  },
+
+  'bloomTileOuterNNW': {
+    'location': '13',
+    ...bloomTileFlags,
+  },
+} as const;
+
+const isTileLoc = (loc: string): loc is TileSlotsType => {
+  return tileSlots.includes(loc as TileSlotsType);
+};
+
+const getTileNameFromLocation = (loc: string): MapEffectTile => {
+  if (!isTileLoc(loc))
+    throw new UnreachableCode();
+
+  const entry = Object.entries(mapEffectData).find((entry) => entry[1].location === loc);
+
+  if (entry === undefined)
+    throw new UnreachableCode();
+
+  const [key] = entry;
+
+  if (key === undefined)
+    throw new UnreachableCode();
+
+  return key as MapEffectTile;
+};
+
+const headMarkerData = {
+  // Thorns tether purple markers during Bloom 4
+  'thorns': '000C',
+  // Adds red headmarker showing you're tethered
+  'addsTether': '0017',
+  // Escelon 2 stack marker
+  'fourPlayerStack': '005D',
+  // Bloom 1 clockwise rotation indicator
+  'clockwise': '00A7',
+  // Bloom 1 counterclockwise rotation indicator
+  'counterclockwise': '00A8',
+  // "Shock" donut marker
+  'shockDonut': '0244',
+  // "Shock" spread marker
+  'shockSpread': '0245',
+  // "Stock Break" multi-hit marker
+  'fiveHitStack': '024E',
+  // Rose/Flower headmarker
+  'roseFlower': '0250',
+  // Rose spread marker
+  'roseSpread': '0254',
+  // Stack marker during Bloom 4, for "Alexandrian Banish III"
+  'bloom4Stack': '0255',
+} as const;
+
+const defaultTileState = () => ({
+  bloomTileInnerNNE: 'unknown',
+  bloomTileInnerENE: 'unknown',
+  bloomTileInnerESE: 'unknown',
+  bloomTileInnerSSE: 'unknown',
+  bloomTileInnerSSW: 'unknown',
+  bloomTileInnerWSW: 'unknown',
+  bloomTileInnerWNW: 'unknown',
+  bloomTileInnerNNW: 'unknown',
+  bloomTileOuterNNE: 'unknown',
+  bloomTileOuterENE: 'unknown',
+  bloomTileOuterESE: 'unknown',
+  bloomTileOuterSSE: 'unknown',
+  bloomTileOuterSSW: 'unknown',
+  bloomTileOuterWSW: 'unknown',
+  bloomTileOuterWNW: 'unknown',
+  bloomTileOuterNNW: 'unknown',
+} as const);
+
+export interface Data extends RaidbossData {
+  readonly triggerSetConfig: {
+    escelonsFall: 'dpsIn' | 'supportFirst' | 'dpsFirst' | 'none';
+  };
+  phase: Phase;
+  tileState: {
+    [loc in MapEffectTile]: 'unknown' | 'red' | 'grey';
+  };
+  escelonFallBaits: ('near' | 'far')[];
+  bloom4RoseDirNorth: boolean;
+  bloom5FirstDirSafe: 'dirNE' | 'dirNW' | 'dirSE' | 'dirSW' | 'unknown';
+  bloom5SecondDirSafe: 'dirNE' | 'dirNW' | 'dirSE' | 'dirSW' | 'unknown';
+  bloom6Rose: boolean;
+}
+
+const triggerSet: TriggerSet<Data> = {
+  id: 'RecollectionExtreme',
+  zoneId: ZoneId.RecollectionExtreme,
+  config: [
+    {
+      id: 'escelonsFall',
+      name: {
+        en: 'Escelons Fall Strategy',
+        de: 'Aufsteigendes Kreuz Strategy',
+        fr: 'Stratégie pour Péril cruciforme',
+        cn: '凌空错策略',
+        ko: '클라임 크로스 전략',
+        tc: '淩空錯策略',
+      },
+      comment: {
+        en: `Strategy for resolving Escelons' Fall 1 and 3.
+
+            None - Just call the first bait.
+            DPS In - DPS always start in, Support always start out.
+            Support First - Support bait the first hit.
+            DPS First - DPS bait the first hit.`,
+        de: `Strategie zur Bewältigung von Escelons Fall 1 und 3.
+
+            Keine – Zeige einfach erste Köder Position an.
+            DPS innen – DPS startet immer innen, Support startrt immer außen.
+            Support zuerst – Support ködert zuerst.
+            DPS zuerst – DPS ködert zuerst.`,
+        fr: `Stratégie pour résoudre Péril cruciforme 1 et 3.
+
+            None - On call juste le 1er bait.
+            DPS Intérieur - Les DPS commencent à l'intérieur, les supports commencent à l'extérieur.
+            Support en 1er - Les supports baitent en premier.
+            DPS en 1er - Les DPS baitent en premier.`,
+        cn: `凌空错1和3处理策略。
+
+            无 - 仅播报第一次引导。
+            输出在内 - DPS 始终圈内开始，T 奶始终圈外开始。
+            T 奶先 - T 奶引导第一次攻击。
+            DPS 先 - DPS 引导第一次攻击。`,
+        ko: `클라임 크로스 1, 3 처리 전략.
+
+            없음 - 첫 번째 유도만 호출.
+            딜러 안 - 딜러는 항상 안쪽에서 시작, 탱힐은 항상 바깥쪽에서 시작.
+            탱힐 먼저 - 탱힐이 첫 번째 공격을 유도.
+            딜러 먼저 - 딜러가 첫 번째 공격을 유도.`,
+        tc: `淩空錯1和3處理策略.
+
+            無 - 僅播報第一次引導.
+            輸出在內 - DPS 始終圈內開始, T 奶始終圈外開始.
+            T 奶先 - T 奶引導第一次攻擊.
+            DPS 先 - DPS 引導第一次攻擊.`,
+      },
+      type: 'select',
+      options: {
+        en: {
+          'None': 'none',
+          'DPS In': 'dpsIn',
+          'Support First': 'supportFirst',
+          'DPS First': 'dpsFirst',
+        },
+        de: {
+          'Keine': 'none',
+          'DPS innen': 'dpsIn',
+          'Support zuerst': 'supportFirst',
+          'DPS zuerst': 'dpsFirst',
+        },
+        fr: {
+          'Aucun': 'none',
+          'DPS Intérieur': 'dpsIn',
+          'Support en 1er': 'supportFirst',
+          'DPS en 1er': 'dpsFirst',
+        },
+        cn: {
+          '无': 'none',
+          '输出在内': 'dpsIn',
+          'T 奶先': 'supportFirst',
+          'DPS 先': 'dpsFirst',
+        },
+        ko: {
+          '없음': 'none',
+          '딜러 안': 'dpsIn',
+          '탱힐 먼저': 'supportFirst',
+          '딜러 먼저': 'dpsFirst',
+        },
+        tc: {
+          '無': 'none',
+          '輸出在內': 'dpsIn',
+          'T 奶先': 'supportFirst',
+          'DPS 先': 'dpsFirst',
+        },
+      },
+      default: 'none',
+    },
+  ],
+  timelineFile: 'zelenia-ex.txt',
+  initData: () => ({
+    escelonFallBaits: [],
+    phase: 'phase1',
+    tileState: { ...defaultTileState() },
+    bloom4RoseDirNorth: false,
+    bloom5FirstDirSafe: 'unknown',
+    bloom5SecondDirSafe: 'unknown',
+    bloom6Rose: false,
+  }),
+  triggers: [
+    {
+      id: 'ZeleniaEx Tile Tracker',
+      type: 'MapEffect',
+      netRegex: {
+        location: tileSlots,
+        flags: [bloomTileFlags.red, bloomTileFlags.grey, bloomTileFlags.greyToRed],
+        capture: true,
+      },
+      run: (data, matches) => {
+        let newState: 'unknown' | 'red' | 'grey' = 'unknown';
+
+        switch (matches.flags) {
+          case bloomTileFlags.red:
+          case bloomTileFlags.greyToRed:
+            newState = 'red';
+            break;
+          case bloomTileFlags.grey:
+            newState = 'grey';
+            break;
+        }
+        data.tileState[getTileNameFromLocation(matches.location)] = newState;
+      },
+    },
+    {
+      id: 'ZeleniaEx Phase Tracker',
+      type: 'StartsUsing',
+      netRegex: { id: Object.keys(phases), capture: true },
+      suppressSeconds: 5,
+      run: (data, matches) => data.phase = phases[matches.id as keyof typeof phases] ?? 'unknown',
+    },
+    {
+      id: 'ZeleniaEx Escelon Bait Collect',
+      type: 'GainsEffect',
+      // count: 2F6 = near, 2F7 = far
+      netRegex: { effectId: 'B9A', count: ['2F6', '2F7'] },
+      preRun: (data, matches) =>
+        data.escelonFallBaits.push(matches.count === '2F6' ? 'near' : 'far'),
+    },
+    {
+      id: 'ZeleniaEx Escelon Bait Cleanup',
+      type: 'GainsEffect',
+      // count: 2F6 = near, 2F7 = far
+      netRegex: { effectId: 'B9A', count: ['2F6', '2F7'], capture: false },
+      delaySeconds: 30,
+      suppressSeconds: 30,
+      run: (data) => data.escelonFallBaits = [],
+    },
+    {
+      id: 'ZeleniaEx Escelon Bait',
+      type: 'GainsEffect',
+      // count: 2F6 = near, 2F7 = far
+      netRegex: { effectId: 'B9A', count: ['2F6', '2F7'], capture: false },
+      durationSeconds: 19,
+      suppressSeconds: (data) => data.escelonFallBaits.length > 1 ? 20 : 0,
+      infoText: (data, _matches, output) => {
+        if (data.escelonFallBaits.length !== 2)
+          return;
+        const [bait1, bait2] = data.escelonFallBaits;
+        if (bait1 === undefined || bait2 === undefined)
+          return;
+
+        let first = 'unknown';
+
+        if (data.triggerSetConfig.escelonsFall === 'dpsIn') {
+          if (data.role === 'tank' || data.role === 'healer') {
+            first = 'out';
+          } else {
+            first = 'in';
+          }
+        } else if (data.triggerSetConfig.escelonsFall === 'supportFirst') {
+          if (data.role === 'tank' || data.role === 'healer') {
+            first = bait1 === 'near' ? 'in' : 'out';
+          } else {
+            first = bait1 === 'near' ? 'out' : 'in';
+          }
+        } else if (data.triggerSetConfig.escelonsFall === 'dpsFirst') {
+          if (data.role === 'tank' || data.role === 'healer') {
+            first = bait1 === 'near' ? 'out' : 'in';
+          } else {
+            first = bait1 === 'near' ? 'in' : 'out';
+          }
+        } else {
+          first = bait1;
+        }
+
+        if (bait1 === bait2) {
+          return output.swapAfterFirst!({
+            first: output[first]!(),
+          });
+        }
+        return output.swapAfterSecond!({
+          first: output[first]!(),
+        });
+      },
+      outputStrings: {
+        near: {
+          en: 'Near bait first',
+          de: 'Nah ködert zuerst',
+          fr: 'Proche déposent en premier',
+          cn: '先靠近引导',
+          ko: '가까이 유도 먼저',
+          tc: '先靠近引導',
+        },
+        far: {
+          en: 'Far bait first',
+          de: 'Fern ködert zuerst',
+          fr: 'Loin déposent en premier',
+          cn: '先远离引导',
+          ko: '멀리 유도 먼저',
+          tc: '先遠離引導',
+        },
+        out: {
+          en: 'Start out',
+          de: 'Starte außen',
+          fr: 'Commencez à l\'extérieur',
+          cn: '圈外开始',
+          ko: '바깥 시작',
+          tc: '圈外開始',
+        },
+        in: {
+          en: 'Start in',
+          de: 'Starte innen',
+          fr: 'Commencez à l\'intérieur',
+          cn: '圈内开始',
+          ko: '안 시작',
+          tc: '圈內開始',
+        },
+        swapAfterFirst: {
+          en: '${first}, Swap after first+third',
+          de: '${first}, Wechseln nach erstem+dritten',
+          fr: '${first}, swap après le premier et troisième',
+          cn: '${first}, 第1次和第3次后交换',
+          ko: '${first}, 1번째와 3번째 후 교대',
+          tc: '${first}, 第1次和第3次後交換',
+        },
+        swapAfterSecond: {
+          en: '${first}, Swap after second',
+          de: '${first}, Wechseln nach dem zweiten',
+          fr: '${first}, swap après le second',
+          cn: '${first}, 第2次后交换',
+          ko: '${first}, 2번째 후 교대',
+          tc: '${first}, 第2次後交換',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Thorned Catharsis',
+      type: 'StartsUsing',
+      netRegex: { id: 'A89E', source: 'Zelenia', capture: false },
+      response: Responses.aoe(),
+    },
+    {
+      id: 'ZeleniaEx Shock P1 Tower',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.shockDonut, capture: true },
+      condition: (data, matches) =>
+        Conditions.targetIsYou()(data, matches) && data.phase === 'phase1',
+      infoText: (_data, _matches, output) => output.tower!(),
+      outputStrings: {
+        tower: {
+          en: 'Donut on you, get tower',
+          de: 'Donut auf DIR, steh im Turm',
+          fr: 'Donut sur VOUS, prenez une tour',
+          ja: 'ドーナツ対象 → 塔踏み',
+          cn: '月环点名, 踩塔',
+          ko: '도넛 대상자, 기둥 들어가기',
+          tc: '月環點名, 踩塔',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Shock Spread',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.shockSpread, capture: true },
+      condition: Conditions.targetIsYou(),
+      response: Responses.spread(),
+    },
+    {
+      id: 'ZeleniaEx Shock Spread Move Reminder',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.shockSpread, capture: true },
+      condition: Conditions.targetIsYou(),
+      delaySeconds: 7,
+      response: Responses.moveAway(),
+    },
+    {
+      id: 'ZeleniaEx Bloom 4 Stack',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.bloom4Stack, capture: false },
+      infoText: (_data, _matches, output) => output.stacks!(),
+      outputStrings: {
+        stacks: {
+          en: 'Support/DPS stacks',
+          de: 'Support/DPS sammeln',
+          fr: 'Support/DPS package',
+          ja: 'タンクヒラ/DPS 頭割り',
+          cn: '红地板分摊',
+          ko: '탱힐/딜러 쉐어',
+          tc: '紅地板分攤',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Power Break',
+      type: 'StartsUsing',
+      netRegex: { id: ['A8B0', 'A8B1'], source: 'Zelenia\'s Shade', capture: true },
+      infoText: (_data, matches, output) => {
+        // A8B0 = cleaving right
+        // A8B1 = cleaving left
+        const isNorth = Directions.hdgTo4DirNum(parseFloat(matches.heading)) === 2;
+        let cleavingEast = matches.id === 'A8B0';
+        // flip cleave dir if north
+        if (isNorth)
+          cleavingEast = !cleavingEast;
+
+        if (cleavingEast)
+          return output.west!();
+        return output.east!();
+      },
+      outputStrings: {
+        west: Outputs.west,
+        east: Outputs.east,
+      },
+    },
+    {
+      id: 'ZeleniaEx Specter of the Lost',
+      type: 'StartsUsing',
+      netRegex: { id: 'A89F', source: 'Zelenia', capture: false },
+      response: (data, _matches, output) => {
+        // cactbot-builtin-response
+        output.responseOutputStrings = {
+          tetherBuster: Outputs.tetherBusters,
+          busterAvoid: Outputs.avoidTetherBusters,
+        };
+
+        if (data.role === 'tank')
+          return { alertText: output.tetherBuster!() };
+        return { infoText: output.busterAvoid!() };
+      },
+    },
+    {
+      id: 'ZeleniaEx Stock Break',
+      type: 'StartsUsing',
+      netRegex: { id: 'A8D5', source: 'Zelenia', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Stack x5',
+          de: 'Sammeln x5',
+          fr: 'Package x5',
+          ja: '頭割り x5',
+          cn: '5次分摊',
+          ko: '쉐어 5번',
+          tc: '5次分攤',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Blessed Barricade',
+      type: 'StartsUsing',
+      netRegex: { id: 'A8B5', source: 'Zelenia', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Supports west, DPS east',
+          de: 'Supports Westen, DPS Osten',
+          fr: 'Supports Ouest, DPS Est',
+          ja: 'タンクヒラ西 / DPS東',
+          cn: 'T奶 左, DPS 右',
+          ko: '탱힐 왼쪽, 딜러 오른쪽',
+          tc: 'T奶 左, DPS 右',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Spearpoint Push',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.addsTether, capture: true },
+      condition: Conditions.targetIsYou(),
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Point sword cleave out',
+          de: 'Schwert-Cleves nach draußen zeigen',
+          fr: 'Dirigez l\'épée vers l\'extérieur',
+          ja: '剣を外に向ける',
+          cn: '引导半场刀',
+          ko: '칼이 바깥으로 향하도록 유도',
+          tc: '引導半場刀',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Perfumed Quietus',
+      type: 'StartsUsing',
+      netRegex: { id: 'A8CD', source: 'Zelenia', capture: false },
+      delaySeconds: 3.9,
+      response: Responses.bigAoe(),
+    },
+    {
+      id: 'ZeleniaEx Bloom 1',
+      type: 'HeadMarker',
+      netRegex: { id: [headMarkerData.clockwise, headMarkerData.counterclockwise], capture: true },
+      infoText: (_data, matches, output) =>
+        output.text!({
+          dir: matches.id === headMarkerData.clockwise
+            ? output.dirSE!()
+            : output.dirN!(),
+          rotate: matches.id === headMarkerData.clockwise
+            ? output.clockwise!()
+            : output.counterclockwise!(),
+        }),
+      outputStrings: {
+        dirN: Outputs.dirN,
+        dirSE: Outputs.dirSE,
+        clockwise: Outputs.clockwise,
+        counterclockwise: Outputs.counterclockwise,
+        text: {
+          en: 'Start ${dir}, rotate ${rotate}',
+          de: 'Starte ${dir}, rotiere ${rotate}',
+          fr: 'Commencez ${dir}, tournez ${rotate}',
+          ja: '${dir} から開始, ${rotate}',
+          cn: '从 ${dir} 起跑, ${rotate}',
+          ko: '${dir} 시작, ${rotate}으로 회전',
+          tc: '從 ${dir} 起跑, ${rotate}',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 2',
+      type: 'StartsUsing',
+      netRegex: { id: ['A9BA', 'A9BB'], capture: true },
+      condition: (data) => data.phase === 'bloom2',
+      durationSeconds: 11.4,
+      suppressSeconds: 30,
+      infoText: (data, matches, output) => {
+        // Only two possible floor patterns here. Thunder slash pattern is always the same.
+        const inSafeFirst = matches.id === 'A9BB';
+        const inOneTileSafeWest = data.tileState.bloomTileInnerWNW === 'red';
+
+        if (inSafeFirst) {
+          if (inOneTileSafeWest)
+            return output.inWest!();
+          return output.inEast!();
+        }
+        if (inOneTileSafeWest)
+          return output.outEast!();
+        return output.outWest!();
+      },
+      outputStrings: {
+        inWest: {
+          en: 'In WSW => Out WNW => Out WSW',
+          de: 'Rein WSW => Raus WNW => Raus WSW',
+          fr: 'Intérieur OSO => Extérieur ONO => Extérieur OSO',
+          ja: '内8時 ⇒ 外10時 ⇒ 外8時',
+          cn: '内左偏下 => 外左偏上 => 外左偏下',
+          ko: '안 8시 => 바깥 10시 => 바깥 8시',
+          tc: '內左偏下 => 外左偏上 => 外左偏下',
+        },
+        inEast: {
+          en: 'In ESE => Out ESE => Out ENE',
+          de: 'Rein OSO => Raus OSO => Raus ONO',
+          fr: 'Intérieur ESE => Extérieur ESE => Intérieur ENE',
+          ja: '内4時 ⇒ 外4時 ⇒ 外2時',
+          cn: '内右偏下 => 外右偏下 => 外右偏上',
+          ko: '안 4시 => 바깥 4시 => 바깥 2시',
+          tc: '內右偏下 => 外右偏下 => 外右偏上',
+        },
+        outWest: {
+          en: 'Out WSW => In WNW => In WSW',
+          de: 'Raus WSW => Rein WNW => Rein WSW',
+          fr: 'Extérieur OSO => Intérieur ONO => Intérieur OSO',
+          ja: '外8時 ⇒ 内10時 ⇒ 内8時',
+          cn: '外左偏下 => 内左偏上 => 内左偏下',
+          ko: '바깥 8시 => 안 10시 => 안 8시',
+          tc: '外左偏下 => 內左偏上 => 內左偏下',
+        },
+        outEast: {
+          en: 'Out ESE => In ESE => In ENE',
+          de: 'Raus OSO => Rein OSO => Rein ONO',
+          fr: 'Extérieur ESE => Intérieur ESE => Intérieur ENE',
+          ja: '外4時 ⇒ 内4時 ⇒ 内2時',
+          cn: '外右偏下 => 内右偏下 => 内右偏上',
+          ko: '바깥 4시 => 안 4시 => 안 2시',
+          tc: '外右偏下 => 內右偏下 => 內右偏上',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 3 Rose Headmarker',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.roseFlower, capture: true },
+      condition: (data) => data.phase === 'bloom3',
+      suppressSeconds: 10,
+      infoText: (data, matches, output) => {
+        const targetIsDPS = data.party.isDPS(matches.target);
+        const youAreDPS = data.party.isDPS(data.me);
+        if (targetIsDPS === youAreDPS)
+          return output.rose!();
+
+        return output.tower!();
+      },
+      outputStrings: {
+        rose: {
+          en: 'Rose Marker on YOU',
+          de: 'Rosen-Marker auf DIR',
+          fr: 'Marqueur de Rose sur VOUS',
+          ja: 'バラ対象',
+          cn: '蔷薇点名',
+          ko: '장미징 대상자',
+          tc: '薔薇點名',
+        },
+        tower: {
+          en: 'Soak Tower',
+          de: 'Im Turm stehen',
+          fr: 'Prenez une tour',
+          ja: '塔踏み',
+          cn: '踩塔',
+          ko: '기둥 들어가기',
+          tc: '踩塔',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 4 Find Roses Dir',
+      type: 'MapEffect',
+      netRegex: {
+        location: tileSlots,
+        flags: [bloomTileFlags.red, bloomTileFlags.grey, bloomTileFlags.greyToRed],
+        capture: false,
+      },
+      condition: (data) => data.phase === 'bloom4',
+      delaySeconds: 0.5,
+      suppressSeconds: 100,
+      infoText: (data, _matches, output) => {
+        const rosesNorth = data.tileState.bloomTileOuterSSE === 'red' ||
+          data.tileState.bloomTileOuterSSW === 'red';
+        data.bloom4RoseDirNorth = rosesNorth;
+
+        if (rosesNorth)
+          return output.north!();
+
+        return output.south!();
+      },
+      outputStrings: {
+        north: {
+          en: 'Roses north, spreads south',
+          de: 'Rosen Norden, Verteilen Süden',
+          fr: 'Roses au Nord, dispersion au Sud',
+          ja: 'バラ北, さんかい南',
+          cn: '蔷薇上, 分散下',
+          ko: '장미 북쪽, 산개 남쪽',
+          tc: '薔薇上, 分散下',
+        },
+        south: {
+          en: 'Roses south, spreads north',
+          de: 'Rosen Süden, Verteilen Norden',
+          fr: 'Roses au Sud, dispersion au Nord',
+          ja: 'バラ南, さんかい北',
+          cn: '蔷薇下, 分散上',
+          ko: '장미 남쪽, 산개 북쪽',
+          tc: '薔薇下, 分散上',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 4 Rose Headmarker',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.roseFlower, capture: true },
+      condition: (data) => data.phase === 'bloom4',
+      suppressSeconds: 10,
+      infoText: (data, matches, output) => {
+        const targetIsDPS = data.party.isDPS(matches.target);
+        const youAreDPS = data.party.isDPS(data.me);
+        const youAreRose = targetIsDPS === youAreDPS;
+
+        let north = data.bloom4RoseDirNorth;
+
+        if (!youAreRose)
+          north = !north;
+
+        const northSouth = north ? output.north!() : output.south!();
+
+        if (youAreRose)
+          return output.rose!({ northSouth: northSouth });
+
+        return output.spread!({ northSouth: northSouth });
+      },
+      outputStrings: {
+        unknown: Outputs.unknown,
+        north: Outputs.north,
+        south: Outputs.south,
+        rose: {
+          en: 'Rose Marker on YOU, spread ${northSouth}',
+          de: 'Rosen-Marker auf DIR, verteile ${northSouth}',
+          fr: 'Marqueur de Rose sur VOUS, dispersion ${northSouth}',
+          ja: 'バラ対象, ${northSouth} さんかい',
+          cn: '蔷薇点名, ${northSouth} 分散',
+          ko: '장미징 대상자, ${northSouth}에서 산개',
+          tc: '薔薇點名, ${northSouth} 分散',
+        },
+        spread: {
+          en: 'Spread Marker on YOU, spread ${northSouth}',
+          de: 'Verteilen-Marker auf DIR, verteile ${northSouth}',
+          fr: 'Marqueur de dispersion sur VOUS, dispersion ${northSouth}',
+          ja: 'さんかい対象, ${northSouth} さんかい',
+          cn: '分散点名, ${northSouth} 分散',
+          ko: '산개징 대상자, ${northSouth}에서 산개',
+          tc: '分散點名, ${northSouth} 分散',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 4 Thorns',
+      type: 'StartsUsing',
+      netRegex: { id: 'A8C3', capture: false },
+      infoText: (_data, _matches, output) => output.thorns!(),
+      outputStrings: {
+        thorns: {
+          en: 'Stack for thorns => break tethers => stack in red tiles',
+          de: 'Sammeln für Dornen => Verbindung brechen => steh auf dem roten Feld',
+          fr: 'Packages pour les ronces => Cassez les liens => Packages dans les tuiles rouges',
+          ja: '茨集合 => 線切り => 赤床頭割り',
+          cn: '集合连线 => 拉断连线 => 红地板分摊',
+          ko: '모이기 => 선 끊기 => 장미장판위에 서기',
+          tc: '集合連線 => 拉斷連線 => 紅地板分攤',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 5 Chakram Collector',
+      type: 'ActorSetPos',
+      netRegex: { id: '40[0-9A-F]{6}', capture: true },
+      condition: (data, matches) => {
+        if (data.phase !== 'bloom5')
+          return false;
+
+        if (Math.abs(100 - parseFloat(matches.x)) < 2)
+          return false;
+
+        if (Math.abs(100 - parseFloat(matches.y)) < 2)
+          return false;
+
+        return true;
+      },
+      suppressSeconds: 9999,
+      infoText: (data, matches, output) => {
+        const neSwSafe = data.tileState.bloomTileOuterNNE === 'grey';
+        const cleaveDir = Directions.hdgTo4DirNum(parseFloat(matches.heading));
+        const x = parseFloat(matches.x);
+        const y = parseFloat(matches.y);
+        const isNorth = y < 100;
+        const isWest = x < 100;
+
+        // Consider east safe to start, reverse if needed
+        const safeDirs: ('dirNE' | 'dirSE' | 'dirSW' | 'dirNW')[] = neSwSafe
+          ? ['dirNE', 'dirSW']
+          : ['dirSE', 'dirNW'];
+
+        let firstCleave: ('dirNE' | 'dirSE' | 'dirSW' | 'dirNW')[] = ['dirNE', 'dirSE'];
+
+        if ([1, 3].includes(cleaveDir)) {
+          if (isNorth) {
+            firstCleave = ['dirNE', 'dirNW'];
+          } else {
+            firstCleave = ['dirSE', 'dirSW'];
+          }
+        } else if (isWest) {
+          firstCleave = ['dirNW', 'dirSW'];
+        }
+
+        data.bloom5FirstDirSafe = safeDirs.find((dir) => !firstCleave.includes(dir)) ?? 'unknown';
+        data.bloom5SecondDirSafe = safeDirs.find((dir) => firstCleave.includes(dir)) ?? 'unknown';
+
+        return output.start!({
+          startDir: output[data.bloom5FirstDirSafe]!(),
+        });
+      },
+      outputStrings: {
+        ...Directions.outputStrings8Dir,
+        start: {
+          en: 'Start ${startDir}',
+          de: 'Start ${startDir}',
+          fr: 'Commencez ${startDir}',
+          ja: '${startDir} 開始',
+          cn: '从 ${startDir} 起跑',
+          ko: '${startDir} 시작',
+          tc: '從 ${startDir} 起跑',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 5 Movement',
+      type: 'StartsUsing',
+      netRegex: { id: ['A9BA', 'A9BB'], capture: true },
+      condition: (data) => data.phase === 'bloom5',
+      durationSeconds: 11.4,
+      suppressSeconds: 30,
+      infoText: (data, matches, output) => {
+        const inSafeFirst = matches.id === 'A9BB';
+
+        return output.text!({
+          inOutFirst: inSafeFirst ? output.in!() : output.out!(),
+          inOutSecond: inSafeFirst ? output.out!() : output.in!(),
+          dirFirst: output[data.bloom5FirstDirSafe]!(),
+          dirSecond: output[data.bloom5SecondDirSafe]!(),
+        });
+      },
+      outputStrings: {
+        ...Directions.outputStrings8Dir,
+        in: Outputs.in,
+        out: Outputs.out,
+        text: {
+          en: '${inOutFirst} ${dirFirst} Clockwise => ${inOutSecond} ${dirSecond}',
+          de: '${inOutFirst} ${dirFirst} Im Uhrzeigersinn => ${inOutSecond} ${dirSecond}',
+          fr: '${inOutFirst} ${dirFirst} sens horaire => ${inOutSecond} ${dirSecond}',
+          ja: '${inOutFirst} ${dirFirst} 時計回り => ${inOutSecond} ${dirSecond}',
+          cn: '${inOutFirst} ${dirFirst} 顺时针 => ${inOutSecond} ${dirSecond}',
+          ko: '${dirFirst} ${inOutFirst} 시계방향 => ${dirSecond} ${inOutSecond}',
+          tc: '${inOutFirst} ${dirFirst} 順時針 => ${inOutSecond} ${dirSecond}',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 6 Rose Headmarker',
+      type: 'HeadMarker',
+      netRegex: { id: headMarkerData.roseFlower, capture: true },
+      condition: (data) => data.phase === 'bloom6',
+      suppressSeconds: 10,
+      infoText: (data, matches, output) => {
+        const targetIsDPS = data.party.isDPS(matches.target);
+        const youAreDPS = data.party.isDPS(data.me);
+        data.bloom6Rose = targetIsDPS === youAreDPS;
+
+        if (data.bloom6Rose)
+          return output.rose!();
+
+        return output.tower!();
+      },
+      outputStrings: {
+        rose: {
+          en: 'Rose Marker on YOU',
+          de: 'Rosen-Marker auf DIR',
+          fr: 'Marqueur de Rose sur VOUS',
+          ja: 'バラ対象',
+          cn: '蔷薇点名',
+          ko: '장미징 대상자',
+          tc: '薔薇點名',
+        },
+        tower: {
+          en: 'Tower Soaks Later',
+          de: 'Nehme Turm später',
+          fr: 'Prenez une tour après',
+          ja: 'あとで塔踏み',
+          cn: '稍后踩塔',
+          ko: '나중에 기둥 들어가기',
+          tc: '稍後踩塔',
+        },
+      },
+    },
+    {
+      id: 'ZeleniaEx Bloom 6',
+      type: 'StartsUsing',
+      netRegex: { id: ['A8DF', 'A8E1'], capture: true },
+      condition: (data) => data.phase === 'bloom5',
+      durationSeconds: 11.4,
+      suppressSeconds: 30,
+      infoText: (data, matches, output) => {
+        const cleavingENEFirst = matches.id === 'A8E1';
+        const towerENEOut = data.tileState.bloomTileOuterENE === 'red';
+
+        const placeIn = cleavingENEFirst ? towerENEOut : !towerENEOut;
+
+        if (data.bloom6Rose) {
+          return output.rose!({
+            inOut: placeIn ? output.in!() : output.out!(),
+          });
+        }
+
+        return output.tower!();
+      },
+      outputStrings: {
+        ...Directions.outputStrings8Dir,
+        in: Outputs.in,
+        out: Outputs.out,
+        rose: {
+          en: 'Place rose ${inOut} => dodge cleaves',
+          de: 'Plaziere Rose ${inOut} => weiche dem Cleve aus',
+          fr: 'Placez la rose ${inOut} => esquivez les cleaves',
+          ja: '${inOut} にバラ置き => 扇回避',
+          cn: '${inOut} 放置蔷薇 => 躲避扇形',
+          ko: '${inOut} 장미 놓기 => 장판 피하기',
+          tc: '${inOut} 放置薔薇 => 躲避扇形',
+        },
+        tower: {
+          en: 'Dodge cleaves => soak tower',
+          de: 'Weiche dem Cleave aus => steh im Turm',
+          fr: 'Esquivez les cleaves => prenez une tour',
+          ja: '扇回避 => 塔踏み',
+          cn: '躲避扇形 => 踩塔',
+          ko: '장판 피하기 => 기둥 들어가기',
+          tc: '躲避扇形 => 踩塔',
+        },
+      },
+    },
+  ],
+  timelineReplace: [
+    {
+      'locale': 'de',
+      'replaceSync': {
+        'Briar Thorn': 'Atomisator',
+        'Zelenia(?!\')': 'Zelenia',
+        'Zelenia\'s Shade': 'Phantom-Zelenia',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(wirken)',
+        '\\(chakrams\\)': '(Chakrams)',
+        '\\(enrage\\?\\)': '(Finalangriff?)',
+        '\\(enrage\\)': '(Finalangriff)',
+        '\\(markers\\)': '(Marker)',
+        '\\(resolves\\)': '(Auflösen)',
+        '\\(snapshot\\)': '(Snapshot)',
+        'Alexandrian Banish II(?!I)': 'Ritterliches Verbannra',
+        'Alexandrian Banish III': 'Ritterliches Verbannga',
+        'Alexandrian Holy': 'Ritterliches Sanctus',
+        'Alexandrian Thunder II(?!I)': 'Ritterliches Blitzra',
+        'Alexandrian Thunder III': 'Ritterliches Blitzga',
+        'Alexandrian Thunder IV': 'Ritterliches Blitzka',
+        'Blessed Barricade': 'Heilige Mauer',
+        'Bud of Valor': 'Lug und Trug',
+        'Emblazon': 'Mahnendes Siegel',
+        'Encircling Thorns': 'Rosendorn',
+        'Escelons\' Fall': 'Aufsteigendes Kreuz',
+        'Explosion': 'Explosion',
+        'Holy Hazard': 'Heilige Gefahr',
+        'Perfumed Quietus': 'Quietus-Rose',
+        'Power Break': 'Schockbolzen',
+        'Queen\'s Crusade': 'Heiliges Schlachtfeld',
+        'Rose Red': 'Rosenfinale',
+        'Roseblood Bloom': 'Arkane Enthüllung',
+        'Roseblood Withering': 'Arkane Enthüllung: Nullform',
+        'Roseblood: 2nd Bloom': 'Arkane Enthüllung: Zweite Form',
+        'Roseblood: 3rd Bloom': 'Arkane Enthüllung: Dritte Form',
+        'Roseblood: 4th Bloom': 'Arkane Enthüllung: Vierte Form',
+        'Roseblood: 5th Bloom': 'Arkane Enthüllung: Fünfte Form',
+        'Roseblood: 6th Bloom': 'Arkane Enthüllung: Sechste Form',
+        'Shock': 'Schock',
+        'Spearpoint Push': 'Sturzflug',
+        'Specter of the Lost': 'Spektralschlag',
+        'Stock Break': 'Exekutionsschlag',
+        'Thorned Catharsis': 'Rosenkatharsis',
+        'Thunder Slash': 'Donnerhieb',
+        'Valorous Ascension': 'Atomisator',
+      },
+    },
+    {
+      'locale': 'fr',
+      'replaceSync': {
+        'Briar Thorn': 'Mortimer',
+        'Zelenia(?!\')': 'Zelenia',
+        'Zelenia\'s Shade': 'double de Zelenia',
+      },
+      'replaceText': {
+        'Alexandrian Banish II(?!I)': 'Extra Bannissement chevaleresque',
+        'Alexandrian Banish III': 'Méga Bannissement chevaleresque',
+        'Alexandrian Holy': 'Miracle chevaleresque',
+        'Alexandrian Thunder II(?!I)': 'Méga Foudre chevaleresque',
+        'Alexandrian Thunder III': 'Méga Foudre chevaleresque',
+        'Alexandrian Thunder IV': 'Giga Foudre chevaleresque',
+        'Blessed Barricade': 'Mur sacré',
+        'Bud of Valor': 'Dupligenèse',
+        'Emblazon': 'Cercle d\'exhortation',
+        'Encircling Thorns': 'Épine de rose',
+        'Escelons\' Fall': 'Péril cruciforme',
+        'Explosion': 'Explosion',
+        'Holy Hazard': 'Péril miraculeux',
+        'Perfumed Quietus': 'Quietus de la rose',
+        'Power Break': 'Fente puissante',
+        'Queen\'s Crusade': 'Domaine sacré',
+        'Rose Red': 'Rose finale',
+        'Roseblood Bloom': 'Déploiement arcanique',
+        'Roseblood Withering': 'Déploiement arcanique : annihilation',
+        'Roseblood: 2nd Bloom': 'Déploiement arcanique : seconde forme',
+        'Roseblood: 3rd Bloom': 'Déploiement arcanique : troisième forme',
+        'Roseblood: 4th Bloom': 'Déploiement arcanique : quatrième forme',
+        'Roseblood: 5th Bloom': 'Déploiement arcanique : cinquième forme',
+        'Roseblood: 6th Bloom': 'Déploiement arcanique : sixième forme',
+        'Shock': 'Choc',
+        'Spearpoint Push': 'Ruée fulgurante',
+        'Specter of the Lost': 'Fente spectrale',
+        'Stock Break': 'Fente',
+        'Thorned Catharsis': 'Roses cathartiques',
+        'Thunder Slash': 'Foudrolle',
+        'Valorous Ascension': 'Mortimer',
+      },
+    },
+    {
+      'locale': 'ja',
+      'missingTranslations': true,
+      'replaceSync': {
+        'Briar Thorn': 'クライムハザード',
+        'Zelenia(?!\')': 'ゼレニア',
+        'Zelenia\'s Shade': 'ゼレニアの幻影',
+      },
+      'replaceText': {
+        'Alexandrian Banish II(?!I)': 'キングダム・バニシュラ',
+        'Alexandrian Banish III': 'キングダム・バニシュガ',
+        'Alexandrian Holy': 'キングダム・ホーリー',
+        'Alexandrian Thunder II(?!I)': 'キングダム・サンダラ',
+        'Alexandrian Thunder III': 'キングダム・サンダガ',
+        'Alexandrian Thunder IV': 'キングダム・サンダジャ',
+        'Blessed Barricade': '聖護壁',
+        'Bud of Valor': '幻影生成',
+        'Emblazon': '活性紋',
+        'Encircling Thorns': 'ローズソーン',
+        'Escelons\' Fall': 'クライムクロス',
+        'Explosion': '爆発',
+        'Holy Hazard': 'ホーリーハザード',
+        'Perfumed Quietus': 'クワイタスローズ',
+        'Power Break': 'パワーブレイク',
+        'Queen\'s Crusade': '聖戦領域',
+        'Rose Red': 'ローズ・オブ・フィナーレ',
+        'Roseblood Bloom': '魔法陣展開',
+        'Roseblood Withering': '魔法陣展開・零式',
+        'Roseblood: 2nd Bloom': '魔法陣展開・二式',
+        'Roseblood: 3rd Bloom': '魔法陣展開・三式',
+        'Roseblood: 4th Bloom': '魔法陣展開・四式',
+        'Roseblood: 5th Bloom': '魔法陣展開・五式',
+        'Roseblood: 6th Bloom': '魔法陣展開・六式',
+        'Shock': 'ショック',
+        'Spearpoint Push': '突撃',
+        'Specter of the Lost': 'スペクトルブレイク',
+        'Stock Break': 'ストックブレイク',
+        'Thorned Catharsis': 'ローズ・カタルシス',
+        'Thunder Slash': '雷鳴剣',
+        'Valorous Ascension': 'クライムハザード',
+      },
+    },
+    {
+      'locale': 'cn',
+      'replaceSync': {
+        'Briar Thorn': '凌空破',
+        'Zelenia(?!\')': '泽莲尼娅',
+        'Zelenia\'s Shade': '泽莲尼娅的幻影',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(咏唱)',
+        '\\(chakrams\\)': '(预兆)',
+        '\\(enrage\\?\\)': '(狂暴?)',
+        '\\(enrage\\)': '(狂暴)',
+        '\\(markers\\)': '(标记)',
+        '\\(resolves\\)': '(判定)',
+        '\\(snapshot\\)': '(快照)',
+        'Alexandrian Banish II(?!I)': '王国中放逐',
+        'Alexandrian Banish III': '王国强放逐',
+        'Alexandrian Holy': '王国神圣',
+        'Alexandrian Thunder II(?!I)': '王国震雷',
+        'Alexandrian Thunder III': '王国暴雷',
+        'Alexandrian Thunder IV': '王国霹雷',
+        'Blessed Barricade': '圣护壁',
+        'Bud of Valor': '幻影生成',
+        'Emblazon': '活性纹',
+        'Encircling Thorns': '玫瑰荆棘',
+        'Escelons\' Fall': '凌空错',
+        'Explosion': '爆炸',
+        'Holy Hazard': '神圣破',
+        'Perfumed Quietus': '寂灭之玫瑰',
+        'Power Break': '破势之剑',
+        'Queen\'s Crusade': '圣战领域',
+        'Rose Red': '终曲之玫瑰',
+        'Roseblood Bloom': '魔法阵展开',
+        'Roseblood Withering': '魔法阵展开·零式',
+        'Roseblood: 2nd Bloom': '魔法阵展开·二式',
+        'Roseblood: 3rd Bloom': '魔法阵展开·三式',
+        'Roseblood: 4th Bloom': '魔法阵展开·四式',
+        'Roseblood: 5th Bloom': '魔法阵展开·五式',
+        'Roseblood: 6th Bloom': '魔法阵展开·六式',
+        'Shock': '震惊',
+        'Spearpoint Push': '突击',
+        'Specter of the Lost': '破灵之剑',
+        'Stock Break': '破防之剑',
+        'Thorned Catharsis': '玫瑰涤',
+        'Thunder Slash': '雷鸣剑',
+        'Valorous Ascension': '凌空破',
+      },
+    },
+    {
+      'locale': 'tc',
+      'replaceSync': {
+        'Briar Thorn': '淩空破',
+        'Zelenia(?!\')': '澤蓮尼亞',
+        'Zelenia\'s Shade': '澤蓮尼亞的幻影',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(詠唱)',
+        '\\(chakrams\\)': '(預兆)',
+        '\\(enrage\\?\\)': '(狂暴?)',
+        '\\(enrage\\)': '(狂暴)',
+        '\\(markers\\)': '(標記)',
+        '\\(resolves\\)': '(判定)',
+        '\\(snapshot\\)': '(快照)',
+        'Alexandrian Banish II(?!I)': '王國中放逐',
+        'Alexandrian Banish III': '王國強放逐',
+        'Alexandrian Holy': '王國神聖',
+        'Alexandrian Thunder II(?!I)': '王國中雷電',
+        'Alexandrian Thunder III': '王國大雷電',
+        'Alexandrian Thunder IV': '王國超雷電',
+        'Blessed Barricade': '聖護壁',
+        'Bud of Valor': '幻影生成',
+        'Emblazon': '活性紋',
+        'Encircling Thorns': '玫瑰荊棘',
+        'Escelons\' Fall': '淩空錯',
+        'Explosion': '爆炸',
+        'Holy Hazard': '神聖破',
+        'Perfumed Quietus': '寂滅之玫瑰',
+        'Power Break': '破勢之劍',
+        'Queen\'s Crusade': '聖戰領域',
+        'Rose Red': '終曲之玫瑰',
+        'Roseblood Bloom': '魔法陣展開',
+        'Roseblood Withering': '魔法陣展開·零式',
+        'Roseblood: 2nd Bloom': '魔法陣展開·二式',
+        'Roseblood: 3rd Bloom': '魔法陣展開·三式',
+        'Roseblood: 4th Bloom': '魔法陣展開·四式',
+        'Roseblood: 5th Bloom': '魔法陣展開·五式',
+        'Roseblood: 6th Bloom': '魔法陣展開·六式',
+        'Shock': '落雷擊',
+        'Spearpoint Push': '突擊',
+        'Specter of the Lost': '破靈之劍',
+        'Stock Break': '破防之劍',
+        'Thorned Catharsis': '玫瑰滌',
+        'Thunder Slash': '雷鳴劍',
+        'Valorous Ascension': '淩空破',
+      },
+    },
+    {
+      'locale': 'ko',
+      'replaceSync': {
+        'Briar Thorn': '가시넝쿨',
+        'Zelenia(?!\')': '젤레니아',
+        'Zelenia\'s Shade': '젤레니아의 환영',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(시전)',
+        '\\(chakrams\\)': '(직선장판)',
+        '\\(enrage\\?\\)': '(전멸기?)',
+        '\\(enrage\\)': '(전멸기)',
+        '\\(markers\\)': '(징)',
+        '\\(resolves\\)': '(판정)',
+        '\\(snapshot\\)': '(예고)',
+        'Alexandrian Banish II(?!I)': '왕국 배니시라',
+        'Alexandrian Banish III': '왕국 배니시가',
+        'Alexandrian Holy': '왕국 홀리',
+        'Alexandrian Thunder II(?!I)': '왕국 선더라',
+        'Alexandrian Thunder III': '왕국 선더가',
+        'Alexandrian Thunder IV': '왕국 선더쟈',
+        'Blessed Barricade': '성스러운 수호벽',
+        'Bud of Valor': '환영 생성',
+        'Emblazon': '활성 문양',
+        'Encircling Thorns': '장미 가시',
+        'Escelons\' Fall': '클라임 크로스',
+        'Explosion': '폭발',
+        'Holy Hazard': '홀리 해저드',
+        'Perfumed Quietus': '죽음의 장미',
+        'Power Break': '파워 브레이크',
+        'Queen\'s Crusade': '성전 영역',
+        'Rose Red': '종막의 장미',
+        'Roseblood Bloom': '마법진 전개',
+        'Roseblood Withering': '마법진 전개: 0식',
+        'Roseblood: 2nd Bloom': '마법진 전개: 2식',
+        'Roseblood: 3rd Bloom': '마법진 전개: 3식',
+        'Roseblood: 4th Bloom': '마법진 전개: 4식',
+        'Roseblood: 5th Bloom': '마법진 전개: 5식',
+        'Roseblood: 6th Bloom': '마법진 전개: 6식',
+        'Shock': '쇼크',
+        'Spearpoint Push': '돌격',
+        'Specter of the Lost': '스펙터 브레이크',
+        'Stock Break': '스톡 브레이크',
+        'Thorned Catharsis': '장밋빛 숙청',
+        'Thunder Slash': '뇌명검',
+        'Valorous Ascension': '클라임 해저드',
+      },
+    },
+  ],
+};
+
+export default triggerSet;

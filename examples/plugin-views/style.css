@@ -1,0 +1,27 @@
+/* The counter pages: everything comes from the host's --mojito-* variables (MJT-85) */
+body {
+  margin: 0;
+  padding: var(--mojito-space-page);
+  font: 400 var(--mojito-text-base) / 22px var(--mojito-font-sans);
+  color: var(--mojito-fg);
+}
+h1 {
+  margin: 0;
+  font-size: var(--mojito-text-lg);
+}
+output {
+  display: block;
+  margin: 16px 0;
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+button {
+  height: var(--mojito-control-height);
+  padding: 0 12px;
+  font: 500 var(--mojito-text-sm) var(--mojito-font-sans);
+  color: var(--mojito-primary-fg);
+  background: var(--mojito-primary);
+  border: 0;
+  border-radius: var(--mojito-radius-control);
+  cursor: pointer;
+}

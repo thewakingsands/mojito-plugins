@@ -1,0 +1,402 @@
+import Outputs from '../../../../../resources/outputs';
+import { Responses } from '../../../../../resources/responses';
+import ZoneId from '../../../../../resources/zone_id';
+import { RaidbossData } from '../../../../../types/data';
+import { TriggerSet } from '../../../../../types/trigger';
+
+// Triggers applicable to all Heaven-on-High floors.
+
+export type Data = RaidbossData;
+
+const triggerSet: TriggerSet<Data> = {
+  id: 'HeavenOnHighGeneral',
+  zoneId: [
+    ZoneId.HeavenOnHighFloors1_10,
+    ZoneId.HeavenOnHighFloors11_20,
+    ZoneId.HeavenOnHighFloors21_30,
+    ZoneId.HeavenOnHighFloors31_40,
+    ZoneId.HeavenOnHighFloors41_50,
+    ZoneId.HeavenOnHighFloors51_60,
+    ZoneId.HeavenOnHighFloors61_70,
+    ZoneId.HeavenOnHighFloors71_80,
+    ZoneId.HeavenOnHighFloors81_90,
+    ZoneId.HeavenOnHighFloors91_100,
+  ],
+  zoneLabel: {
+    en: 'Heaven-on-High (All Floors)',
+    de: 'Himmelssäule (Alle Ebenen)',
+    fr: 'Pilier des cieux (Tous niveaux)',
+    ja: 'アメノミハシラ (全階層)',
+    cn: '天之御柱 (全楼层)',
+    ko: '천궁탑 (전체 층)',
+    tc: '天之御柱 (全樓層)',
+  },
+
+  triggers: [
+    // ---------------- Quivering Coffers ----------------
+    {
+      id: 'HoH General Quivering Coffer Spawn',
+      // 7392 = Quivering Coffer (floor 1-30 bronze chests, can stun or interrupt)
+      // 7393 = Quivering Coffer (floor 31-60 silver chests, can stun or interrupt)
+      // 7394 = Quivering Coffer (floor 61+ gold chests, can interrupt, immune to stun)
+      // TODO: some Quivering Coffers may spawn after transference between floors and get called early before being found
+      type: 'AddedCombatant',
+      netRegex: { npcNameId: '739[2-4]', capture: false },
+      suppressSeconds: 1,
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Quivering Coffer spawned!',
+          de: 'zuckende Schnapptruhe ist erschienen',
+          fr: 'Coffre gigotant apparaît !',
+          ja: 'ミミック！',
+          cn: '已生成 抖动的宝箱!',
+          ko: '꿈틀거리는 보물상자 등장!',
+          tc: '已生成 抖動的寶箱!',
+        },
+      },
+    },
+    {
+      id: 'HoH General Quivering Coffer Malice',
+      // same id regardless of which "type" of Quivering Coffer
+      // inflicts Accursed Pox (43F) if not interrupted
+      type: 'StartsUsing',
+      netRegex: { id: '3019', source: 'Quivering Coffer' },
+      response: Responses.interruptIfPossible(),
+    },
+    // ---------------- Pomanders and Magicite ----------------
+    {
+      id: 'HoH General Pomander Duplicate',
+      // duplicate pomander message: https://v2.xivapi.com/api/sheet/LogMessage/7222
+      // en: You return the pomander of ${pomander} to the coffer. You cannot carry any more of that item.
+      type: 'SystemLogMessage',
+      netRegex: { id: '1C36' },
+      infoText: (_data, matches, output) => {
+        switch (parseInt(matches.param1, 16)) {
+          case 1:
+            return output.duplicate!({ pomander: output.safety!() });
+          case 2:
+            return output.duplicate!({ pomander: output.sight!() });
+          case 3:
+            return output.duplicate!({ pomander: output.strength!() });
+          case 4:
+            return output.duplicate!({ pomander: output.steel!() });
+          case 5:
+            return output.duplicate!({ pomander: output.affluence!() });
+          case 6:
+            return output.duplicate!({ pomander: output.flight!() });
+          case 7:
+            return output.duplicate!({ pomander: output.alteration!() });
+          case 8:
+            return output.duplicate!({ pomander: output.purity!() });
+          case 9:
+            return output.duplicate!({ pomander: output.fortune!() });
+          case 10:
+            return output.duplicate!({ pomander: output.witching!() });
+          case 11:
+            return output.duplicate!({ pomander: output.serenity!() });
+          case 14:
+            return output.duplicate!({ pomander: output.intuition!() });
+          case 15:
+            return output.duplicate!({ pomander: output.raising!() });
+          case 17:
+            return output.duplicate!({ pomander: output.frailty!() });
+          case 18:
+            return output.duplicate!({ pomander: output.concealment!() });
+          case 19:
+            return output.duplicate!({ pomander: output.petrification!() });
+          default:
+            return output.duplicate!({ pomander: output.unknown!() });
+        }
+      },
+      outputStrings: {
+        duplicate: {
+          en: '${pomander} duplicate',
+          de: 'Doppelter ${pomander}',
+          fr: '${pomander} dupliquée',
+          ja: '${pomander} 被り',
+          cn: '${pomander} 重复',
+          ko: '${pomander} 중복',
+          tc: '${pomander} 重複',
+        },
+        // pomanders: https://v2.xivapi.com/api/sheet/DeepDungeonItem
+        safety: {
+          en: 'Safety',
+          de: 'Siegelbruchs',
+          fr: 'Désamorçage',
+          ja: '呪印解除',
+          cn: '咒印解除',
+          ko: '함정 해제',
+          tc: '咒印解除',
+        },
+        sight: {
+          en: 'Sight',
+          de: 'Sicht',
+          fr: 'Localisation',
+          ja: 'サイトロ',
+          cn: '全景',
+          ko: '사이트로',
+          tc: '全景',
+        },
+        strength: {
+          en: 'Strength',
+          de: 'Stärkung',
+          fr: 'Puissance',
+          ja: '自己強化',
+          cn: '强化自身',
+          ko: '자기 강화',
+          tc: '強化自身',
+        },
+        steel: {
+          en: 'Steel',
+          de: 'Abwehr',
+          fr: 'Protection',
+          ja: '防御強化',
+          cn: '强化防御',
+          ko: '방어 강화',
+          tc: '強化防禦',
+        },
+        affluence: {
+          en: 'Affluence',
+          de: 'Schätze',
+          fr: 'Décèlement',
+          ja: '宝箱増加',
+          cn: '宝箱增加',
+          ko: '보물상자 증가',
+          tc: '寶箱增加',
+        },
+        flight: {
+          en: 'Flight',
+          de: 'Feindtods',
+          fr: 'Sécurisation',
+          ja: '敵排除',
+          cn: '减少敌人',
+          ko: '적 감소',
+          tc: '減少敵人',
+        },
+        alteration: {
+          en: 'Alteration',
+          de: 'Feindwandlung',
+          fr: 'Affaiblissement',
+          ja: '敵変化',
+          cn: '改变敌人',
+          ko: '적 대체',
+          tc: '改變敵人',
+        },
+        purity: {
+          en: 'Purity',
+          de: 'Entzauberung',
+          fr: 'Anti-maléfice',
+          ja: '解呪',
+          cn: '解咒',
+          ko: '저주 해제',
+          tc: '解咒',
+        },
+        fortune: {
+          en: 'Fortune',
+          de: 'Glücks',
+          fr: 'Chance',
+          ja: '運気上昇',
+          cn: '运气上升',
+          ko: '운 상승',
+          tc: '運氣上升',
+        },
+        witching: {
+          en: 'Witching',
+          de: 'Wandlung',
+          fr: 'Mutation',
+          ja: '形態変化',
+          cn: '形态变化',
+          ko: '적 변형',
+          tc: '形態變化',
+        },
+        serenity: {
+          en: 'Serenity',
+          de: 'Enthexung',
+          fr: 'Dissipation',
+          ja: '魔法効果解除',
+          cn: '魔法效果解除',
+          ko: '마법 효과 해제',
+          tc: '魔法效果解除',
+        },
+        intuition: {
+          en: 'Intuition',
+          de: 'Finders',
+          fr: 'Intuition',
+          ja: '財宝感知',
+          cn: '感知宝藏',
+          ko: '보물 탐지',
+          tc: '感知寶藏',
+        },
+        raising: {
+          en: 'Raising',
+          de: 'Lebens',
+          fr: 'Résurrection',
+          ja: 'リレイズ',
+          cn: '重生',
+          ko: '리레이즈',
+          tc: '重生',
+        },
+        frailty: {
+          en: 'Frailty',
+          de: 'Feindschwächung',
+          fr: 'Incapacité',
+          ja: '敵弱体',
+          cn: '弱化敌人',
+          ko: '적 약화',
+          tc: '弱化敵人',
+        },
+        concealment: {
+          en: 'Concealment',
+          de: 'Verschwindens',
+          fr: 'Invisibilité',
+          ja: 'バニシュ',
+          cn: '隐形',
+          ko: '배니시',
+          tc: '隱形',
+        },
+        petrification: {
+          en: 'Petrification',
+          de: 'Feindversteinerung',
+          fr: 'Pétrification',
+          ja: '敵石化',
+          cn: '石化敌人',
+          ko: '적 석화',
+          tc: '石化敵人',
+        },
+        unknown: Outputs.unknown,
+      },
+    },
+    {
+      id: 'HoH General Magicite Duplicate',
+      // duplicate magicite message: https://v2.xivapi.com/api/sheet/LogMessage/9208
+      // en: You return the splinter of ${magicite} magicite to the coffer. You cannot carry any more of that item.
+      type: 'SystemLogMessage',
+      netRegex: { id: '23F8' },
+      infoText: (_data, matches, output) => {
+        switch (parseInt(matches.param1, 16)) {
+          case 1:
+            return output.duplicate!({ magicite: output.inferno!() });
+          case 2:
+            return output.duplicate!({ magicite: output.crag!() });
+          case 3:
+            return output.duplicate!({ magicite: output.vortex!() });
+          case 4:
+            return output.duplicate!({ magicite: output.elder!() });
+          default:
+            return output.duplicate!({ magicite: output.unknown!() });
+        }
+      },
+      outputStrings: {
+        duplicate: {
+          en: '${magicite} duplicate',
+          de: 'Doppelter ${magicite} Stein',
+          fr: '${magicite} dupliquée',
+          ja: '${magicite} 被り',
+          cn: '${magicite} 重复',
+          ko: '${magicite} 중복',
+          tc: '${magicite} 重複',
+        },
+        // magicite: https://v2.xivapi.com/api/sheet/DeepDungeonMagicStone
+        inferno: {
+          en: 'Inferno',
+          de: 'Ifrit',
+          fr: 'Ifrit',
+          ja: 'イフリート',
+          cn: '伊弗利特',
+          ko: '이프리트',
+          tc: '伊弗利特',
+        },
+        crag: {
+          en: 'Crag',
+          de: 'Titan',
+          fr: 'Titan',
+          ja: 'タイタン',
+          cn: '泰坦',
+          ko: '타이탄',
+          tc: '泰坦',
+        },
+        vortex: {
+          en: 'Vortex',
+          de: 'Garuda',
+          fr: 'Garuda',
+          ja: 'ガルーダ',
+          cn: '迦楼罗',
+          ko: '가루다',
+          tc: '迦樓羅',
+        },
+        elder: {
+          en: 'Elder',
+          de: 'Odin',
+          fr: 'Odin',
+          ja: 'オーディン',
+          cn: '奥丁',
+          ko: '오딘',
+          tc: '奧汀',
+        },
+        unknown: Outputs.unknown,
+      },
+    },
+    // ---------------- Floor Notifications ----------------
+    {
+      id: 'HoH General Beacon of Passage',
+      // portal to transfer between floors
+      // Beacon of Passage activation message: https://v2.xivapi.com/api/sheet/LogMessage/7245
+      // en: The Beacon of Passage is activated!
+      type: 'SystemLogMessage',
+      netRegex: { id: '1C4D', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Beacon of Passage activated',
+          de: 'Weglaterne aktiviert',
+          fr: 'La lanterne de téléportation s\'est activée !',
+          ja: '転移が出来ます',
+          cn: '转移灯笼已启动',
+          ko: '전송 등불 활성화',
+          tc: '傳送燈籠已啟動',
+        },
+      },
+    },
+  ],
+  timelineReplace: [
+    {
+      'locale': 'de',
+      'replaceSync': {
+        'Quivering Coffer': 'zuckend(?:e|er|es|en) Schnapptruhe',
+      },
+    },
+    {
+      'locale': 'fr',
+      'replaceSync': {
+        'Quivering Coffer': 'Coffre gigotant',
+      },
+    },
+    {
+      'locale': 'ja',
+      'replaceSync': {
+        'Quivering Coffer': 'うごめく宝箱',
+      },
+    },
+    {
+      'locale': 'cn',
+      'replaceSync': {
+        'Quivering Coffer': '抖动的宝箱',
+      },
+    },
+    {
+      'locale': 'tc',
+      'replaceSync': {
+        'Quivering Coffer': '抖動的寶箱',
+      },
+    },
+    {
+      'locale': 'ko',
+      'replaceSync': {
+        'Quivering Coffer': '꿈틀거리는 보물상자',
+      },
+    },
+  ],
+};
+
+export default triggerSet;

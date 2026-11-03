@@ -1,0 +1,74 @@
+name: Plugin tools and official plugins
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  plugins:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:official
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm test:official
+      - run: pnpm exec vite build --config examples/overlayplugin-fixture/vite.config.ts
+  codec:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings
+      - run: cargo test --locked --package plugin-protocol
+      - run: cargo test --locked --package mojito-package --features ffi
+      - run: cargo build --locked --release --package mojito-package --features ffi
+      - run: node scripts/package-cli-smoke.mjs
+      - run: python scripts/package-ffi-smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-package-${{ matrix.os }}
+          path: |
+            target/release/mojito-package
+            target/release/mojito-package.exe
+            target/release/mojito_package.dll
+            target/release/libmojito_package.so
+            target/release/libmojito_package.dylib
+            include/mojito_package.h
+            include/mojito_plugin_v1.h
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - run: node scripts/build-package-web.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-package-web
+          path: dist/package-web

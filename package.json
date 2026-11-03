@@ -1,0 +1,33 @@
+{
+  "name": "mojito-plugins",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.13.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm build:package && pnpm -r build",
+    "build:package": "cargo build --locked --release --package mojito-package",
+    "build:web": "node scripts/build-package-web.mjs",
+    "build:official": "pnpm build",
+    "pack:official": "node scripts/pack-official.mjs",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @ffcafe/mojito-raidboss typecheck:tests && tsc -p examples/tsconfig.json",
+    "test": "vitest run && node --test scripts/overlay-templates/*.test.mjs",
+    "test:package": "pnpm build:package && cargo test --locked --package plugin-protocol && cargo test --locked --package mojito-package --features ffi && cargo build --locked --release --package mojito-package --lib --features ffi && node scripts/package-cli-smoke.mjs && python3 scripts/package-ffi-smoke.py",
+    "test:official": "node --test scripts/pack-official.test.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^24.19.2",
+    "rimraf": "^6.1.3",
+    "semver": "7.8.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5",
+    "@ffcafe/mojito-plugin-sdk": "workspace:*"
+  }
+}

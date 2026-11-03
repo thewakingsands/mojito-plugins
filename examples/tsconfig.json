@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@ffcafe/mojito-plugin-sdk": ["../packages/plugin-sdk/src/index.ts"],
+      "@ffcafe/mojito-plugin-sdk/view": ["../packages/plugin-sdk/src/view.ts"]
+    },
+    "rootDir": "..",
+    "types": ["node", "vite/client"],
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["plugin-views/*.ts", "plugin-worker/entry.mjs", "overlayplugin-fixture/*.ts"]
+}

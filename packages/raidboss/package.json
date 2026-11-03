@@ -1,0 +1,20 @@
+{
+  "name": "@ffcafe/mojito-raidboss",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc && node scripts/copy-types.mjs",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.tests.json"
+  },
+  "dependencies": {
+    "@ffcafe/mojito-plugin-sdk": "workspace:*",
+    "json5": "2.2.3"
+  }
+}

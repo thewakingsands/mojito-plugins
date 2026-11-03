@@ -1,0 +1,5 @@
+# Biome formats with LF; keep working copies LF even where core.autocrlf is on.
+* text=auto eol=lf
+
+# Patch context preserves upstream whitespace and line endings.
+scripts/overlay-templates/*.patch whitespace=-blank-at-eol

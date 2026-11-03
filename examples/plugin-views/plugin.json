@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "ExampleViews",
+  "name": "Shared counter example",
+  "version": "1.0.0",
+  "apiVersion": "^1.5.0",
+  "entry": { "kind": "worker", "path": "entry.mjs" },
+  "capabilities": { "required": ["ui.register"], "optional": [] },
+  "networkOrigins": []
+}

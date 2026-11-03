@@ -1,0 +1,149 @@
+--- a/index.html
++++ b/index.html
+@@ -3,6 +3,12 @@
+ <head>
+     <link type="text/css" rel="stylesheet" href="css/fonts.css" />
+     <link type="text/css" rel="stylesheet" href="css/mopimopi.css" />
++    <style>
++        /* Keep navigation controls clickable above the table's native drag region. */
++        nav .btn_wrap, nav .btn_wrap * {
++            -webkit-app-region: no-drag;
++        }
++    </style>
+     <script type="text/javascript" src="js/common.min.js"></script>
+     <script src="js/jquery-3.2.1.min.js"></script>
+     <script type="text/javascript" src="js/jscolor.js"></script>
+--- a/js/core.js
++++ b/js/core.js
+@@ -348,6 +348,7 @@
+     }
+ }
+ function Person(e, p) {
++    this.overlayFields = new Set(Object.keys(e));
+     this.EncounterDuration = p.Encounter.duration;
+     this.parent = p;
+     this.Class = "";
+@@ -626,6 +627,7 @@
+     }
+ };
+ Person.prototype.merge = function (person) {
++    this.overlayFields = new Set([...this.overlayFields].filter(key => person.overlayFields.has(key)));
+     this.returnOrigin();
+     this.pets[person.name] = person;
+     for (var k in this.pets) {
+--- a/js/process.js
++++ b/js/process.js
+@@ -7,10 +7,13 @@
+     encounterCount = 1;
+ 
+ var onStopFlag = false;
++var currentEncounterKey = null, nextEncounterKey = 0;
+ 
+ function onOverlayDataUpdate(e) {
+     lastDPS = lastCombat
+     lastHPS = new Combatant(e, 'enchps');
++    if (lastDPS.isActive == 'true' && !onStopFlag) currentEncounterKey = 'encounter-' + (++nextEncounterKey);
++    if (currentEncounterKey) lastDPS.combatKey = lastHPS.combatKey = currentEncounterKey;
+ 
+     //console.log(lastDPS.isActive)
+     //console.log(onStopFlag)
+@@ -83,7 +86,14 @@
+         $('div[name=main' + _ + ']').html('<div id="HPSHeader' + _ + '"><div id="HPSoldHeader' + _ + '"></div></div><div id="HPSBody' + _ + '"><div id="HPSoldBody' + _ + '"></div></div><div id="DPSHeader' + _ + '"><div id="DPSoldHeader' + _ + '"></div></div><div id="DPSBody' + _ + '"><div id="DPSoldBody' + _ + '"></div></div>')
+         
+     if (lastDPS.Combatant["YOU"] == undefined && lastDPS.Combatant["YOU"] == null) {        
+-        $('[name=rps]').text(l.NAV.main.tt.rps[lang])
++        $('[name=rps]').text('Total DPS ' + addComma(lastDPS.Encounter.ENCDPS) + '　Total HPS ' + addComma(lastHPS.Encounter.ENCHPS) + '　Rank —')
++        if ((lastDPS.partys >= init.q.view24_Number && init.q.view24) || view == 'preview24') {
++            if (init.q.viewDPS == 1) onRaidCombatDataUpdate('DPS', lastDPS)
++            if (init.q.viewHPS == 1) onRaidCombatDataUpdate('HPS', lastHPS)
++        } else {
++            if (init.q.viewDPS == 1) onCombatDataUpdate('DPS', lastDPS)
++            if (init.q.viewHPS == 1) onCombatDataUpdate('HPS', lastHPS)
++        }
+     } else {
+         var rd = "Total DPS " + addComma(lastDPS.Encounter.ENCDPS) + "　"
+         var rh = "Total HPS " + addComma(lastHPS.Encounter.ENCHPS) + "　"
+@@ -135,7 +145,7 @@
+     ui()
+ }
+ function onRaidCombatDataUpdate(flag, last) {
+-    if (last.Combatant["YOU"] != undefined || last.Combatant["YOU"] != null) {
++    if (Object.keys(last.persons).length > 0) {
+         var row = $('<div class="rRow"></div>'),
+             set = 1,
+             newBody = $('<div id="' + flag + 'Body' + _ + '"></div>')
+@@ -178,7 +188,7 @@
+     return '<table id="' + userName + '" class="rCell"><tr><td rowspan="2" class="rIdx" style="background:' + graphColor(a.Class, a.role, userName) + '"></td><td class="rIcon">' + addData('Class', a.Class, a) + '</td><td class="rName">' + addData('name', a.name, a) + '</td></tr><tr><td colspan="2" class="rData">' + addData('enc' + flag.toLowerCase(), a['enc' + flag.toLowerCase()], a) + '</td></tr></table>'
+ }
+ function onCombatDataUpdate(flag, last) {
+-    if (last.Combatant["YOU"] != undefined || last.Combatant["YOU"] != null) {        
++    if (Object.keys(last.persons).length > 0) {
+         var Height = 0;
+         var tableHeader = document.getElementById(flag + "Header" + _);
+         var oldHeader = document.getElementById(flag + "oldHeader" + _);
+@@ -325,6 +335,14 @@
+         return name.split('(')[0] + '(YOU)';
+ }
+ function addData(colName, a, p) {
++    if (p && p.overlayFields && !['Class', 'name', 'duration', 'EncounterDuration'].includes(colName)) {
++        const ratios = { crithitPct: ['crithits', 'hits'], DirectHitPct: ['DirectHitCount', 'hits'], CritDirectHitPct: ['CritDirectHitCount', 'hits'], crithealPct: ['critheals', 'heals'], tohit: ['hits', 'swings'], healedPct: ['healed'], damagePct: ['damage'], overHealPct: ['overHeal', 'healed'] };
++        const source = colName.startsWith('merged') ? colName.slice(6) : colName;
++        const key = /^(DirectHitCount|CritDirectHitCount|Last)/.test(source) ? source : source[0].toLowerCase() + source.slice(1);
++        const required = ratios[colName] || (colName === 'maxhit' ? ['maxhit', 'MAXHIT'] : colName === 'maxheal' ? ['maxheal', 'MAXHEAL'] : [key]);
++        if (required.some(key => !p.overlayFields.has(key))) return '—';
++        if (typeof a === 'number' && !Number.isFinite(a)) return '—';
++    }
+     switch (colName) {
+         case 'Class':
+             if (a != undefined)
+@@ -444,7 +462,7 @@
+     }
+ }
+ function addComma(num, dd, ds) {
+-    if (num == 'NaN' || num == undefined || num == Infinity || num == '--') return 0;
++    if (num == 'NaN' || num == undefined || !Number.isFinite(Number(num)) || num == '--') return '—';
+     else {
+         if (dd == null) dd = 1
+         if (ds == null) ds = 0            
+@@ -476,7 +494,7 @@
+         var shield = Math.min(100, parseInt((p.mergedDamageShield / p.mergedHealed) * 100))
+     }
+     var width = graphAnimate(userWidth, 'bar', flag, userName, p.Class, p.role)
+-    $('#' + flag + 'Body' + _).find('#' + userName).find('.mini').css({
++    $('#' + flag + 'Body' + _).find('#' + $.escapeSelector(userName)).find('.mini').css({
+         width: width + '%',
+     })
+     if (init.q.pets == 1) {
+@@ -506,7 +524,7 @@
+     } else
+         var bg = graphColor(job, role, userName)
+     if (barSize[userName + bar + flag] == undefined) {
+-        $('#' + flag + 'Body' + _).find('#' + userName).find('.' + bar).css({
++        $('#' + flag + 'Body' + _).find('#' + $.escapeSelector(userName)).find('.' + bar).css({
+             width: 0 + '%',
+             background: bg,
+             opacity: parseFloat(init.Range[bar] / 100)
+@@ -515,20 +533,20 @@
+     } else {
+         if (isNaN(width))
+             barSize[userName + bar + flag] = 0;
+-        $('#' + flag + 'Body' + _).find('#' + userName).find('.' + bar).css({
++        $('#' + flag + 'Body' + _).find('#' + $.escapeSelector(userName)).find('.' + bar).css({
+             width: parseInt(barSize[userName + bar + flag]) + '%',
+             background: bg,
+             opacity: parseFloat(init.Range[bar] / 100)
+         });
+     }
+     if (init.q.ani == 1 && (view != 'settings')) {
+-        $('#' + flag + 'Body' + _).find('#' + userName).find('.' + bar).animate({
++        $('#' + flag + 'Body' + _).find('#' + $.escapeSelector(userName)).find('.' + bar).animate({
+             width: width + '%',
+             background: bg,
+             opacity: parseFloat(init.Range[bar] / 100)
+         });
+     } else {
+-        $('#' + flag + 'Body' + _).find('#' + userName).find('.' + bar).css({
++        $('#' + flag + 'Body' + _).find('#' + $.escapeSelector(userName)).find('.' + bar).css({
+             width: width + '%',
+             background: bg,
+             opacity: parseFloat(init.Range[bar] / 100)

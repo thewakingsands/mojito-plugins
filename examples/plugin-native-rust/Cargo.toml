@@ -1,0 +1,13 @@
+[package]
+name = "mojito-native-example"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+plugin-protocol = { path = "../../crates/plugin-protocol" }

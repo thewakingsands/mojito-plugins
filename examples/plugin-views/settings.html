@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>示例插件设置</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/host/mojito-base.css"><link rel="stylesheet" href="./theme-page-layout.css"></head>
+<body>
+  <h1>示例插件设置</h1>
+  <p class="mojito-secondary">这是插件提供的页面，用宿主的变量和基础样式，随宿主主题变化。</p>
+  <form class="mojito-panel">
+    <div class="mojito-field" data-preference="scope">
+      <div><label for="scope">统计范围</label><small>悬浮窗和记录里计入哪些人。</small></div>
+      <select id="scope"><option>小队</option><option>团队</option><option>所有玩家</option></select>
+    </div>
+    <div class="mojito-field" data-preference="hide">
+      <div><label for="hide">战斗外隐藏悬浮窗</label><small>脱战 10 秒后淡出。</small></div>
+      <input id="hide" type="checkbox" checked>
+    </div>
+    <div class="mojito-field" data-preference="split">
+      <div><label for="split">分段间隔</label><small>单位秒，0 表示整场不分段。</small></div>
+      <input id="split" type="number" value="30">
+    </div>
+  </form>
+  <p class="actions"><button type="button" data-variant="ghost">还原</button><button type="button" data-variant="primary">保存</button></p>
+  <script type="module" src="./theme-page.ts"></script>
+  <script type="module" src="./settings-page.ts"></script>
+</body>
+</html>

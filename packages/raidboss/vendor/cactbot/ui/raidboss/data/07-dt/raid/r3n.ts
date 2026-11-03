@@ -1,0 +1,376 @@
+import Outputs from '../../../../../resources/outputs';
+import { Responses } from '../../../../../resources/responses';
+import ZoneId from '../../../../../resources/zone_id';
+import { RaidbossData } from '../../../../../types/data';
+import { TriggerSet } from '../../../../../types/trigger';
+
+export type Data = RaidbossData;
+
+// MapEffect slots 01 - 08 are for the four towers.
+// MapEffect slot 09 is something to do with the referee, not important
+
+// Including headmarker data for savage reference
+const headMarkerData = {
+  // Vfx Path: com_share3t
+  stack: 'A1',
+  // Vfx Path: d1004turning_right_c0p
+  rotateClockwise: 'A7',
+  // Vfx Path: d1004turning_left_c0p
+  rotateCounterClockwise: 'A8',
+  // Vfx Path: m0676trg_tw_d0t1p
+  dualTankbuster: '103',
+} as const;
+console.assert(headMarkerData);
+
+const triggerSet: TriggerSet<Data> = {
+  id: 'AacLightHeavyweightM3',
+  zoneId: ZoneId.AacLightHeavyweightM3,
+  timelineFile: 'r3n.txt',
+  triggers: [
+    {
+      id: 'R3N Brutal Burn',
+      type: 'StartsUsing',
+      netRegex: { id: '9429', source: 'Brute Bomber', capture: true },
+      response: Responses.stackMarkerOn(),
+    },
+    {
+      id: 'R3N Brutal Impact',
+      type: 'StartsUsing',
+      netRegex: { id: '93D6', source: 'Brute Bomber', capture: false },
+      response: Responses.aoe(),
+    },
+    {
+      id: 'R3N Knuckle Sandwich',
+      type: 'StartsUsing',
+      netRegex: { id: '93D5', source: 'Brute Bomber', capture: true },
+      response: Responses.tankBuster(),
+    },
+    {
+      id: 'R3N Brutal Lariat 9AD4',
+      type: 'StartsUsing',
+      netRegex: { id: '9AD4', source: 'Brute Bomber', capture: false },
+      response: Responses.goEast(),
+    },
+    {
+      id: 'R3N Brutal Lariat 9AD5',
+      type: 'StartsUsing',
+      netRegex: { id: '9AD5', source: 'Brute Bomber', capture: false },
+      response: Responses.goWest(),
+    },
+    {
+      id: 'R3N Murderous Mist',
+      type: 'StartsUsing',
+      netRegex: { id: '93B5', source: 'Brute Bomber', capture: false },
+      response: Responses.getBehind(),
+    },
+    {
+      id: 'R3N Barbarous Barrage',
+      type: 'StartsUsing',
+      netRegex: { id: '93B2', source: 'Brute Bomber', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Knockback Towers',
+          de: 'Rückstoß Türme',
+          fr: 'Poussée depuis les tours',
+          ja: 'ノックバック 塔',
+          cn: '击退塔',
+          ko: '넉백 기둥',
+          tc: '擊退塔',
+        },
+      },
+    },
+    {
+      id: 'R3N Fire Spin Clockwise',
+      type: 'StartsUsing',
+      netRegex: { id: '93D0', source: 'Brute Bomber', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: Outputs.clockwise,
+      },
+    },
+    {
+      id: 'R3N Fire Spin Counterclockwise',
+      type: 'StartsUsing',
+      netRegex: { id: '93D1', source: 'Brute Bomber', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: Outputs.counterclockwise,
+      },
+    },
+    {
+      id: 'R3N Fuses of Fury',
+      type: 'StartsUsing',
+      netRegex: { id: '93B6', source: 'Brute Bomber', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'Long => Short',
+          de: 'Lange => Kurz',
+          fr: 'Long => Court',
+          ja: '導火線の長い方 => 短い方',
+          cn: '长引线 => 短引线',
+          ko: '도화선이 긴 쪽 => 짧은 쪽',
+          tc: '長引線 => 短引線',
+        },
+      },
+    },
+    {
+      id: 'R3N Lariat Combo East to West',
+      type: 'StartsUsing',
+      netRegex: { id: '9ADC', source: 'Brute Bomber', capture: false },
+      durationSeconds: 15,
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'East, then West',
+          de: 'Osten, dann Westen',
+          fr: 'Est, puis Ouest',
+          ja: '東、そして西',
+          cn: '右 => 左',
+          ko: '동쪽 => 서쪽',
+          tc: '東 => 西',
+        },
+      },
+    },
+    {
+      id: 'R3N Lariat Combo East to East',
+      type: 'StartsUsing',
+      netRegex: { id: '9ADD', source: 'Brute Bomber', capture: false },
+      durationSeconds: 15,
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'East, stay East',
+          de: 'Osten, bleib Osten',
+          fr: 'Est, restez à l\'Est',
+          ja: '東にそのまま',
+          cn: '右 => 待在同侧',
+          ko: '동쪽 => 동쪽 그대로',
+          tc: '東 => 待在同側',
+        },
+      },
+    },
+    {
+      id: 'R3N Lariat Combo West to East',
+      type: 'StartsUsing',
+      netRegex: { id: '9ADE', source: 'Brute Bomber', capture: false },
+      durationSeconds: 15,
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'West, then East',
+          de: 'Westen, dann Osten',
+          fr: 'Ouest, puis Est',
+          ja: '西、そして東',
+          cn: '左 => 右',
+          ko: '서쪽 => 동쪽',
+          tc: '西 => 東',
+        },
+      },
+    },
+    {
+      id: 'R3N Lariat Combo West to West',
+      type: 'StartsUsing',
+      netRegex: { id: '9ADF', source: 'Brute Bomber', capture: false },
+      durationSeconds: 15,
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: {
+          en: 'West, stay West',
+          de: 'Westen, bleib Westen',
+          fr: 'Ouest, restez à l\'Ouest',
+          ja: '西にそのまま',
+          cn: '左 => 待在同侧',
+          ko: '서쪽 => 서쪽 그대로',
+          tc: '西 => 待在同側',
+        },
+      },
+    },
+    {
+      id: 'R3N Infernal Spin Clockwise',
+      type: 'StartsUsing',
+      netRegex: { id: '9B42', source: 'Brute Bomber', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: Outputs.clockwise,
+      },
+    },
+    {
+      id: 'R3N Infernal Spin Counterclockwise',
+      type: 'StartsUsing',
+      netRegex: { id: '9B43', source: 'Brute Bomber', capture: false },
+      infoText: (_data, _matches, output) => output.text!(),
+      outputStrings: {
+        text: Outputs.counterclockwise,
+      },
+    },
+  ],
+  timelineReplace: [
+    {
+      'locale': 'de',
+      'replaceSync': {
+        'Brute Bomber': 'Brutalo Bomber',
+        'Lit Fuse': 'Zündschnurbombe',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(wirken)',
+        '\\(cones\\)': '(kegel)',
+        '\\(damage\\)': '(Schaden)',
+        '\\(long\\)': '(lange)',
+        '\\(short\\)': '(kurz)',
+        'Barbarous Barrage': 'Brutalo-Bomben',
+        'Brutal Burn': 'Brutalo-Feuer',
+        'Brutal Impact': 'Knallender Impakt',
+        'Brutal Lariat': 'Brutalo-Lariat',
+        'Doping Draught': 'Aufputschen',
+        'Explosion': 'Explosion',
+        'Explosive Rain': 'Bombenregen',
+        'Fire Spin': 'Feuertornado',
+        'Fuses of Fury': 'Zündschnurbomben',
+        'Infernal Spin': 'Ultimativer Feuertornado',
+        'Knuckle Sandwich': 'Knöchelschlag',
+        'Lariat Combo': 'Lariat-Kombination',
+        'Murderous Mist': 'Grüner Nebel',
+        'Self-destruct': 'Selbstzerstörung',
+      },
+    },
+    {
+      'locale': 'fr',
+      'replaceSync': {
+        'Brute Bomber': 'Brute Bomber',
+        'Lit Fuse': 'bombo à mèche',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(Incantation)',
+        '\\(cones\\)': '(Cônes)',
+        '\\(damage\\)': '(Dommages)',
+        '\\(long\\)': '(Long)',
+        '\\(short\\)': '(Court)',
+        'Barbarous Barrage': 'Bombardement brutal',
+        'Brutal Burn': 'Brûlure brutale',
+        'Brutal Impact': 'Impact brutal',
+        'Brutal Lariat': 'Lariat brutal',
+        'Doping Draught': 'Dopage',
+        'Explosion': 'Explosion',
+        'Explosive Rain': 'Pluie explosive',
+        'Fire Spin': 'Toupie enflammée',
+        'Fuses of Fury': 'Bombos à mèche',
+        'Infernal Spin': 'Toupie infernale',
+        'Knuckle Sandwich': 'Sandwich de poings',
+        'Lariat Combo': 'Combo de lariats',
+        'Murderous Mist': 'Vapeur venimeuse',
+        'Self-destruct': 'Auto-destruction',
+      },
+    },
+    {
+      'locale': 'ja',
+      'replaceSync': {
+        'Brute Bomber': 'ブルートボンバー',
+        'Lit Fuse': 'フューズボム',
+      },
+      'replaceText': {
+        'Barbarous Barrage': 'ボンバリアンボム',
+        'Brutal Burn': 'ブルートファイヤー',
+        'Brutal Impact': 'スマッシュインパクト',
+        'Brutal Lariat': 'ブルートラリアット',
+        'Doping Draught': 'ドーピング',
+        'Explosion': '爆発',
+        'Explosive Rain': 'ボムレイン',
+        'Fire Spin': 'スピニングファイヤー',
+        'Fuses of Fury': 'フューズボム',
+        'Infernal Spin': '極盛り式スピニングファイヤー',
+        'Knuckle Sandwich': 'ナックルパート',
+        'Lariat Combo': 'ラリアットコンビネーション',
+        'Murderous Mist': 'グリーンミスト',
+        'Self-destruct': '自爆',
+      },
+    },
+    {
+      'locale': 'cn',
+      'replaceSync': {
+        'Brute Bomber': '野蛮爆弹',
+        'Lit Fuse': '引线爆弹怪',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(咏唱)',
+        '\\(cones\\)': '(锥形)',
+        '\\(damage\\)': '(伤害)',
+        '\\(long\\)': '(长)',
+        '\\(short\\)': '(短)',
+        'Barbarous Barrage': '野蛮爆炸',
+        'Brutal Burn': '野蛮灼烧',
+        'Brutal Impact': '野蛮碎击',
+        'Brutal Lariat': '野蛮碎颈臂',
+        'Doping Draught': '打药',
+        'Explosion': '爆炸',
+        'Explosive Rain': '爆弹雨',
+        'Fire Spin': '野蛮旋火',
+        'Fuses of Fury': '引线爆弹',
+        'Infernal Spin': '超华丽野蛮旋火',
+        'Knuckle Sandwich': '拳面猛击',
+        'Lariat Combo': '碎颈臂连击',
+        'Murderous Mist': '致命毒雾',
+        'Self-destruct': '自爆',
+      },
+    },
+    {
+      'locale': 'tc',
+      'replaceSync': {
+        'Brute Bomber': '野蠻炸彈',
+        'Lit Fuse': '引信炸彈',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(詠唱)',
+        '\\(cones\\)': '(錐形)',
+        '\\(damage\\)': '(傷害)',
+        '\\(long\\)': '(長)',
+        '\\(short\\)': '(短)',
+        'Barbarous Barrage': '野蠻爆炸',
+        'Brutal Burn': '野蠻灼燒',
+        'Brutal Impact': '野蠻碎擊',
+        'Brutal Lariat': '野蠻金臂鉤',
+        'Doping Draught': '服用禁藥',
+        'Explosion': '爆炸',
+        'Explosive Rain': '炸彈雨',
+        'Fire Spin': '野蠻旋火',
+        'Fuses of Fury': '引信炸彈',
+        'Infernal Spin': '超華麗野蠻旋火',
+        'Knuckle Sandwich': '拳面猛擊',
+        'Lariat Combo': '金臂鉤連擊',
+        'Murderous Mist': '致命毒霧',
+        'Self-destruct': '自爆',
+      },
+    },
+    {
+      'locale': 'ko',
+      'replaceSync': {
+        'Brute Bomber': '브루트 봄버',
+        'Lit Fuse': '불붙은 봄',
+      },
+      'replaceText': {
+        '\\(cast\\)': '(시전)',
+        '\\(cones\\)': '(장판)',
+        '\\(damage\\)': '(피해)',
+        '\\(long\\)': '(긴)',
+        '\\(short\\)': '(짧은)',
+        'Barbarous Barrage': '봄버리안 봄',
+        'Brutal Burn': '비열한 화염',
+        'Brutal Impact': '비열한 내리치기',
+        'Brutal Lariat': '비열한 후려갈기기',
+        'Doping Draught': '도핑',
+        'Explosion': '폭발',
+        'Explosive Rain': '봄 세례',
+        'Fire Spin': '회전 불 뿜기',
+        'Fuses of Fury': '불붙은 봄',
+        'Infernal Spin': '회전 지옥불 뿜기',
+        'Knuckle Sandwich': '비열한 주먹질',
+        'Lariat Combo': '연속 후려갈기기',
+        'Murderous Mist': '녹색 안개',
+        'Self-destruct': '자폭',
+      },
+    },
+  ],
+};
+
+export default triggerSet;

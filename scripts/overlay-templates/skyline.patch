@@ -1,0 +1,259 @@
+--- a/src/api/modules/injectExtendData.ts
++++ b/src/api/modules/injectExtendData.ts
+@@ -37,7 +37,8 @@
+ }
+ 
+ function getIntField(data: AnyRecord | null, ...keys: string[]) {
+-  return getInt(getStringField(data, ...keys));
++  const raw = getStringField(data, ...keys);
++  return raw.trim() === '' || !Number.isFinite(Number(raw)) ? NaN : getInt(raw);
+ }
+ 
+ /**
+@@ -118,14 +119,14 @@
+ function parsePlayer(input: unknown): CombatantData {
+   const data = asRecord(input);
+ 
+-  let [maxHit, maxHitDamage] = ['', 0];
++  let [maxHit, maxHitDamage] = ['', NaN];
+   const maxHitData = getStringField(data, 'maxhit').split('-');
+   if (maxHitData.length > 1) {
+     maxHit = maxHitData[0];
+     maxHitDamage = getInt(maxHitData[1]);
+   }
+ 
+-  let [maxHeal, maxHealDamage] = ['', 0];
++  let [maxHeal, maxHealDamage] = ['', NaN];
+   const maxHealData = getStringField(data, 'maxheal').split('-');
+   if (maxHealData.length > 1) {
+     maxHeal = maxHealData[0];
+@@ -170,7 +171,7 @@
+     overHeal: getIntField(data, 'overHeal'),
+     overHealPct: getStringField(data, 'OverHealPct'),
+     shield,
+-    shieldPct: `${Math.round((shield / healed || 0) * getPctNum(healedPct)) || 0}%`,
++    shieldPct: Number.isFinite(shield) && healed > 0 && healedPct ? `${Math.round((shield / healed) * getPctNum(healedPct))}%` : '—',
+ 
+     maxHit,
+     maxHitDamage,
+--- a/src/api/utils/adder.ts
++++ b/src/api/utils/adder.ts
+@@ -4,6 +4,7 @@
+   if (!args.length) {
+     return 0;
+   }
++  if (args.some(value => !Number.isFinite(value))) return NaN;
+   let sum = 0;
+   for (let i = 0; i < args.length; i++) {
+     sum += args[i] || 0;
+@@ -15,6 +16,7 @@
+  * damagePct, healsPct, etc.
+  */
+ export function addPct(...args: string[]) {
++  if (args.some(value => !/^\d+(\.\d+)?%$/.test(value))) return '—';
+   if (!args.length) {
+     return '0%';
+   }
+@@ -34,6 +36,7 @@
+  * directHitPct, critHitPct, etc.
+  */
+ export function addHitPct(...args: HitData[]) {
++  if (args.some(value => !Number.isFinite(value.hits) || !Number.isFinite(value.totalHits))) return { hits: NaN, hitPct: '—' };
+   if (!args.length) {
+     return { hits: 0, hitPct: '0%' };
+   }
+@@ -43,7 +46,8 @@
+     numerator += args[i].hits || 0;
+     denominator += args[i].totalHits || 0;
+   }
+-  if (denominator === 0 || numerator === 0) {
++  if (denominator === 0) return { hits: numerator, hitPct: '—' };
++  if (numerator === 0) {
+     return { hits: 0, hitPct: '0%' };
+   }
+   return {
+@@ -53,6 +57,7 @@
+ }
+ 
+ export function addOverHealPct(...args: string[]) {
++  if (args.some(value => !/^\d+(\.\d+)?%$/.test(value))) return '—';
+   if (!args.length) {
+     return '0%';
+   }
+@@ -79,6 +84,7 @@
+  * maxHit, maxHeal, etc.
+  */
+ export function addMax(...args: MaxHitData[]): MaxHitData {
++  if (args.some(value => !Number.isFinite(value.hitDamage))) return { hit: '', hitDamage: NaN };
+   if (!args.length) {
+     return { hit: '', hitDamage: 0 };
+   }
+--- a/src/utils/formatters.ts
++++ b/src/utils/formatters.ts
+@@ -10,6 +10,8 @@
+   if (typeof number !== 'number') {
+     number = Number(number);
+   }
++
++  if (!Number.isFinite(number)) return '—';
+ 
+   if (!shortNumber) {
+     return number ? `${number}` : '0';
+--- a/src/views/Encounter.tsx
++++ b/src/views/Encounter.tsx
+@@ -74,7 +74,7 @@
+   const handleSwitchDHPS = useCallback(() => {
+     setShowDHPS((prev) => (prev === 'dps' ? 'hps' : 'dps'));
+   }, []);
+-  const totalDPS = encounter[showDHPS] || 0;
++  const totalDPS = encounter[showDHPS] ?? NaN;
+ 
+   return (
+     <div
+--- a/src/views/CombatantContent.tsx
++++ b/src/views/CombatantContent.tsx
+@@ -26,9 +26,9 @@
+   const dispContent = useAppSelector((state) => state.settings.dispContent);
+   const shortNumber = useAppSelector((state) => state.settings.shortNumber);
+ 
+-  const leftDisp = (player as CombatantData)[dispContent.left] || 0;
++  const leftDisp = (player as CombatantData)[dispContent.left] ?? NaN;
+   const leftDispUnit = MAP_DISPLAY_CONTENT[dispContent.left].data.unit;
+-  const rightDisp = (player as CombatantData)[dispContent.right] || 0;
++  const rightDisp = (player as CombatantData)[dispContent.right] ?? NaN;
+   const rightDispUnit = MAP_DISPLAY_CONTENT[dispContent.right].data.unit;
+ 
+   // detail controls controllers
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -4,7 +4,6 @@
+ 
+ import { CombatantData, LimitBreakData } from './api';
+ import { useAppSelector } from './hooks';
+-import SW from './SW';
+ import { fmtMergePet } from './utils/formatters';
+ import { cloneDeep } from './utils/lodash';
+ import Combatant from './views/Combatant';
+@@ -75,19 +74,9 @@
+           </div>
+         )}
+       </div>
+-      {layoutMode === 'reverse' && (
+-        <div className='container'>
+-          <SW />
+-        </div>
+-      )}
+       <div className='container' style={opacityStyle}>
+         <Encounter />
+       </div>
+-      {layoutMode !== 'reverse' && (
+-        <div className='container'>
+-          <SW />
+-        </div>
+-      )}
+       <div className='container'>
+         <Settings />
+       </div>
+--- a/src/components/SList.tsx
++++ b/src/components/SList.tsx
+@@ -17,19 +17,22 @@
+     <div className={clsx('s-list', className)}>
+       {items.map((section, idx) => (
+         <div className='s-list-section' key={idx}>
+-          {section.map((row) => (
++          {section.map((row) => {
++            const unavailable = row.value === null || row.value === undefined || row.value === '' || row.value === '—' || (typeof row.value === 'number' && !Number.isFinite(row.value));
++            const value = unavailable ? '—' : row.value;
++            return (
+             <div className='s-list-row' key={row.key}>
+               <span>{row.key}</span>
+               {row.pct ? (
+                 <div className='s-list-row-pct'>
+-                  <span className='g-number'>{((row.value || '0') as string).split('%')[0]}</span>
+-                  <span className='g-counter'>%</span>
++                  <span className='g-number'>{String(value).split('%')[0]}</span>
++                  {!unavailable && <span className='g-counter'>%</span>}
+                 </div>
+               ) : (
+-                <span>{row.value}</span>
++                <span>{value}</span>
+               )}
+             </div>
+-          ))}
++          ); })}
+         </div>
+       ))}
+     </div>
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -1,7 +1,6 @@
+ import react from '@vitejs/plugin-react';
+ import { defineConfig } from 'vite';
+ import { analyzer } from 'vite-bundle-analyzer';
+-import { VitePWA } from 'vite-plugin-pwa';
+ import svgr from 'vite-plugin-svgr';
+ 
+ /**
+@@ -27,58 +26,15 @@
+     analyzer({
+       enabled: process.env.ENABLE_ANALYZER === '1',
+     }),
+-    VitePWA({
+-      // devOptions: {
+-      //   enabled: true,
+-      // },
+-      manifest: {
+-        name: 'Skyline Overlay',
+-        short_name: 'Skyline',
+-        description: 'A modern customizable horizon FFXIV miniparse overlay.',
+-        icons: [{ src: 'favicon.svg', sizes: 'any' }],
+-        theme_color: '#ffffff',
+-      },
+-      workbox: {
+-        runtimeCaching: [
+-          // google fonts css
+-          {
+-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+-            handler: 'CacheFirst',
+-            options: {
+-              cacheName: 'googleapis-fonts-cache',
+-              expiration: { maxEntries: 10, maxAgeSeconds: 86400 }, // only one css loaded
+-              cacheableResponse: { statuses: [0, 200] },
+-            },
+-          },
+-          // google fonts webfonts
+-          {
+-            urlPattern: /^https?:\/\/fonts\.gstatic\.com\/.*/i,
+-            handler: 'CacheFirst',
+-            options: {
+-              cacheName: 'gstatic-fonts-cache',
+-              expiration: { maxEntries: 500, maxAgeSeconds: 31556952 }, // google's css has (14+10+349) files
+-              cacheableResponse: { statuses: [0, 200] },
+-            },
+-          },
+-          // misans webfonts
+-          {
+-            urlPattern: /^https?:\/\/.*\/fonts\/misans-.*.woff2.*/i,
+-            handler: 'CacheFirst',
+-            options: {
+-              cacheName: 'misans-fonts-cache',
+-              expiration: { maxEntries: 2, maxAgeSeconds: 31556952 }, // misans only has 1 files
+-              cacheableResponse: { statuses: [0, 200] },
+-            },
+-          },
+-        ],
+-      },
+-    }),
++
+   ],
+   css: {
+     devSourcemap: true,
+   },
+   build: {
+-    sourcemap: true,
++    sourcemap: false,
++    cssCodeSplit: false,
++    rolldownOptions: { output: { codeSplitting: false } },
+     emptyOutDir: true,
+   },
+ });

@@ -1,0 +1,35 @@
+/* Layout of the home and settings examples; colours and controls come from /host/mojito-base.css (MJT-85) */
+body {
+  display: grid;
+  gap: var(--mojito-space-group);
+  align-content: start;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--mojito-space-group);
+}
+.stats > .mojito-panel {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+}
+.stats strong {
+  font-size: var(--mojito-text-xl);
+  font-variant-numeric: tabular-nums;
+}
+#split {
+  width: 88px;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* The setting the user chose in the host's settings search or Ctrl K; the panel clips it to its corners */
+form.mojito-panel {
+  overflow: hidden;
+}
+.mojito-field[data-highlighted] {
+  background: var(--mojito-ok-bg);
+}

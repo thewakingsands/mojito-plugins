@@ -1,0 +1,158 @@
+[
+  {
+    "name": "null",
+    "hex": "c0",
+    "type": "null",
+    "value": null
+  },
+  {
+    "name": "false",
+    "hex": "c2",
+    "type": "boolean",
+    "value": false
+  },
+  {
+    "name": "number-one",
+    "hex": "01",
+    "type": "number",
+    "value": 1
+  },
+  {
+    "name": "number-negative",
+    "hex": "d0df",
+    "type": "number",
+    "value": -33
+  },
+  {
+    "name": "uint32-number",
+    "hex": "ceffffffff",
+    "type": "number",
+    "value": 4294967295
+  },
+  {
+    "name": "number-over-uint32",
+    "hex": "cb41f0000000000000",
+    "type": "number",
+    "value": 4294967296
+  },
+  {
+    "name": "number-at-2pow53",
+    "hex": "cb4340000000000000",
+    "type": "number",
+    "value": 9007199254740992
+  },
+  {
+    "name": "bigint-zero",
+    "hex": "cf0000000000000000",
+    "type": "bigint",
+    "value": "0"
+  },
+  {
+    "name": "bigint-one",
+    "hex": "cf0000000000000001",
+    "type": "bigint",
+    "value": "1"
+  },
+  {
+    "name": "int64-min",
+    "hex": "d38000000000000000",
+    "type": "bigint",
+    "value": "-9223372036854775808"
+  },
+  {
+    "name": "uint64-max",
+    "hex": "cfffffffffffffffff",
+    "type": "bigint",
+    "value": "18446744073709551615"
+  },
+  {
+    "name": "string",
+    "hex": "a3616263",
+    "type": "string",
+    "value": "abc"
+  },
+  {
+    "name": "binary",
+    "hex": "c40200ff",
+    "type": "binary",
+    "value": [0, 255]
+  },
+  {
+    "name": "named-bin",
+    "hex": "81a464617461c40200ff",
+    "type": "map",
+    "value": {
+      "data": {
+        "type": "binary",
+        "value": [0, 255]
+      }
+    }
+  },
+  {
+    "name": "nested-integers",
+    "hex": "9201cf0000000000000001",
+    "type": "array",
+    "value": [
+      {
+        "type": "number",
+        "value": 1
+      },
+      {
+        "type": "bigint",
+        "value": "1"
+      }
+    ]
+  },
+  {
+    "name": "error-dto",
+    "hex": "83a4636f6465a963616e63656c6c6564a76d657373616765a973796e746865746963a9726574727961626c65c2",
+    "type": "map",
+    "value": {
+      "code": {
+        "type": "string",
+        "value": "cancelled"
+      },
+      "message": {
+        "type": "string",
+        "value": "synthetic"
+      },
+      "retryable": {
+        "type": "boolean",
+        "value": false
+      }
+    }
+  },
+  {
+    "name": "ack-envelope",
+    "hex": "85ac61637469766174696f6e4964a161a76261746368496401a46b696e64a361636ba870726f746f636f6c01ae737562736372697074696f6e4964a173",
+    "type": "map",
+    "value": {
+      "activationId": {
+        "type": "string",
+        "value": "a"
+      },
+      "batchId": {
+        "type": "number",
+        "value": 1
+      },
+      "kind": {
+        "type": "string",
+        "value": "ack"
+      },
+      "protocol": {
+        "type": "number",
+        "value": 1
+      },
+      "subscriptionId": {
+        "type": "string",
+        "value": "s"
+      }
+    }
+  },
+  {
+    "name": "empty-map-optional-omission",
+    "hex": "80",
+    "type": "map",
+    "value": {}
+  }
+]
