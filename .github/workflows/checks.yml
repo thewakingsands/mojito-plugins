@@ -129,7 +129,7 @@ jobs:
           path: dist/package-web
   deploy-pages:
     needs: web
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.web.result == 'success'
+    if: vars.PAGES_DEPLOY_ENABLED == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.web.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: read

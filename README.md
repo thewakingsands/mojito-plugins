@@ -87,6 +87,7 @@ dependencies do not trigger these jobs. Changes to the checks workflow trigger b
 
 The browser verifier is built into `dist/package-web` with relative Worker and WASM
 URLs, so it works under the `/mojito-plugins/` Pages path. On relevant pushes to `main`,
-CI uploads this directory and deploys it through the `github-pages` environment.
-Enable Pages with GitHub Actions as its source and allow `main` in that environment
-before deployment; the workflow does not enable repository settings automatically.
+CI uploads this directory. Deployment through the `github-pages` environment is
+enabled only when the repository variable `PAGES_DEPLOY_ENABLED` is `true`. Enable
+Pages with GitHub Actions as its source, allow `main` in that environment, and authorize
+deployment before setting that variable; the workflow does not enable settings automatically.
