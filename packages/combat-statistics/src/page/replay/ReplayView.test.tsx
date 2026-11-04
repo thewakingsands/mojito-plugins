@@ -222,6 +222,31 @@ it('draws the members on the map at their positions as the time moves', async ()
   }
 })
 
+it('draws a pane for each place the members are at', async () => {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+  const seconds = Array.from({ length: 11 }, (_, i) => i * 1000)
+  try {
+    await open(
+      replayData({
+        fight: { visitId: 'v', fightId: 'f', durationMs: 10_000 },
+        actors: [
+          member(0, 19, '骑士', track(seconds.map((t) => [t, 0, 0]))),
+          member(1, 24, '白魔', track(seconds.map((t) => [t, t < 5000 ? 200 : 5, 0]))),
+        ],
+      }),
+    )
+    const panes = () => [...document.querySelectorAll('.map-pane')]
+    expect(document.querySelector('.map-wrapper.split')).toBeTruthy()
+    expect(panes().map((pane) => pane.querySelectorAll('.map-member').length)).toEqual([1, 1])
+    for (let second = 0; second < 6; second++) fireEvent.keyDown(document, { key: 'ArrowRight' })
+    expect(document.querySelector('.map-wrapper.split')).toBeNull()
+    expect(panes().map((pane) => pane.querySelectorAll('.map-member').length)).toEqual([2])
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
 it('keeps the skill icons of the lanes in place while playback scrolls the window', async () => {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
@@ -493,6 +518,8 @@ const potencyData = (() => {
     potency: 200,
     multiplier: buffed ? 1.1 : 1,
     factors: buffed ? [{ statusId: 100, source: 1, holder: 'caster', value: 1.1 }] : [],
+    critical: false,
+    direct: false,
   })
   const potency: PotencySample[] = []
   for (let t = 0; t < 60_000; t += 2500) {
@@ -534,7 +561,7 @@ it('draws the damage per second and the damage per potency, for the members that
   // Only the white mage: no samples
   press(chip('白魔'))
   expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
-  expect(screen.getByText('没有每威力数据：记录时宿主没有提供，或选中的角色没有命中校准技能')).toBeTruthy()
+  expect(screen.getByText('没有每威力数据：记录时宿主没有提供，或选中的角色没有可推断威力的命中')).toBeTruthy()
   // The bard was picked; chosen with the knight again, the knight is the default
   press(chip('骑士'))
   press(chip('诗人'))
@@ -570,6 +597,49 @@ it('seeks on a click and selects a span on a drag over the curves', async () => 
     fireEvent.pointerMove(document, { clientX: 300 })
     fireEvent.pointerUp(document, { clientX: 300 })
     expect(document.querySelector('.filter-bar .span-chip')!.textContent).toContain('0:10.0 – 0:30.0')
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('tells the critical bonus, the critical hits left out and how the nearest sample was converted', async () => {
+  // Every other hit of the knight is critical with a bonus of 1.6, the third one direct; one of the bard is critical
+  const sample = (t: number, actor: number, critical: boolean, direct = false): PotencySample => ({
+    t,
+    actor,
+    target: 3,
+    actionId: 9,
+    amount: 10_000 * (critical ? 1.6 : 1) * (direct ? 1.25 : 1),
+    potency: 200,
+    multiplier: 1,
+    factors: [],
+    critical,
+    direct,
+  })
+  const potency: PotencySample[] = []
+  for (let index = 0; index < 24; index++) potency.push(sample(index * 2500, 0, index % 2 === 1, index === 2))
+  potency.push(sample(1000, 2, false), sample(2000, 2, true), sample(3000, 2, false))
+  const rect = HTMLElement.prototype.getBoundingClientRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (!this.classList.contains('curve')) return rect.call(this)
+    return { ...rect.call(this), left: 0, width: 600 }
+  })
+  try {
+    await open({ ...data, potency: potency.sort((a, b) => a.t - b.t) })
+    expandTimeline()
+    const lane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
+    // 100 ms a pixel: the critical hit at 2.5 seconds, then the direct one at 5 seconds
+    fireEvent.pointerMove(lane(), { clientX: 25 })
+    expect(lane().textContent).toContain('每威力 50.0 · 暴击换算')
+    expect(lane().textContent).toContain('暴击倍率 1.60（本场实测）')
+    expect(lane().textContent).not.toContain('暴击样本不足')
+    fireEvent.pointerMove(lane(), { clientX: 50 })
+    expect(lane().textContent).toContain('每威力 50.0 · 直击换算')
+
+    fireEvent.change(potencySelect(), { target: { value: '2' } })
+    fireEvent.pointerMove(lane(), { clientX: 20 })
+    expect(lane().textContent).toContain('暴击样本不足，未计入 1 个暴击命中')
+    expect(lane().textContent).not.toContain('暴击倍率')
   } finally {
     vi.restoreAllMocks()
   }

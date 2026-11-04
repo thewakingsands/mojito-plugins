@@ -312,7 +312,7 @@ it('collects the potency samples of members in the fight, with the indices of th
           { statusId: 2000, sourceId: 77, holder: 'target', value: 1.05 },
         ],
       }),
-      potencySample(11_000, 2, { targetId: 77 }),
+      potencySample(11_000, 2, { targetId: 77, critical: true, direct: true }),
       // A pet, an enemy, no potency, and after the end the builder was given
       potencySample(11_500, 3),
       potencySample(11_600, 9),
@@ -337,6 +337,8 @@ it('collects the potency samples of members in the fight, with the indices of th
       amount: 9000,
       potency: 200,
       multiplier: 1,
+      critical: true,
+      direct: true,
       factors: [],
     },
     {
@@ -347,6 +349,9 @@ it('collects the potency samples of members in the fight, with the indices of th
       amount: 9000,
       potency: 200,
       multiplier: 1.272,
+      // A host before the flags gives neither
+      critical: false,
+      direct: false,
       factors: [
         { statusId: 1878, source: index(2), holder: 'caster', value: 1.06 },
         { statusId: 0, source: null, holder: 'caster', value: 1.2 },

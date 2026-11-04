@@ -179,13 +179,16 @@ require slot tracking should require `apiVersion: "^1.7.0"`.
 
 ### Potency samples
 
-`potencySample` gives the hits the host measures the damage per potency with: hits of a
-calibration action (usually the main combo or cast of a job) that are neither critical
-nor direct, nor forced to be, on the first target, while the level of the caster is known.
-`amount ÷ potency` is the damage per potency; `multiplier` is the product of the damage
-multipliers the host knows, and `factors` lists them with the status, its source and
-whether the caster or the target holds it (`statusId` 0 is a modifier of the gauge).
-Samples are sparse: a member gives one every few seconds.
+`potencySample` gives the hits the host measures the damage per potency with: hits of
+the actions of each job that have a fixed potency, on the first target, while the level of
+the caster is known. `potency` already follows the combo and the position of the hit. Hits
+forced to be critical or direct, and hits under a status that adds potency, are left out.
+Critical and direct hits are included: `critical` and `direct` tell them apart, and their
+`amount` carries the critical or direct hit bonus. Plugin API 1.8.0 adds the two fields;
+an older host gives samples of hits that are neither critical nor direct only, without
+them. `amount ÷ potency` is the damage per potency; `multiplier` is the product of the
+damage multipliers the host knows, and `factors` lists them with the status, its source
+and whether the caster or the target holds it (`statusId` 0 is a modifier of the gauge).
 
 The event comes with the packet of its actionEffect and is not sent without one. It is
 available while the periodic model is: otherwise the subscription fails with

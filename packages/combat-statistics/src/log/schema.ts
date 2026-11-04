@@ -399,7 +399,8 @@ function eventRows(event: LogEvent): Row[] {
     case 'potencySample': {
       const { data } = event
       // A potency row takes the columns of the sample by their meaning where it can; retained holds the potency and
-      // unknown the multiplier the host knows. Each factor row that follows holds the source in actor, the
+      // unknown the multiplier the host knows. A host older than Plugin API 1.8.0 gives neither critical nor direct,
+      // and only samples that are neither. Each factor row that follows holds the source in actor, the
       // multiplier in amount, and in flag whether the target holds the status.
       const { potency, multiplier } = data
       return [
@@ -413,6 +414,8 @@ function eventRows(event: LogEvent): Row[] {
           amount: data.amount,
           retained: potency,
           unknown: multiplier,
+          crit: data.critical === true,
+          direct: data.direct === true,
         },
         ...data.factors.map((factor): Row => {
           const onTarget = factor.holder === 'target'
@@ -825,6 +828,9 @@ export class Assembler {
               potency,
               multiplier,
               factors: [],
+              // Logs before the flags have them empty, and their samples are neither
+              critical: bool(row, 'crit') === true,
+              direct: bool(row, 'direct') === true,
             },
           }),
         )

@@ -2,9 +2,10 @@ import { memo, type RefObject, useLayoutEffect, useMemo, useRef, useState } from
 import type { ReplayActor, ReplayData } from '../../view-model.js'
 import { percent } from '../format.js'
 import { JobIcon } from '../icons.js'
-import { gridLines, mapBounds, project } from './bounds.js'
+import { type Box, fitBounds, gridLines, project } from './bounds.js'
 import { ringRotation } from './facing.js'
 import { actorName } from './parts.js'
+import { buildMapScene, deathTimes, enemyPane, type MapPane, paneLayout, sceneAt } from './scene.js'
 import { enemyShown, isDown, memberShown, poseAt } from './tracks.js'
 
 const MEMBER_SIZE = 30
@@ -55,45 +56,26 @@ export function EnemyMarker(props: { actor: ReplayActor; x: number; y: number; r
   )
 }
 
-/** The positions of the members and enemies at the time, projected on a blank map */
-export const ReplayMap = memo(function ReplayMap(props: {
+/** One place on the map, scaled to fit the actors there */
+function MapPaneView(props: {
   data: ReplayData
+  pane: MapPane
+  panes: readonly MapPane[]
+  box: Box
+  place: { left: number; top: number; width: number; height: number }
   time: number
+  deaths: ReadonlyMap<number, readonly number[]>
   chosen: ReadonlySet<number>
+  single: boolean
   showNames: boolean
   names: Record<string, string>
 }) {
-  const { data, time, chosen } = props
-  // Measured here rather than by the parent: a parent's ref is still unset when this child's layout effect runs on mount
-  const wrapper = useRef<HTMLDivElement>(null)
-  const { width, height } = useSize(wrapper)
-  const shown = useMemo(() => data.actors.filter((actor) => actor.kind !== 'pet'), [data])
-  const bounds = useMemo(
-    () =>
-      mapBounds(
-        shown.map((actor) => actor.track),
-        width,
-        height,
-      ),
-    [shown, width, height],
-  )
-  const deaths = useMemo(() => {
-    const result = new Map<number, number[]>()
-    for (const event of data.events)
-      if (event.kind === 'death' || event.kind === 'bossDown')
-        result.set(event.actor, [...(result.get(event.actor) ?? []), event.t])
-    return result
-  }, [data])
-  if (!bounds)
-    return (
-      <div className="map-wrapper" ref={wrapper}>
-        <p className="placeholder map-empty">这场战斗没有位置记录</p>
-      </div>
-    )
+  const { data, pane, time, deaths, chosen } = props
+  const { left, top, width, height } = props.place
+  const bounds = fitBounds(props.box, width, height)
   const at = (x: number, z: number) => project(bounds, width, height, x, z)
-  const single = chosen.size === 1
   return (
-    <div className="map-wrapper" ref={wrapper}>
+    <div className="map-pane" style={{ left, top, width, height }}>
       <svg className="map" width={width} height={height}>
         <title>位置</title>
         {gridLines(bounds.minX, bounds.maxX).map((x) => (
@@ -102,17 +84,18 @@ export const ReplayMap = memo(function ReplayMap(props: {
         {gridLines(bounds.minZ, bounds.maxZ).map((z) => (
           <line key={`z${z}`} className="grid" x1={0} x2={width} y1={at(0, z)[1]} y2={at(0, z)[1]} />
         ))}
-        {shown.map((actor) => {
+        {data.actors.map((actor) => {
           if (actor.kind !== 'enemy') return null
           const died = deaths.get(actor.index)?.[0] ?? null
           const pose = enemyShown(actor.track, died, time) && poseAt(actor.track, time)
-          if (!pose) return null
+          if (!pose || enemyPane(props.panes, data.actors, pose.x, pose.z, time) !== pane) return null
           const [x, y] = at(pose.x, pose.z)
           return <EnemyMarker key={actor.index} actor={actor} x={x} y={y} rotation={pose.rotation} hp={pose.hp} />
         })}
       </svg>
-      {shown.map((actor) => {
-        if (actor.kind !== 'member' || !memberShown(actor.track, time)) return null
+      {pane.members.map((index) => {
+        const actor = data.actors[index]
+        if (!memberShown(actor.track, time)) return null
         const pose = poseAt(actor.track, time)!
         const [x, y] = at(pose.x, pose.z)
         const down = isDown(actor.track, deaths.get(actor.index) ?? [], time)
@@ -122,7 +105,7 @@ export const ReplayMap = memo(function ReplayMap(props: {
           'map-member',
           !chosen.has(actor.index) && 'unchosen',
           down && 'down',
-          single && chosen.has(actor.index) && 'only',
+          props.single && chosen.has(actor.index) && 'only',
         ]
         return (
           <div
@@ -136,6 +119,52 @@ export const ReplayMap = memo(function ReplayMap(props: {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** The positions of the members and enemies at the time, each place zoomed to the actors there */
+export const ReplayMap = memo(function ReplayMap(props: {
+  data: ReplayData
+  time: number
+  chosen: ReadonlySet<number>
+  showNames: boolean
+  names: Record<string, string>
+}) {
+  const { data, time, chosen } = props
+  // Measured here rather than by the parent: a parent's ref is still unset when this child's layout effect runs on mount
+  const wrapper = useRef<HTMLDivElement>(null)
+  const { width, height } = useSize(wrapper)
+  const scene = useMemo(() => buildMapScene(data), [data])
+  const deaths = useMemo(() => deathTimes(data.events), [data])
+  if (!scene.segments.length)
+    return (
+      <div className="map-wrapper" ref={wrapper}>
+        <p className="placeholder map-empty">这场战斗没有位置记录</p>
+      </div>
+    )
+  const views = sceneAt(scene, time)
+  const panes = views.map((view) => view.pane)
+  const layout = paneLayout(views.length, width, height)
+  const single = chosen.size === 1
+  return (
+    <div className={`map-wrapper${views.length > 1 ? ' split' : ''}`} ref={wrapper}>
+      {views.map((view, i) => (
+        <MapPaneView
+          key={view.pane.key}
+          data={data}
+          pane={view.pane}
+          panes={panes}
+          box={view.box}
+          place={layout[i]}
+          time={time}
+          deaths={deaths}
+          chosen={chosen}
+          single={single}
+          showNames={props.showNames}
+          names={props.names}
+        />
+      ))}
     </div>
   )
 })

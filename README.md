@@ -36,9 +36,9 @@ Keep those local overrides out of commits.
 
 ## Signing official packages
 
-Use the existing official Ed25519 JWK and its public fingerprint, after confirming
-that all published official IDs use that signer. Keep the key outside the repository
-and plugin input directories:
+Before the first official release, generate one Ed25519 JWK for all official plugins
+and retain it for future updates. Keep the key outside the repository and plugin
+input directories:
 
 ```sh
 pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
@@ -50,7 +50,7 @@ and writes five `.mojito` packages, `SHA256SUMS` and template source archives un
 
 The `official-v*` tag workflow builds without secrets, transfers the runtime trees and
 CLI through an artifact, then signs in a separate job. Configure `OFFICIAL_SIGNING_JWK`
-as the existing private key secret and `OFFICIAL_SIGNER_FINGERPRINT` as its public
+as the shared private key secret and `OFFICIAL_SIGNER_FINGERPRINT` as its public
 fingerprint variable. Upload the Release attachments to Mojito server manually.
 Publishing SDK versions, tags and official packages requires the corresponding release
 authorization. The `v0.1.0` source tag used by Cargo is separate from official release tags.

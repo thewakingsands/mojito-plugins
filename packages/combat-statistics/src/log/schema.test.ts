@@ -346,7 +346,7 @@ describe('rows', () => {
     ]
     expect(roundTrip(records)).toEqual(records)
   })
-  it('reads back potency samples with and without factors', () => {
+  it('reads back potency samples with and without factors, and without the flags as neither critical nor direct', () => {
     const records: LogRecord[] = [
       { kind: 'source', value: source },
       event({
@@ -364,6 +364,8 @@ describe('rows', () => {
             { statusId: 1878, sourceId: 2, holder: 'caster', value: 1.06 },
             { statusId: 1221, sourceId: null, holder: 'target', value: 1.06 },
           ],
+          critical: true,
+          direct: false,
         },
       }),
       event(
@@ -385,10 +387,11 @@ describe('rows', () => {
       ),
     ]
     const read = roundTrip(records)
-    expect(read).toEqual(records)
+    expect(read.slice(0, 2)).toEqual(records.slice(0, 2))
+    expect(read[2]).toMatchObject({ sample: { value: { data: { critical: false, direct: false } } } })
     const rows = rowsFor(records[1] as DataRecord)
     expect(rows.map((row) => row.kind)).toEqual(['potency', 'factor', 'factor'])
-    expect(rows[0]).toMatchObject({ retained: 200, unknown: 1.1236 })
+    expect(rows[0]).toMatchObject({ retained: 200, unknown: 1.1236, crit: true, direct: false })
     expect(rows[2]).toMatchObject({ status: 1221, actor: null, amount: 1.06, flag: true })
     // Writing the records read back gives the same hashed rows
     const hashed = (record: LogRecord) =>

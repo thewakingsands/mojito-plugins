@@ -213,7 +213,7 @@ export interface GameEventMap {
   periodicTick: PeriodicTick
   periodicRevision: { estimatorGeneration: number; ticks: PeriodicTick[] }
   damageAttributed: DamageAttribution
-  /** A hit of a calibration action that was neither critical nor direct, as the host measured its damage per potency */
+  /** A hit of an action with a known potency, as the host measured its damage per potency */
   potencySample: {
     casterId: number | null
     targetId: number | null
@@ -221,11 +221,15 @@ export interface GameEventMap {
     /** The global sequence of the actionEffect it came from */
     sequence: number
     amount: number
-    /** The potency at the level of the caster, times the potency modifiers of the gauge */
+    /** The potency at the level of the caster, in a combo or from a side as the hit was, times the potency modifiers of the gauge */
     potency: number
     /** The product of the damage multipliers of the statuses the host knows */
     multiplier: number
     factors: { statusId: number; sourceId: number | null; holder: 'caster' | 'target'; value: number }[]
+    /** Hosts >=1.8.0 always give it; older hosts and persisted events lack it, and their samples are not critical */
+    critical?: boolean
+    /** Hosts >=1.8.0 always give it; older hosts and persisted events lack it, and their samples are not direct */
+    direct?: boolean
   }
   attributionRevision: { estimatorGeneration: number; records: AttributionDelta[] }
   playerCombatChanged: { actorId: number; inCombat: boolean }

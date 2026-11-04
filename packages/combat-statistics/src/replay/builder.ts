@@ -144,6 +144,8 @@ export class ReplayBuilder implements Required<ReplayObservers> {
     amount: number
     potency: number
     multiplier: number
+    critical: boolean
+    direct: boolean
     factors: { statusId: number; source: ActorKey | null; holder: 'caster' | 'target'; value: number }[]
   }[] = []
 
@@ -231,6 +233,8 @@ export class ReplayBuilder implements Required<ReplayObservers> {
       amount: data.amount,
       potency: data.potency,
       multiplier: data.multiplier,
+      critical: data.critical === true,
+      direct: data.direct === true,
       factors: data.factors.map((factor) => ({
         statusId: factor.statusId,
         source: this.actor(factor.sourceId)?.key ?? null,
@@ -598,6 +602,8 @@ export class ReplayBuilder implements Required<ReplayObservers> {
         amount: sample.amount,
         potency: sample.potency,
         multiplier: sample.multiplier,
+        critical: sample.critical,
+        direct: sample.direct,
         factors: sample.factors.map((factor) => {
           // 0 is a modifier of the gauge, which has no Status
           if (factor.statusId !== 0) statusIds.add(factor.statusId)

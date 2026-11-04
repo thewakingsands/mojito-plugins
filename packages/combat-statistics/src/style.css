@@ -482,6 +482,13 @@ button.small {
   overflow: hidden;
   background: var(--mojito-bg);
 }
+.map-pane {
+  position: absolute;
+  overflow: hidden;
+}
+.map-wrapper.split .map-pane {
+  box-shadow: inset 0 0 0 1px var(--mojito-border);
+}
 .map-empty {
   padding: 24px;
 }

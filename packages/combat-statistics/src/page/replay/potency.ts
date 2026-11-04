@@ -11,11 +11,17 @@ export const MIN_BASELINE_SAMPLES = 5
 /** A longer pause between samples breaks the curve and ends a region */
 export const GAP_MS = 15_000
 export const REGION_PAD_MS = 1_250
+/** The fixed bonus of a direct hit */
+export const DIRECT_MULTIPLIER = 1.25
+/** The samples that are neither critical nor direct, and those only critical, each that the critical bonus needs */
+export const MIN_CRITICAL_SAMPLES = 10
 
 export interface PotencyPoint {
   t: number
-  /** amount ÷ potency */
+  /** amount ÷ potency, with the critical and direct hit bonuses taken out */
   r: number
+  critical: boolean
+  direct: boolean
   /** Median r of the samples within WINDOW_MS; null when fewer than MIN_WINDOW_SAMPLES */
   w: number | null
 }
@@ -35,9 +41,13 @@ export interface PotencyRegion {
 }
 export interface PotencyAnalysis {
   baseline: number
-  /** Every sample of the member in time order */
+  /** Every sample of the member in time order, without the critical ones when the critical bonus is not known */
   points: PotencyPoint[]
   regions: PotencyRegion[]
+  /** The critical bonus measured in the fight; null with too few samples */
+  critical: number | null
+  /** The critical samples left out because the critical bonus is not known */
+  droppedCritical: number
 }
 
 const REASON_ORDER: ReasonKind[] = ['raid', 'self', 'target', 'down']
@@ -51,10 +61,38 @@ function median(values: readonly number[]): number {
 }
 const deviates = (value: number, baseline: number) => Math.abs(value / baseline - 1) > POTENCY_THRESHOLD
 
+/**
+ * The critical bonus of the member in the fight: the median damage per potency of the hits that are only critical over
+ * that of the hits that are neither. Both are taken without the known multipliers, as the raid buffs that raise the
+ * critical rate gather the critical hits where the damage is high.
+ * @returns null with fewer than MIN_CRITICAL_SAMPLES of either
+ */
+function criticalBonusOf(samples: readonly PotencySample[]): number | null {
+  const value = (sample: PotencySample) => sample.amount / sample.potency / sample.multiplier
+  const normal = samples.filter((sample) => !sample.critical && !sample.direct).map(value)
+  const critical = samples.filter((sample) => sample.critical && !sample.direct).map(value)
+  if (normal.length < MIN_CRITICAL_SAMPLES || critical.length < MIN_CRITICAL_SAMPLES) return null
+  return median(critical) / median(normal)
+}
+
 export function analyzePotency(data: ReplayData, actor: number): PotencyAnalysis | null {
-  const samples = data.potency.filter((sample) => sample.actor === actor)
+  const all = data.potency.filter((sample) => sample.actor === actor)
+  const critical = criticalBonusOf(all)
+  const samples = critical === null ? all.filter((sample) => !sample.critical) : all
   if (!samples.length) return null
-  const points = samples.map((sample): PotencyPoint => ({ t: sample.t, r: sample.amount / sample.potency, w: null }))
+  const points = samples.map(
+    (sample): PotencyPoint => ({
+      t: sample.t,
+      r:
+        sample.amount /
+        sample.potency /
+        (sample.direct ? DIRECT_MULTIPLIER : 1) /
+        (sample.critical ? (critical as number) : 1),
+      critical: sample.critical,
+      direct: sample.direct,
+      w: null,
+    }),
+  )
   for (const point of points) {
     const near = points.filter((other) => Math.abs(other.t - point.t) <= WINDOW_MS).map((other) => other.r)
     point.w = near.length >= MIN_WINDOW_SAMPLES ? median(near) : null
@@ -80,7 +118,7 @@ export function analyzePotency(data: ReplayData, actor: number): PotencyAnalysis
     }
   }
   const regions = groups.map((group) => regionOf(data, actor, group, samples, points, baseline))
-  return { baseline, points, regions }
+  return { baseline, points, regions, critical, droppedCritical: all.length - samples.length }
 }
 
 /** The median r of the samples without known multipliers, again without those whose window strays from it */

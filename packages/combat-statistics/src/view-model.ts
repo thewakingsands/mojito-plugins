@@ -187,6 +187,8 @@ export interface PotencySample {
   amount: number
   potency: number
   multiplier: number
+  critical: boolean
+  direct: boolean
   /** source: index into actors, null when the source is not an actor */
   factors: { statusId: number; source: number | null; holder: 'caster' | 'target'; value: number }[]
 }

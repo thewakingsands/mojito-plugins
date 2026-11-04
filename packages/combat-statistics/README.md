@@ -31,6 +31,8 @@ The potency samples of the host (`potencySample`) are logged for the curves of t
 
 A `factor` row without its `potency` row fails the log check. These rows do not reach the statistics of a replay.
 
+The position map of the review zooms to where the actors are at the current time. It then holds still until a member no longer fits in a range 40 meters wide, and moves gradually to the next range. When members are far apart, more than 60 meters from anyone else, the map splits into equal panes, one for each place, each zoomed on its own. An enemy shows in the pane of the nearest member within 60 meters, and does not show otherwise. A map shows the same thing at a given time whether it was reached by playing or by dragging the timeline.
+
 While the skill timeline is expanded, the timeline of the review has two more lanes under the ruler, which share its zoom, its playhead and its span selection:
 
 - Damage per second: one line for each chosen member, the damage of each second averaged with the two seconds on each side. With pets merged, the damage of a pet counts for its owner. A member keeps its color, which follows its place in the filter bar.

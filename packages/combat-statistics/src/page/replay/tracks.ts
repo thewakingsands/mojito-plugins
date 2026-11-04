@@ -2,6 +2,8 @@ import type { Track } from '../../view-model.js'
 
 /** Samples further apart than this are not interpolated: the actor stays put until the next one */
 export const GAP_MS = 2000
+/** Actors further apart than this are at different places; samples further apart than this are a teleport */
+export const FAR_METERS = 60
 /** An enemy without an actorDied shows this long after its last sample */
 const LINGER_MS = 1000
 
@@ -40,6 +42,7 @@ export function poseAt(track: Track, time: number): Pose | null {
   })
   const next = i + 1
   if (next >= track.t.length || track.t[next] - track.t[i] > GAP_MS) return sample(i)
+  if (Math.hypot(track.x[next] - track.x[i], track.z[next] - track.z[i]) > FAR_METERS) return sample(i)
   const f = (time - track.t[i]) / (track.t[next] - track.t[i])
   const lerp = (a: number, b: number) => a + (b - a) * f
   const [a, b] = [sample(i), sample(next)]

@@ -25,6 +25,20 @@ it('stays at a sample until the next one when they are more than two seconds apa
   expect(poseAt(path, 9000)).toMatchObject({ x: 20, z: 20 })
 })
 
+it('jumps across a teleport instead of crossing the map', () => {
+  const teleport = track([
+    [0, 0, 0],
+    [1000, 200, 0],
+  ])
+  expect(poseAt(teleport, 500)).toMatchObject({ x: 0, z: 0 })
+  expect(poseAt(teleport, 1000)).toMatchObject({ x: 200, z: 0 })
+  const walk = track([
+    [0, 0, 0],
+    [1000, 20, 0],
+  ])
+  expect(poseAt(walk, 500)!.x).toBeCloseTo(10)
+})
+
 it('shows a member from its first sample, down after its death until a sample with HP comes', () => {
   expect(memberShown(path, 999)).toBe(false)
   expect(memberShown(path, 1000)).toBe(true)

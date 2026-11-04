@@ -203,6 +203,14 @@ export function PotencyLabel(props: { data: ReplayData; curves: Curves }) {
   )
 }
 
+/** How the damage per potency of a sample was brought back to that of a hit neither critical nor direct */
+function conversionOf(point: PotencyPoint): string {
+  if (point.critical && point.direct) return ' · 暴击直击换算'
+  if (point.critical) return ' · 暴击换算'
+  if (point.direct) return ' · 直击换算'
+  return ''
+}
+
 export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | null) => void }) {
   const { window, width, curves, onRegion } = props
   const [hover, setHover] = useState<number | null>(null)
@@ -229,7 +237,7 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
   let body: React.ReactNode
   if (props.chosen.size === 0) body = <span className="curve-empty">未选择角色</span>
   else if (!analysis || !range)
-    body = <span className="curve-empty">没有每威力数据：记录时宿主没有提供，或选中的角色没有命中校准技能</span>
+    body = <span className="curve-empty">没有每威力数据：记录时宿主没有提供，或选中的角色没有可推断威力的命中</span>
   else {
     const y = (value: number) =>
       POTENCY_HEIGHT - INSET - ((value - range.low) / (range.high - range.low)) * (POTENCY_HEIGHT - INSET * 2)
@@ -308,12 +316,19 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
           <b className="number">{clockText(hover)}</b>
           <span className="number">
             最近样本 {clockText(point.t)} · 每威力 {point.r.toFixed(1)}
+            {conversionOf(point)}
           </span>
           <span className="number">窗口值 {point.w === null ? '样本不足' : point.w.toFixed(1)}</span>
           <span className="number">
             基准 {analysis.baseline.toFixed(1)}
             {point.w !== null && ` · 偏离 ${signedPercent(point.w / analysis.baseline - 1)}`}
           </span>
+          {analysis.critical !== null && (
+            <span className="number">暴击倍率 {analysis.critical.toFixed(2)}（本场实测）</span>
+          )}
+          {analysis.droppedCritical > 0 && (
+            <span className="number">暴击样本不足，未计入 {analysis.droppedCritical} 个暴击命中</span>
+          )}
         </Tip>
       )}
     </div>
