@@ -34,6 +34,21 @@ and a Cargo git tag. When changing both repositories, use temporary local links 
 Cargo overrides for development, then commit published versions and locked git sources.
 Keep those local overrides out of commits.
 
+## Publishing the SDK
+
+Push `sdk-v<version>` after setting the version in `packages/plugin-sdk/package.json`.
+The tag must match that version and point to a commit on `main`. The SDK workflow
+builds, type-checks and tests the SDK before publishing it to npm through OIDC.
+
+Configure the trusted publisher of `@ffcafe/mojito-plugin-sdk` on npm with repository
+`thewakingsands/mojito-plugins`, workflow `sdk-publish.yml`, no environment, and
+permission to run `npm publish`. No npm token secret is required.
+Complete the first publish within two days of adding the npm trusted publisher.
+
+```sh
+npm trust github @ffcafe/mojito-plugin-sdk --repo thewakingsands/mojito-plugins --file sdk-publish.yml --allow-publish
+```
+
 ## Signing official packages
 
 Before the first official release, generate one Ed25519 JWK for all official plugins

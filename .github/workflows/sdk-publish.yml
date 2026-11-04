@@ -1,0 +1,42 @@
+name: Publish SDK to npm
+on:
+  push:
+    tags: ['sdk-v*']
+permissions:
+  contents: read
+concurrency:
+  group: sdk-publish-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@v4
+      - name: Check release tag and source
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          const { name, version } = JSON.parse(readFileSync('packages/plugin-sdk/package.json', 'utf8'))
+          assert.equal(name, '@ffcafe/mojito-plugin-sdk')
+          assert.equal(process.env.GITHUB_REF_NAME, `sdk-v${version}`)
+          NODE
+          git merge-base --is-ancestor HEAD origin/main
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ffcafe/mojito-plugin-sdk build
+      - run: pnpm --filter @ffcafe/mojito-plugin-sdk typecheck
+      - run: pnpm --filter @ffcafe/mojito-plugin-sdk test
+      - name: Publish SDK with OIDC
+        working-directory: packages/plugin-sdk
+        run: npm publish --access public --ignore-scripts
