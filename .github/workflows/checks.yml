@@ -5,6 +5,53 @@ on:
 permissions:
   contents: read
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      codec: ${{ steps.filter.outputs.codec }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Find codec and web changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          elif [[ -n "$BASE_SHA" && ! "$BASE_SHA" =~ ^0+$ ]]; then
+            base="$BASE_SHA"
+          elif [[ "$GITHUB_REF" != "refs/heads/main" ]] && git show-ref --verify --quiet refs/remotes/origin/main; then
+            base=$(git merge-base origin/main "$HEAD_SHA")
+          else
+            base=$(git hash-object -w -t tree /dev/null)
+          fi
+          files=$(git diff --name-only --no-renames "$base" "$HEAD_SHA")
+          codec=false
+          web=false
+          while IFS= read -r file; do
+            case "$file" in
+              Cargo.toml|Cargo.lock|.cargo/*|rust-toolchain|rust-toolchain.toml|.nvmrc|\
+              .github/workflows/checks.yml|crates/package/Cargo.toml|crates/package/src/lib.rs)
+                codec=true
+                web=true
+                ;;
+              crates/package/src/*|crates/plugin-protocol/Cargo.toml|crates/plugin-protocol/src/*|\
+              crates/plugin-protocol/tests/*|crates/plugin-protocol/examples/*|crates/plugin-protocol/fixtures/*|\
+              include/*|rustfmt.toml|scripts/package-cli-smoke.mjs|scripts/package-ffi-smoke.py)
+                codec=true
+                ;;
+              crates/package/web/*|scripts/build-package-web.mjs)
+                web=true
+                ;;
+            esac
+          done <<< "$files"
+          echo "codec=$codec" >> "$GITHUB_OUTPUT"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
   plugins:
     runs-on: ubuntu-24.04
     steps:
@@ -22,10 +69,12 @@ jobs:
       - run: pnpm test:official
       - run: pnpm exec vite build --config examples/overlayplugin-fixture/vite.config.ts
   codec:
+    needs: changes
+    if: needs.changes.outputs.codec == 'true'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +106,8 @@ jobs:
             include/mojito_package.h
             include/mojito_plugin_v1.h
   web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -72,3 +123,27 @@ jobs:
         with:
           name: plugin-package-web
           path: dist/package-web
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: dist/package-web
+  deploy-pages:
+    needs: web
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.web.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: false
+      - uses: actions/deploy-pages@v4
+        id: deployment

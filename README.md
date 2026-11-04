@@ -77,3 +77,16 @@ and development HMR, and `examples/plugin-native-rust` is an independent native 
 project. `examples/overlayplugin-fixture` provides synthetic overlay inputs.
 Run plugins in an installed Mojito host; building them requires this repository only.
 Host integration drivers stay in [Mojito](https://github.com/thewakingsands/mojito).
+
+## Codec and web CI
+
+Codec validation runs on Linux and Windows when its Rust sources, protocol, headers,
+test scripts or shared Rust build inputs change. The web build watches its verifier
+library, web assets, build script and shared Rust inputs. SDK/plugin sources and pnpm
+dependencies do not trigger these jobs. Changes to the checks workflow trigger both.
+
+The browser verifier is built into `dist/package-web` with relative Worker and WASM
+URLs, so it works under the `/mojito-plugins/` Pages path. On relevant pushes to `main`,
+CI uploads this directory and deploys it through the `github-pages` environment.
+Enable Pages with GitHub Actions as its source and allow `main` in that environment
+before deployment; the workflow does not enable repository settings automatically.
