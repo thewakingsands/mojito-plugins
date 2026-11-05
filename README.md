@@ -29,10 +29,12 @@ Their source archives and licenses are included beside the generated runtime tre
 - `crates/plugin-protocol` and `include`: the shared native protocol and C ABI.
 - `crates/package`: the CLI, codec, native verifier and browser verifier.
 
-Package names and plugin IDs remain stable. The host consumes a fixed npm SDK version
-and a Cargo git tag. When changing both repositories, use temporary local links or
-Cargo overrides for development, then commit published versions and locked git sources.
-Keep those local overrides out of commits.
+Package names and plugin IDs remain stable. The host consumes the SDK as a git dependency
+on a fixed commit of this repository, which pnpm builds with its `prepare` script, and
+the native packages through a Cargo git tag. Do not push an `sdk-v*` tag for such a
+commit: the tag publishes the SDK to npm. When changing both repositories, use temporary
+local links or Cargo overrides for development, then commit locked git sources. Keep
+those local overrides out of commits.
 
 ## Publishing the SDK
 
