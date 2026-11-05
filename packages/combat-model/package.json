@@ -1,0 +1,35 @@
+{
+  "name": "@ffcafe/mojito-combat-model",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./defs": {
+      "types": "./dist/defs/index.d.ts",
+      "default": "./dist/defs/index.js"
+    },
+    "./analysis": {
+      "types": "./dist/analysis.d.ts",
+      "default": "./dist/analysis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "potency": "node scripts/periodic-potency.mjs",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@ffcafe/elpis-sestring": "0.1.0",
+    "@ffcafe/elpis-sqpack": "0.1.0"
+  }
+}

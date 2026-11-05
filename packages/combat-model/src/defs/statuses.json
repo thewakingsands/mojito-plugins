@@ -1,0 +1,1335 @@
+{
+  "statuses": [
+    {
+      "id": 76,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.25 }],
+          "valueAction": 20
+        }
+      ]
+    },
+    {
+      "id": 86,
+      "modifiers": [{ "type": "forceCritical" }, { "type": "forceDirect" }]
+    },
+    {
+      "id": 87,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0 }, { "level": 78, "value": 0.2 }],
+          "valueAction": 40,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 65,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "modifiers": [
+        {
+          "type": "forceCritical",
+          "actions": [53, 25767, 36945]
+        }
+      ]
+    },
+    {
+      "id": 116,
+      "modifiers": [{ "type": "forceCritical" }]
+    },
+    {
+      "id": 118,
+      "periodic": {
+        "kind": "damage",
+        "action": 88,
+        "job": 22,
+        "potency": [{ "level": 1, "potency": 40 }]
+      }
+    },
+    {
+      "id": 124,
+      "periodic": {
+        "kind": "damage",
+        "action": 100,
+        "job": 23,
+        "potency": [{ "level": 1, "potency": 15 }]
+      }
+    },
+    {
+      "id": 125,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.15 }],
+          "valueAction": 101
+        }
+      ]
+    },
+    {
+      "id": 128,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [98, 7409, 16494, 36974]
+        }
+      ]
+    },
+    {
+      "id": 129,
+      "periodic": {
+        "kind": "damage",
+        "action": 113,
+        "job": 23,
+        "potency": [{ "level": 1, "potency": 20 }]
+      }
+    },
+    {
+      "id": 141,
+      "modifiers": [
+        {
+          "type": "directHitRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 118
+        }
+      ]
+    },
+    {
+      "id": 143,
+      "periodic": {
+        "kind": "damage",
+        "action": 121,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 30 }]
+      }
+    },
+    {
+      "id": 144,
+      "periodic": {
+        "kind": "damage",
+        "action": 132,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 150,
+      "periodic": {
+        "kind": "heal",
+        "action": 133,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 100 }, { "level": 85, "potency": 150 }]
+      }
+    },
+    {
+      "id": 158,
+      "periodic": {
+        "kind": "heal",
+        "action": 137,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 200 }, { "level": 85, "potency": 250 }]
+      }
+    },
+    {
+      "id": 161,
+      "periodic": {
+        "kind": "damage",
+        "action": 144,
+        "job": 25,
+        "potency": [{ "level": 1, "potency": 45 }]
+      }
+    },
+    {
+      "id": 162,
+      "periodic": {
+        "kind": "damage",
+        "action": 7447,
+        "job": 25,
+        "potency": [{ "level": 1, "potency": 30 }]
+      }
+    },
+    {
+      "id": 163,
+      "periodic": {
+        "kind": "damage",
+        "action": 153,
+        "job": 25,
+        "potency": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 179,
+      "periodic": {
+        "kind": "damage",
+        "action": 17864,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 20 }]
+      }
+    },
+    {
+      "id": 189,
+      "periodic": {
+        "kind": "damage",
+        "action": 17865,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 40 }]
+      }
+    },
+    {
+      "id": 248,
+      "periodic": {
+        "kind": "damage",
+        "action": 23,
+        "job": 19,
+        "potency": [{ "level": 1, "potency": 30 }]
+      }
+    },
+    {
+      "id": 315,
+      "periodic": {
+        "kind": "heal",
+        "action": 803,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 80 }]
+      }
+    },
+    {
+      "id": 317,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 805,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 497,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [2265, 2266, 2267, 2268, 2269, 2270, 2271, 16491, 16492]
+        }
+      ]
+    },
+    {
+      "id": 638,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 2248,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 751,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 16470
+        }
+      ]
+    },
+    {
+      "id": 786,
+      "modifiers": [
+        {
+          "type": "critRate",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 3557
+        }
+      ]
+    },
+    {
+      "id": 791,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 3587,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 835,
+      "periodic": {
+        "kind": "heal",
+        "action": 3595,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 200 }, { "level": 85, "potency": 250 }]
+      }
+    },
+    {
+      "id": 836,
+      "periodic": {
+        "kind": "heal",
+        "action": 3601,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 100 }, { "level": 85, "potency": 150 }]
+      }
+    },
+    {
+      "id": 838,
+      "periodic": {
+        "kind": "damage",
+        "action": 3599,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 843,
+      "periodic": {
+        "kind": "damage",
+        "action": 3608,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 60 }]
+      }
+    },
+    {
+      "id": 851,
+      "modifiers": [{ "type": "forceCritical" }, { "type": "forceDirect" }]
+    },
+    {
+      "id": 956,
+      "periodic": {
+        "kind": "heal",
+        "action": 3613,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 1177,
+      "modifiers": [
+        {
+          "type": "forceCritical",
+          "actions": [3549, 3550]
+        },
+        {
+          "type": "forceDirect",
+          "actions": [3549, 3550]
+        }
+      ]
+    },
+    {
+      "id": 1180,
+      "periodic": {
+        "kind": "heal",
+        "action": 7394,
+        "job": 20,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 1181,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.15 }],
+          "valueAction": 7395
+        }
+      ]
+    },
+    {
+      "id": 1185,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 7396
+        }
+      ]
+    },
+    {
+      "id": 1191,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0 }, { "level": 94, "value": 0.15 }],
+          "valueAction": 7531,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 1200,
+      "periodic": {
+        "kind": "damage",
+        "action": 7406,
+        "job": 23,
+        "potency": [{ "level": 1, "potency": 20 }]
+      }
+    },
+    {
+      "id": 1201,
+      "periodic": {
+        "kind": "damage",
+        "action": 7407,
+        "job": 23,
+        "potency": [{ "level": 1, "potency": 25 }]
+      }
+    },
+    {
+      "id": 1202,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.15 }],
+          "valueAction": 7408,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 1210,
+      "periodic": {
+        "kind": "damage",
+        "action": 7420,
+        "job": 25,
+        "potency": [{ "level": 1, "potency": 35 }]
+      }
+    },
+    {
+      "id": 1221,
+      "modifiers": [
+        {
+          "type": "critRateTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 7436,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 1228,
+      "periodic": {
+        "kind": "damage",
+        "action": 7489,
+        "job": 34,
+        "potency": [{ "level": 1, "potency": 45 }, { "level": 94, "potency": 50 }]
+      }
+    },
+    {
+      "id": 1236,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7486]
+        }
+      ]
+    },
+    {
+      "id": 1238,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7509, 16526]
+        }
+      ]
+    },
+    {
+      "id": 1239,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 7520,
+          "damageType": "magic"
+        }
+      ]
+    },
+    {
+      "id": 1297,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 7520
+        }
+      ]
+    },
+    {
+      "id": 1298,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 1368,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7384, 16458, 16459, 25748, 25749, 25750]
+        }
+      ]
+    },
+    {
+      "id": 1716,
+      "modifiers": [{ "type": "potencyBonus" }]
+    },
+    {
+      "id": 1821,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 1822,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 1825,
+      "modifiers": [
+        {
+          "type": "critRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16011
+        },
+        {
+          "type": "directHitRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16011
+        }
+      ]
+    },
+    {
+      "id": 1831,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16138
+        }
+      ]
+    },
+    {
+      "id": 1835,
+      "periodic": {
+        "kind": "heal",
+        "action": 16151,
+        "job": 37,
+        "potency": [{ "level": 1, "potency": 300 }]
+      }
+    },
+    {
+      "id": 1837,
+      "periodic": {
+        "kind": "damage",
+        "action": 16153,
+        "job": 37,
+        "potency": [{ "level": 1, "potency": 120 }]
+      }
+    },
+    {
+      "id": 1838,
+      "periodic": {
+        "kind": "damage",
+        "action": 16159,
+        "job": 37,
+        "potency": [{ "level": 1, "potency": 60 }]
+      }
+    },
+    {
+      "id": 1864,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 85
+        }
+      ]
+    },
+    {
+      "id": 1866,
+      "periodic": {
+        "kind": "damage",
+        "action": 16499,
+        "job": 31,
+        "potency": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 1868,
+      "periodic": {
+        "kind": "heal",
+        "action": 16517,
+        "job": 27,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 1870,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [90]
+        }
+      ]
+    },
+    {
+      "id": 1871,
+      "periodic": {
+        "kind": "damage",
+        "action": 16532,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 65 }, { "level": 94, "potency": 85 }]
+      }
+    },
+    {
+      "id": 1872,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16536,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 1874,
+      "periodic": {
+        "kind": "heal",
+        "action": 16550,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 80 }]
+      }
+    },
+    {
+      "id": 1875,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 16551,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 1878,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 1879,
+      "periodic": {
+        "kind": "heal",
+        "action": 16553,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 1881,
+      "periodic": {
+        "kind": "damage",
+        "action": 16554,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 65 }, { "level": 94, "potency": 70 }]
+      }
+    },
+    {
+      "id": 1892,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16559,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 1895,
+      "periodic": {
+        "kind": "damage",
+        "action": 16540,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 70 }, { "level": 94, "potency": 85 }]
+      }
+    },
+    {
+      "id": 1912,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0 }, { "level": 78, "value": 0.1 }],
+          "valueAction": 3569,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 2105,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte", "byteOf": 1821 }]
+    },
+    {
+      "id": 2108,
+      "periodic": {
+        "kind": "heal",
+        "action": 7388,
+        "job": 21,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 2216,
+      "modifiers": [
+        {
+          "type": "critRate",
+          "value": [{ "level": 1, "value": 0.02 }],
+          "valueAction": 3559
+        }
+      ]
+    },
+    {
+      "id": 2217,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.01 }],
+          "valueAction": 114
+        }
+      ]
+    },
+    {
+      "id": 2218,
+      "modifiers": [
+        {
+          "type": "directHitRate",
+          "value": [{ "level": 1, "value": 0.03 }],
+          "valueAction": 116
+        }
+      ]
+    },
+    {
+      "id": 2448,
+      "modifiers": [{ "type": "potencyBonus" }]
+    },
+    {
+      "id": 2586,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 24378,
+          "scope": "source"
+        }
+      ]
+    },
+    {
+      "id": 2588,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24382]
+        }
+      ]
+    },
+    {
+      "id": 2589,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24383]
+        }
+      ]
+    },
+    {
+      "id": 2590,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24395]
+        }
+      ]
+    },
+    {
+      "id": 2591,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24396]
+        }
+      ]
+    },
+    {
+      "id": 2598,
+      "periodic": {
+        "kind": "heal",
+        "action": 24404,
+        "job": 39,
+        "potency": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 2599,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.03 }],
+          "valueAction": 24405
+        }
+      ]
+    },
+    {
+      "id": 2611,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.5 }],
+          "valueAction": 24300,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 2614,
+      "periodic": {
+        "kind": "damage",
+        "action": 24293,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 30 }, { "level": 54, "potency": 35 }, { "level": 64, "potency": 40 }]
+      }
+    },
+    {
+      "id": 2615,
+      "periodic": {
+        "kind": "damage",
+        "action": 24308,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 60 }]
+      }
+    },
+    {
+      "id": 2616,
+      "periodic": {
+        "kind": "damage",
+        "action": 24314,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 80 }, { "level": 94, "potency": 90 }]
+      }
+    },
+    {
+      "id": 2617,
+      "periodic": {
+        "kind": "heal",
+        "action": 24288,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 2620,
+      "periodic": {
+        "kind": "heal",
+        "action": 24302,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 130 }]
+      }
+    },
+    {
+      "id": 2621,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 24302,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 2622,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 24317,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 2673,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7384, 16458]
+        }
+      ]
+    },
+    {
+      "id": 2676,
+      "periodic": {
+        "kind": "heal",
+        "action": 25746,
+        "job": 19,
+        "potency": [{ "level": 1, "potency": 250 }]
+      }
+    },
+    {
+      "id": 2677,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 45
+        }
+      ]
+    },
+    {
+      "id": 2681,
+      "periodic": {
+        "kind": "heal",
+        "action": 3552,
+        "job": 21,
+        "potency": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    {
+      "id": 2688,
+      "modifiers": [{ "type": "potencyBonus", "category": "weaponskill" }]
+    },
+    {
+      "id": 2689,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7402, 36960]
+        }
+      ]
+    },
+    {
+      "id": 2695,
+      "periodic": {
+        "kind": "heal",
+        "action": 16014,
+        "job": 38,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 2703,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 25801
+        }
+      ]
+    },
+    {
+      "id": 2705,
+      "periodic": {
+        "kind": "heal",
+        "action": 25830,
+        "job": 27,
+        "potency": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    {
+      "id": 2710,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 25867,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 2719,
+      "periodic": {
+        "kind": "damage",
+        "action": 25772,
+        "job": 22,
+        "potency": [{ "level": 1, "potency": 45 }]
+      }
+    },
+    {
+      "id": 2720,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 87
+        }
+      ]
+    },
+    {
+      "id": 2855,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24382]
+        }
+      ]
+    },
+    {
+      "id": 2857,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24395]
+        }
+      ]
+    },
+    {
+      "id": 2938,
+      "periodic": {
+        "kind": "heal",
+        "action": 24298,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 2964,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 3177,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.15 }],
+          "valueAction": 3555
+        }
+      ]
+    },
+    {
+      "id": 3204,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24385]
+        }
+      ]
+    },
+    {
+      "id": 3254,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 2258,
+          "scope": "source"
+        }
+      ]
+    },
+    {
+      "id": 3645,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34610]
+        }
+      ]
+    },
+    {
+      "id": 3646,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34611]
+        }
+      ]
+    },
+    {
+      "id": 3647,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34612]
+        }
+      ]
+    },
+    {
+      "id": 3648,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34613]
+        }
+      ]
+    },
+    {
+      "id": 3649,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34618]
+        }
+      ]
+    },
+    {
+      "id": 3650,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34619]
+        }
+      ]
+    },
+    {
+      "id": 3657,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34636]
+        }
+      ]
+    },
+    {
+      "id": 3658,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34637]
+        }
+      ]
+    },
+    {
+      "id": 3659,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34638]
+        }
+      ]
+    },
+    {
+      "id": 3660,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34639]
+        }
+      ]
+    },
+    {
+      "id": 3665,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34644]
+        }
+      ]
+    },
+    {
+      "id": 3666,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34645]
+        }
+      ]
+    },
+    {
+      "id": 3668,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 34621
+        }
+      ]
+    },
+    {
+      "id": 3672,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34606, 34614]
+        }
+      ]
+    },
+    {
+      "id": 3685,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 34675
+        }
+      ]
+    },
+    {
+      "id": 3772,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [34607, 34615]
+        }
+      ]
+    },
+    {
+      "id": 3849,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 36957,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 3854,
+      "periodic": {
+        "kind": "heal",
+        "action": 36962,
+        "job": 34,
+        "potency": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    {
+      "id": 3871,
+      "periodic": {
+        "kind": "damage",
+        "action": 36986,
+        "job": 25,
+        "potency": [{ "level": 1, "potency": 60 }]
+      }
+    },
+    {
+      "id": 3872,
+      "periodic": {
+        "kind": "damage",
+        "action": 36987,
+        "job": 25,
+        "potency": [{ "level": 1, "potency": 40 }]
+      }
+    },
+    {
+      "id": 3880,
+      "periodic": {
+        "kind": "heal",
+        "action": 37010,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 175 }]
+      }
+    },
+    {
+      "id": 3883,
+      "periodic": {
+        "kind": "damage",
+        "action": 37012,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 140 }]
+      }
+    },
+    {
+      "id": 3885,
+      "periodic": {
+        "kind": "heal",
+        "action": 37014,
+        "job": 28,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 3887,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 3888,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 37024,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 3889,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 3891,
+      "periodic": {
+        "kind": "heal",
+        "action": 37028,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    {
+      "id": 3894,
+      "periodic": {
+        "kind": "heal",
+        "action": 37030,
+        "job": 33,
+        "potency": [{ "level": 1, "potency": 175 }]
+      }
+    },
+    {
+      "id": 3897,
+      "periodic": {
+        "kind": "damage",
+        "action": 37032,
+        "job": 40,
+        "potency": [{ "level": 1, "potency": 40 }]
+      }
+    },
+    {
+      "id": 3900,
+      "periodic": {
+        "kind": "heal",
+        "action": 36923,
+        "job": 21,
+        "potency": [{ "level": 1, "potency": 300 }]
+      }
+    },
+    {
+      "id": 3904,
+      "periodic": {
+        "kind": "heal",
+        "action": 37011,
+        "job": 24,
+        "potency": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    {
+      "id": 3906,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 36958,
+          "scope": "source"
+        }
+      ]
+    },
+    {
+      "id": 4614,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [44891]
+        }
+      ]
+    },
+    {
+      "id": 4789,
+      "modifiers": [{ "type": "potencyBonus" }]
+    }
+  ]
+}

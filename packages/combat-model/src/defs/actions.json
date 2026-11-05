@@ -1,0 +1,634 @@
+{
+  "actions": [
+    {
+      "id": 9,
+      "job": 19,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    {
+      "id": 31,
+      "job": 21,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 200 }, { "level": 94, "potency": 240 }]
+      }
+    },
+    {
+      "id": 74,
+      "job": 20,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 240 }, { "level": 84, "potency": 280 }, { "level": 94, "potency": 320 }]
+      }
+    },
+    {
+      "id": 75,
+      "job": 22,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 170 }, { "level": 76, "potency": 230 }]
+      }
+    },
+    {
+      "id": 97,
+      "job": 23,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 160 }]
+      }
+    },
+    {
+      "id": 119,
+      "job": 24,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 140 }]
+      }
+    },
+    {
+      "id": 120,
+      "job": 24,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 450 }, { "level": 85, "potency": 500 }]
+      }
+    },
+    {
+      "id": 127,
+      "job": 24,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 190 }]
+      }
+    },
+    {
+      "id": 141,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 180 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 142,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 180 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 147,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 80 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 152,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 290 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 154,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 290 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 159,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 120 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 162,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 240 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 163,
+      "job": 27,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 240 }]
+      }
+    },
+    {
+      "id": 172,
+      "job": 27,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 270 }]
+      }
+    },
+    {
+      "id": 190,
+      "job": 28,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 400 }, { "level": 85, "potency": 450 }]
+      }
+    },
+    {
+      "id": 802,
+      "job": 28,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 85, "potency": 180 }]
+      }
+    },
+    {
+      "id": 2240,
+      "job": 30,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 180 }, { "level": 84, "potency": 220 }, { "level": 94, "potency": 300 }]
+      }
+    },
+    {
+      "id": 2866,
+      "job": 31,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 140 }]
+      }
+    },
+    {
+      "id": 3541,
+      "job": 19,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 1000 }]
+      }
+    },
+    {
+      "id": 3552,
+      "job": 21,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 1200 }]
+      }
+    },
+    {
+      "id": 3568,
+      "job": 24,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 220 }]
+      }
+    },
+    {
+      "id": 3576,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 300 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 3577,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 300 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 3579,
+      "job": 27,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 300 }, { "level": 84, "potency": 310 }, { "level": 94, "potency": 400 }]
+      }
+    },
+    {
+      "id": 3584,
+      "job": 28,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 220 }]
+      }
+    },
+    {
+      "id": 3594,
+      "job": 33,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 450 }, { "level": 85, "potency": 500 }]
+      }
+    },
+    {
+      "id": 3596,
+      "job": 33,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }]
+      }
+    },
+    {
+      "id": 3598,
+      "job": 33,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 160 }]
+      }
+    },
+    {
+      "id": 3617,
+      "job": 32,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 180 }, { "level": 94, "potency": 300 }]
+      }
+    },
+    {
+      "id": 7411,
+      "job": 31,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 180 }, { "level": 84, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    {
+      "id": 7422,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 600 }]
+      }
+    },
+    {
+      "id": 7431,
+      "job": 24,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 260 }]
+      }
+    },
+    {
+      "id": 7435,
+      "job": 28,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 240 }]
+      }
+    },
+    {
+      "id": 7442,
+      "job": 33,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 190 }]
+      }
+    },
+    {
+      "id": 7477,
+      "job": 34,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 180 }, { "level": 66, "potency": 200 }]
+      }
+    },
+    { "id": 7487, "forced": "critical" },
+    {
+      "id": 7503,
+      "job": 35,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 170 }]
+      }
+    },
+    {
+      "id": 7524,
+      "job": 35,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 280 }]
+      }
+    },
+    {
+      "id": 7541,
+      "job": 20,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 500 }, { "level": 94, "potency": 800 }]
+      }
+    },
+    {
+      "id": 7541,
+      "job": 34,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 500 }, { "level": 94, "potency": 800 }]
+      }
+    },
+    {
+      "id": 7541,
+      "job": 39,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 500 }, { "level": 94, "potency": 800 }]
+      }
+    },
+    {
+      "id": 15989,
+      "job": 38,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    {
+      "id": 16015,
+      "job": 38,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 300 }]
+      }
+    },
+    {
+      "id": 16137,
+      "job": 37,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 200 }, { "level": 94, "potency": 300 }]
+      }
+    },
+    {
+      "id": 16139,
+      "job": 37,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    {
+      "id": 16230,
+      "job": 27,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 400 }]
+      }
+    },
+    { "id": 16463, "forced": "criticalDirect" },
+    { "id": 16465, "forced": "criticalDirect" },
+    { "id": 16486, "forced": "critical" },
+    {
+      "id": 16495,
+      "job": 23,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    {
+      "id": 16505,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 350 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 16507,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 890 }]
+      }
+    },
+    {
+      "id": 16533,
+      "job": 24,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 290 }]
+      }
+    },
+    {
+      "id": 16541,
+      "job": 28,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 255 }]
+      }
+    },
+    {
+      "id": 16555,
+      "job": 33,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 230 }]
+      }
+    },
+    {
+      "id": 17869,
+      "job": 28,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }]
+      }
+    },
+    {
+      "id": 17870,
+      "job": 28,
+      "calibration": {
+        "kind": "damage",
+        "potency": [
+          { "level": 1, "potency": 140 },
+          { "level": 54, "potency": 160 },
+          { "level": 64, "potency": 180 },
+          { "level": 72, "potency": 200 },
+          { "level": 82, "potency": 220 }
+        ]
+      }
+    },
+    {
+      "id": 24283,
+      "job": 40,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 180 }, { "level": 54, "potency": 250 }, { "level": 64, "potency": 300 }]
+      }
+    },
+    {
+      "id": 24284,
+      "job": 40,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 400 }, { "level": 85, "potency": 450 }]
+      }
+    },
+    {
+      "id": 24306,
+      "job": 40,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 320 }]
+      }
+    },
+    {
+      "id": 24312,
+      "job": 40,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 330 }, { "level": 94, "potency": 380 }]
+      }
+    },
+    {
+      "id": 24373,
+      "job": 39,
+      "calibration": {
+        "kind": "damage",
+        "potency": [
+          { "level": 1, "potency": 260 },
+          { "level": 60, "potency": 300 },
+          { "level": 84, "potency": 320 },
+          { "level": 94, "potency": 420 }
+        ]
+      }
+    },
+    { "id": 25753, "forced": "criticalDirect" },
+    { "id": 25781, "forced": "critical" },
+    { "id": 25782, "forced": "critical" },
+    { "id": 25792, "forced": "criticalDirect" },
+    {
+      "id": 25793,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 80 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 25794,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 100 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 25795,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 100 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 25797,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 540 }]
+      }
+    },
+    {
+      "id": 25859,
+      "job": 24,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 310 }, { "level": 94, "potency": 350 }]
+      }
+    },
+    {
+      "id": 25865,
+      "job": 28,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 295 }, { "level": 94, "potency": 320 }]
+      }
+    },
+    {
+      "id": 25871,
+      "job": 33,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 250 }, { "level": 94, "potency": 270 }]
+      }
+    },
+    {
+      "id": 34633,
+      "job": 41,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 680 }]
+      }
+    },
+    {
+      "id": 34650,
+      "job": 42,
+      "calibration": {
+        "kind": "damage",
+        "potency": [
+          { "level": 1, "potency": 250 },
+          { "level": 54, "potency": 310 },
+          { "level": 74, "potency": 380 },
+          { "level": 84, "potency": 420 },
+          { "level": 94, "potency": 490 }
+        ]
+      }
+    },
+    { "id": 34678, "forced": "criticalDirect" },
+    { "id": 34679, "forced": "criticalDirect" },
+    { "id": 34680, "forced": "criticalDirect" },
+    { "id": 36925, "forced": "criticalDirect" },
+    {
+      "id": 36963,
+      "job": 34,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 240 }]
+      }
+    },
+    { "id": 36966, "forced": "critical" },
+    { "id": 36968, "forced": "critical" },
+    { "id": 36982, "forced": "criticalDirect" },
+    {
+      "id": 36989,
+      "job": 25,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 500 }],
+        "gauge": true
+      }
+    },
+    {
+      "id": 37004,
+      "job": 35,
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 360 }]
+      }
+    }
+  ]
+}
