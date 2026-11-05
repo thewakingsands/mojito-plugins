@@ -51,6 +51,7 @@ export interface StatisticsState {
   /** Names of the skills of the selected fight by skill key, and job abbreviations by `job:<ClassJob ID>` */
   names: Record<string, string>
   settings: Settings
+  telemetryAvailable?: boolean
   inputError: string | null
   /** Set while an input of the statistics is unavailable, so nothing is counted or logged */
   paused: boolean

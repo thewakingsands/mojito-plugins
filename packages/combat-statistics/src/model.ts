@@ -37,13 +37,14 @@ export interface Settings {
   quietSeconds: number
   mergePets: boolean
   scope: Scope
+  telemetryEnabled?: boolean
 }
 /**
  * How long after leaving combat the death of an enemy still counts for the fight; the game may report it seconds late,
  * after the enemy sat at 1 HP through its last scene. The log writes the end of such a fight only after this.
  */
 export const LATE_DEATH_MS = 5000
-export const defaults: Settings = { quietSeconds: 10, mergePets: true, scope: 'party' }
+export const defaults: Settings = { quietSeconds: 10, mergePets: true, scope: 'party', telemetryEnabled: false }
 /** Checks the items in order; the first invalid one names the error. */
 export function settings(value: unknown): Settings {
   if (!value || typeof value !== 'object') throw new Error('无效设置')
@@ -55,7 +56,9 @@ export function settings(value: unknown): Settings {
   const scope = input.scope ?? 'party'
   if (!['party', 'alliance', 'all'].includes(scope)) throw new Error('无效解析范围')
   // The mode of settings saved before the manual mode was removed is dropped.
-  return { quietSeconds: input.quietSeconds, mergePets: input.mergePets, scope }
+  const telemetryEnabled = input.telemetryEnabled ?? false
+  if (typeof telemetryEnabled !== 'boolean') throw new Error('无效匿名采集设置')
+  return { quietSeconds: input.quietSeconds, mergePets: input.mergePets, scope, telemetryEnabled }
 }
 export interface Amounts {
   damage: number

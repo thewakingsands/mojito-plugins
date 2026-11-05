@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "CombatStatistics",
   "name": "战斗统计",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
@@ -15,9 +15,12 @@
     "data.read",
     "ui.register",
     "services.provide",
-    "identity.read"
+    "identity.read",
+    "http.request"
   ],
-  "networkOrigins": [],
+  "networkOrigins": [
+    "https://mojo.ffcafe.cn"
+  ],
   "storage": {
     "totalBytes": 2147483648,
     "fileBytes": 16777216

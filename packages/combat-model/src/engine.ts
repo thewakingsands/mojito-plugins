@@ -45,6 +45,11 @@ export class CombatEngine {
     this.attributor = new DamageAttributor(this.periodic, world)
   }
 
+  setTelemetryEnabled(enabled: boolean): void {
+    this.periodic.telemetryEnabled = enabled
+    if (!enabled) this.periodic.takeTelemetry()
+  }
+
   /** The samples of the damage per potency of each caster since the zone changed */
   get calibration(): CalibrationSamples {
     return this.periodic.calibration
@@ -82,7 +87,10 @@ export class CombatEngine {
         this.applyWorld(input)
         break
     }
-    return output.map(toOutput)
+    return [
+      ...output.map(toOutput),
+      ...this.periodic.takeTelemetry().map((data): CombatOutput => ({ type: 'telemetrySample', data })),
+    ]
   }
 
   /** The time drain should be called at; null when nothing waits for time */

@@ -1,3 +1,4 @@
+import type { TelemetrySample } from '@ffcafe/mojito-combat-model'
 import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type {
   CombatantState,
@@ -26,6 +27,7 @@ import { provideOverlayService } from './overlay-service.js'
 import { Presentation } from './presentation.js'
 import { complete, type GameData, type PartialReplay, ReplayBuilder } from './replay/builder.js'
 import { resolveSelection } from './selection.js'
+import { Telemetry } from './telemetry.js'
 import {
   type ReplayResult,
   type Selection,
@@ -68,8 +70,9 @@ export async function activate(ctx: PluginContext) {
   let queue = Promise.resolve(),
     stopped = false,
     serial = 0
+  const telemetry = new Telemetry(ctx)
   const enqueue = <T>(task: () => Promise<T> | T): Promise<T> => {
-    const next = queue.then(task)
+    const next = queue.then(task).finally(() => telemetry.flush())
     queue = next.then(
       () => {},
       (error) => {
@@ -212,8 +215,30 @@ export async function activate(ctx: PluginContext) {
       if (!revision || !changed.ended) compatibilityLatest = changed
     },
     {
-      started: (info) => log.recorder.fightStarted(info),
+      started: (info) => {
+        log.recorder.fightStarted(info)
+        telemetry.start(
+          info.id,
+          !stopped &&
+            !paused &&
+            encounters.config.telemetryEnabled &&
+            ctx.clock.state().source !== 'replay' &&
+            session?.state !== 'replay' &&
+            runner &&
+            session?.opcodeVersion === periodicDefs.version &&
+            encounters.zone
+            ? {
+                producerVersion: ctx.identity.version,
+                modelVersion: periodicDefs.version,
+                dataGameVersion: periodicDefs.gameVersion,
+                opcodeVersion: session.opcodeVersion,
+                territoryId: encounters.zone,
+              }
+            : null,
+        )
+      },
       ended: (info) => {
+        telemetry.end(info.id, info.reason, info.afterInput)
         log.recorder.fightEnded(info)
         logPending = true
       },
@@ -386,6 +411,7 @@ export async function activate(ctx: PluginContext) {
       loadError: shown.error,
       names: await names(selected),
       settings: encounters.config,
+      telemetryAvailable: telemetry.permitted(),
       inputError,
       paused,
       inCombat,
@@ -793,7 +819,12 @@ export async function activate(ctx: PluginContext) {
       if (own?.name) primary = { id: own.id, name: own.name }
     }
   }
-  async function receive(items: Sample<GameEvent>[]) {
+  interface InputUnit {
+    input: Sample<GameEvent>
+    events: Sample<GameEvent>[]
+    samples: TelemetrySample[]
+  }
+  async function receive(items: Sample<GameEvent>[], units?: InputUnit[]) {
     if (stopped || paused) return
     try {
       await actorInputs(items)
@@ -805,22 +836,41 @@ export async function activate(ctx: PluginContext) {
     }
     // A replay hands out events ahead of their acknowledgement, so the clock may already be past events still to come.
     const replay = ctx.clock.state().source === 'replay'
-    for (const item of items) {
-      if (`${item.meta.sessionId}:${item.meta.characterGeneration}:${item.meta.clockGeneration}` !== identities?.source)
-        continue
-      if (LOG_ONLY.has(item.value.type)) {
+    for (const unit of units ?? items.map((input) => ({ input, events: [input], samples: [] }))) {
+      if (sourceKey(unit.input.meta) !== identities?.source) continue
+      if (unit.input.value.type === 'actorProfileChanged') {
+        const { actorId, classJob, level } = unit.input.value.data
+        telemetry.profile(actorId, classJob, level)
+      }
+      let telemetryOwner: string | undefined
+      for (const item of unit.events) {
+        if (
+          `${item.meta.sessionId}:${item.meta.characterGeneration}:${item.meta.clockGeneration}` !== identities?.source
+        )
+          continue
+        if (LOG_ONLY.has(item.value.type)) {
+          log.recorder.event(item)
+          continue
+        }
+        const at = item.meta.observedAt,
+          now = ctx.clock.now() ?? at
+        const owner = encounters.accept(item, replay ? Math.min(now, at) : now)
+        if (item === unit.input) telemetryOwner = owner
         log.recorder.event(item)
-        continue
+        inCombat = encounters.inCombat
+        if (terminalFrames.length) {
+          await flushLog()
+          for (const terminal of terminalFrames.splice(0)) await publishFrame(true, terminal)
+        }
       }
-      const at = item.meta.observedAt,
-        now = ctx.clock.now() ?? at
-      encounters.accept(item, replay ? Math.min(now, at) : now)
-      log.recorder.event(item)
-      inCombat = encounters.inCombat
-      if (terminalFrames.length) {
-        await flushLog()
-        for (const terminal of terminalFrames.splice(0)) await publishFrame(true, terminal)
+      for (const sample of unit.samples) {
+        if (
+          identities?.actors.get(sample.casterId)?.kind === 'member' &&
+          identities?.actors.get(sample.targetId)?.kind === 'enemy'
+        )
+          if (unit.input.meta.source === 'live' && telemetryOwner) telemetry.add(sample, telemetryOwner)
       }
+      telemetry.flush()
     }
     log.recorder.flushBoundaries()
     await flushLog()
@@ -837,11 +887,25 @@ export async function activate(ctx: PluginContext) {
   async function receiveInputs(items: Sample<GameEvent>[]) {
     const current = runner
     const events: Sample<GameEvent>[] = []
+    const units: InputUnit[] = []
     for (const item of items) {
-      if (!MODEL_ONLY.has(item.value.type)) events.push(item)
-      if (!current || runner !== current) continue
+      const unit: InputUnit = { input: item, events: [], samples: [] }
+      units.push(unit)
+      if (!MODEL_ONLY.has(item.value.type)) unit.events.push(item)
+      if (!current || runner !== current) {
+        events.push(...unit.events)
+        continue
+      }
       try {
-        events.push(...current.receive(item))
+        current.setTelemetryEnabled(
+          !!encounters.config.telemetryEnabled &&
+            telemetry.permitted() &&
+            !paused &&
+            ctx.clock.state().source !== 'replay',
+        )
+        unit.events.push(...current.receive(item))
+        unit.samples = current.takeTelemetry()
+        events.push(...unit.events)
       } catch (error) {
         ctx.log.error('战斗模型处理事件失败', { error: String(error), event: item.value.type })
         current.dispose()
@@ -850,10 +914,11 @@ export async function activate(ctx: PluginContext) {
       }
     }
     if (!runner && current) await updatePause()
-    await receive(events)
+    await receive(events, units)
   }
   /** Starts a combat model for the subscription; it is unavailable when the data is for another opcode version */
   async function startModel(generation: number) {
+    telemetry.invalidate()
     runner?.dispose()
     runner = null
     if (session?.opcodeVersion !== periodicDefs.version) {
@@ -893,7 +958,13 @@ export async function activate(ctx: PluginContext) {
     // HP shares the subscription of actionEffect to keep their order, and so do the inputs of the combat model: a host
     // without them gives unavailable, which pauses the statistics.
     const sub = ctx.events.subscribe(['hpChanged', 'playerCombatChanged', ...MODEL_INPUTS], (batch) =>
-      enqueue(() => receiveCurrent(batch.items)),
+      enqueue(() => {
+        if (!batch.complete) {
+          telemetry.invalidate()
+          runner?.clearTelemetryState()
+        }
+        return receiveCurrent(batch.items)
+      }),
     )
     try {
       await sub.ready
@@ -994,6 +1065,7 @@ export async function activate(ctx: PluginContext) {
     if (next !== paused) {
       paused = next
       if (paused) {
+        telemetry.invalidate()
         encounters.boundary('inputUnavailable', ctx.clock.now() ?? 0)
         log.recorder.flushBoundaries()
         await flushLog()
@@ -1350,8 +1422,13 @@ export async function activate(ctx: PluginContext) {
           pinned = null
         } else if (request.kind === 'settings') {
           const next = settings(request.value)
+          if (next.telemetryEnabled && !telemetry.permitted()) throw new Error('请先在插件权限中允许网络请求')
           await ctx.config.set('settings', next as unknown as Json)
+          if (next.scope !== encounters.config.scope || next.telemetryEnabled !== encounters.config.telemetryEnabled)
+            telemetry.invalidate()
+          if (!next.telemetryEnabled) telemetry.stop()
           encounters.config = next
+          runner?.setTelemetryEnabled(!!next.telemetryEnabled && telemetry.permitted())
           log.recorder.settings(next)
           scopeMembers()
           if (identities) {
@@ -1381,6 +1458,7 @@ export async function activate(ctx: PluginContext) {
   return async () => {
     stopped = true
     fillRun++
+    telemetry.stop()
     if (logTimer !== null) clearInterval(logTimer)
     if (retryTimer !== null) clearInterval(retryTimer)
     if (displayTimer !== null) clearInterval(displayTimer)

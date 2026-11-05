@@ -301,3 +301,9 @@ describe('ModifierCalculator', () => {
     })
   })
 })
+
+it('marks an unknown source condition incomplete without changing its numeric result', () => {
+  const { calculator, give, damage } = setup()
+  give(ENEMY, 2586, 0xe0000000)
+  expect(calculator.compute(damage(SAMURAI, HIGANBANA))).toMatchObject({ multiplier: 1, telemetryComplete: false })
+})

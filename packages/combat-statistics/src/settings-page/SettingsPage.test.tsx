@@ -24,12 +24,12 @@ afterEach(() => {
   HTMLDialogElement.prototype.close = close
 })
 
-function show() {
+function show(available = true) {
   const sent: Command[] = []
   const failures: string[] = []
   const view = {
     subscribe: (_: string, listener: (batch: { items: Value[] }) => void) => {
-      listener({ items: [{ settings: defaults } as unknown as StatisticsState as unknown as Value] })
+      listener({ items: [{ settings: defaults, telemetryAvailable: available } as unknown as StatisticsState as unknown as Value] })
       return { dispose() {} }
     },
   } as unknown as ViewBridge
@@ -124,4 +124,22 @@ it('clears from the dialog, closes it and shows the result', async () => {
   fireEvent.click(confirm())
   await settle()
   expect(screen.getByText('清空失败：文件被占用')).not.toBeNull()
+})
+
+it('keeps anonymous sampling disabled without HTTP permission', () => {
+  show(false)
+  const checkbox = screen.getByLabelText('共享匿名状态样本') as HTMLInputElement
+  expect(checkbox.checked).toBe(false)
+  expect(checkbox.disabled).toBe(true)
+})
+it('saves anonymous sampling consent immediately and restores it if saving fails', async () => {
+  const {sent, failures} = show()
+  fireEvent.click(screen.getByLabelText('共享匿名状态样本'))
+  await settle()
+  expect(sent).toEqual([{kind:'settings',value:{...defaults,telemetryEnabled:true}}])
+  failures.push('保存失败')
+  fireEvent.click(screen.getByLabelText('共享匿名状态样本'))
+  await settle()
+  expect((screen.getByLabelText('共享匿名状态样本') as HTMLInputElement).checked).toBe(false)
+  expect(screen.getByText('保存失败：保存失败')).not.toBeNull()
 })

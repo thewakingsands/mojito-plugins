@@ -7,6 +7,7 @@ import {
   type PeriodicTick as ModelTick,
   type PeriodicDefs,
   parseStatusEntries,
+  type TelemetrySample,
 } from '@ffcafe/mojito-combat-model'
 import type { CombatantState, Sample, SourceMeta } from '@ffcafe/mojito-plugin-sdk'
 import type { CombatResultEvent, GameEvent, PeriodicTick, ResultPacket } from './combat-events.js'
@@ -177,6 +178,42 @@ export class CombatEngineRunner {
   /** The inputs and the milliseconds the model took in each second of the source */
   private seconds = new Map<number, { inputs: number; ms: number }>()
   private disposed = false
+  private telemetryEnabled = false
+  private complete = new Set<number>()
+  private replacements = new Map<number, string>()
+  private telemetry: TelemetrySample[] = []
+
+  setTelemetryEnabled(enabled: boolean): void {
+    this.telemetryEnabled = enabled
+    this.engine.setTelemetryEnabled(enabled)
+    if (!enabled) this.telemetry = []
+  }
+
+  takeTelemetry(): TelemetrySample[] {
+    const samples = this.telemetry
+    this.telemetry = []
+    return samples
+  }
+
+  clearTelemetryState(): void {
+    this.complete.clear()
+    this.replacements.clear()
+    this.telemetry = []
+  }
+
+  private confirmStatuses(actor: number): void {
+    const expected = this.replacements.get(actor)
+    if (expected === undefined) return
+    const actual = this.engine.world
+      .getBuffs(actor)
+      .map(({ id, source, stacks }) => `${id}:${source}:${stacks}`)
+      .sort()
+      .join(',')
+    if (actual === expected) {
+      this.complete.add(actor)
+      this.replacements.delete(actor)
+    }
+  }
 
   constructor(private options: RunnerOptions) {
     this.generation = Math.max(options.previousGeneration + 1, Math.floor(Date.now() / 1000))
@@ -185,6 +222,7 @@ export class CombatEngineRunner {
 
   /** Starts over with the actors and their statuses as the host knows them now */
   reset(combatants: readonly CombatantState[]): void {
+    this.clearTelemetryState()
     const world = new MemoryWorld()
     for (const combatant of combatants) {
       const value = <T>(field: { state: string; value?: T } | undefined) =>
@@ -198,6 +236,7 @@ export class CombatEngineRunner {
         ownerId: value(combatant.ownerId) ?? null,
       })
       const statuses = value(combatant.statuses)
+      if (statuses) this.complete.add(combatant.id)
       if (statuses)
         world.handle({
           type: 'statuses',
@@ -213,6 +252,7 @@ export class CombatEngineRunner {
     this.cancelTimer?.()
     this.cancelTimer = null
     this.engine = new CombatEngine(this.options.defs, world)
+    this.engine.setTelemetryEnabled(this.telemetryEnabled)
     this.ticks = 0
     this.origins.clear()
     this.attributedTicks.clear()
@@ -226,6 +266,13 @@ export class CombatEngineRunner {
    */
   receive(item: Sample<GameEvent>): Sample<CombatResultEvent>[] {
     if (this.disposed) return []
+    if (
+      this.lastMeta &&
+      (this.lastMeta.sessionId !== item.meta.sessionId ||
+        this.lastMeta.characterGeneration !== item.meta.characterGeneration ||
+        this.lastMeta.clockGeneration !== item.meta.clockGeneration)
+    )
+      this.clearTelemetryState()
     this.lastMeta = item.meta
     const started = performance.now()
     const input = toCombatInput(item.value, item.meta)
@@ -238,7 +285,22 @@ export class CombatEngineRunner {
       this.anchor = { source: item.meta.observedAt, model: packet.timestamp }
     if (input.type === 'tick' && origin) this.origins.set(this.ticks + 1, origin)
     if (input.type === 'tick') this.ticks++
-    const results = [...passed, ...this.convert(this.engine.handle(input), origin)]
+    if (input.type === 'zone') this.clearTelemetryState()
+    if (item.value.type === 'statusesReplaced' && item.value.data.actorId !== null) {
+      const { actorId, statuses } = item.value.data
+      this.complete.delete(actorId)
+      this.replacements.set(
+        actorId,
+        statuses
+          .map((status) => `${status.statusId}:${status.sourceActorId ?? 0xe0000000}:${status.param}`)
+          .sort()
+          .join(','),
+      )
+      this.confirmStatuses(actorId)
+    }
+    const outputs = this.engine.handle(input)
+    if (input.type === 'statuses' && input.holder !== null) this.confirmStatuses(input.holder)
+    const results = [...passed, ...this.convert(outputs, origin)]
     this.measure(input.time, performance.now() - started)
     this.schedule()
     return results
@@ -315,6 +377,10 @@ export class CombatEngineRunner {
     const now = () => this.options.now()
     for (const output of outputs) {
       switch (output.type) {
+        case 'telemetrySample':
+          if (current && this.complete.has(output.data.casterId) && this.complete.has(output.data.targetId))
+            this.telemetry.push(output.data)
+          break
         case 'periodicTick': {
           const { tickId, statusId } = output.data
           const origin = this.origins.get(tickId)
