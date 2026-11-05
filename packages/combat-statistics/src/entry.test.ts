@@ -52,6 +52,7 @@ async function setup(
   files = new Map<string, Uint8Array>(),
   partyData = true,
   opcodeVersion = periodicDefs.version,
+  telemetryOptions?: { enabled?: boolean; granted?: boolean; complete?: boolean; replay?: boolean },
 ) {
   let serviceRequest!: (method: string, payload: Value) => Promise<Value>
   let playerAvailable = !delayedIdentity
@@ -95,9 +96,26 @@ async function setup(
     commands = new Map<string, (input: Value) => Promise<Value>>()
   const field = <T>(value: T) => ({ state: 'ok', value, observedAt: now, from: 'packet', timeBase: 'packet-unix' })
   const ctx = {
-    identity: { activationId: 'test' },
+    identity: { activationId: 'test', version: '0.3.0' },
     limits: { values: { 'game.entities': 512 } },
-    capabilities: { get: () => ({ granted: ['data.read'], supported: {} }) },
+    capabilities: {
+      get: () => ({ granted: ['data.read', ...(telemetryOptions?.granted ? ['http.request'] : [])], supported: {} }),
+    },
+    http: {
+      request: vi.fn(async (_url: string, options: { body: string; signal: AbortSignal }) => {
+        if (process.env.TEST_TELEMETRY_HTTP_URL) {
+          const response = await fetch(process.env.TEST_TELEMETRY_HTTP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: options.body,
+            signal: options.signal,
+          })
+          expect(response.status).toBe(201)
+          return { status: response.status }
+        }
+        return { status: 201 }
+      }),
+    },
     log: {
       debug: (message: string, fields: unknown) => debugs.push({ message, fields }),
       error() {},
@@ -106,7 +124,19 @@ async function setup(
         warnings.push(message)
       },
     },
-    config: { get: async () => null, set: async () => {} },
+    config: {
+      get: async () =>
+        telemetryOptions
+          ? {
+              mode: 'auto',
+              quietSeconds: 10,
+              mergePets: true,
+              scope: 'party',
+              telemetryEnabled: telemetryOptions.enabled ?? false,
+            }
+          : null,
+      set: vi.fn(async () => {}),
+    },
     notifications: {
       send: async (notice: { title: string; detail?: string }) => {
         if (noticeRejection !== null) throw { code: noticeRejection }
@@ -215,8 +245,28 @@ async function setup(
         value: {
           missingIds: [],
           entities: [
-            { id: 1, objectKind: field(1), name: field('Synthetic'), ownerId: field(null), bNpcBase: field(0) },
-            { id: 9, objectKind: field(2), name: field('Enemy'), ownerId: field(null), bNpcBase: field(1) },
+            {
+              id: 1,
+              objectKind: field(1),
+              name: field('Synthetic'),
+              ownerId: field(null),
+              bNpcBase: field(0),
+              ...(telemetryOptions
+                ? {
+                    classJob: field(34),
+                    level: field(100),
+                    statuses: telemetryOptions.complete ? field([]) : { state: 'unknown' },
+                  }
+                : {}),
+            },
+            {
+              id: 9,
+              objectKind: field(2),
+              name: field('Enemy'),
+              ownerId: field(null),
+              bNpcBase: field(1),
+              ...(telemetryOptions?.complete ? { statuses: field([]) } : {}),
+            },
             ...(players
               ? [5, 6].map((id) => ({
                   id,
@@ -273,7 +323,7 @@ async function setup(
     receiveSession(
       batch([
         {
-          state: 'replay',
+          state: telemetryOptions && !telemetryOptions.replay ? 'connected' : 'replay',
           opcodeVersion,
           sessionId: 'source',
           characterGeneration: 1,
@@ -292,6 +342,8 @@ async function setup(
   await connect()
   if (partyData) await sendParty(field([]))
   return {
+    http: ctx.http.request as ReturnType<typeof vi.fn>,
+    configSet: ctx.config.set as ReturnType<typeof vi.fn>,
     setPlayerAvailable: (value: boolean) => {
       playerAvailable = value
     },
@@ -1265,5 +1317,130 @@ it('fails an icon request while no game data is open, and reads the icon once it
   h.setDataClosed(false)
   await h.refreshSession('cn')
   expect(await icon('action:10')).toMatchObject({ data: Uint8Array.of(405 % 256) })
+  await h.dispose()
+})
+
+/** Complete synthetic direct hits, with statuses changed in the same batch as both encounters. */
+async function telemetrySetup(options = { enabled: true, granted: true, complete: true, replay: false }) {
+  const h = await setup(false, false, [], 'unavailable', new Map(), true, periodicDefs.version, options)
+  h.setSource(options.replay ? 'replay' : 'live')
+  await h.zone([{ meta: meta(0), value: { territoryType: h.field(123) } } as Sample<GameTopics['zone']>])
+  return h
+}
+function telemetryFight(start: number, corrected = 70): Sample<GameEvent>[] {
+  let seq = start
+  const live = (event: GameEvent) => {
+    const item = sample(event, seq++)
+    item.meta.source = 'live'
+    return item
+  }
+  const slots = (id: number | null): GameEvent => ({
+    type: 'statusSlotsChanged',
+    packet: effect(seq).packet,
+    data: {
+      actorId: 1,
+      slots: [
+        {
+          slot: 0,
+          status: id ? { statusId: id, param: 1, sourceActorId: 1 } : null,
+        },
+      ],
+      changes: [],
+    },
+  })
+  const hit = (amount: number) => {
+    const event = effect(seq, amount)
+    event.data.actionId = 7477
+    event.data.sequence = seq
+    return live(event)
+  }
+  return [
+    live(slots(null)),
+    live(combat(seq, true)),
+    ...Array.from({ length: 5 }, () => hit(20000)),
+    live(slots(40001)),
+    ...Array.from({ length: 5 }, () => hit(corrected * 200)),
+    live(combat(seq, false)),
+  ]
+}
+it('reports one anonymous encounter from the real model and finalization path', async () => {
+  const h = await telemetrySetup()
+  await h.events(telemetryFight(2000))
+  await Promise.all(h.http.mock.results.map((result) => result.value))
+  expect(h.http).toHaveBeenCalledTimes(1)
+  const body = JSON.parse(h.http.mock.calls[0][1].body)
+  expect(body.payload.observations).toEqual([
+    expect.objectContaining({
+      unknownStatusIds: [40001],
+      sampleCount: 5,
+      baselineSampleCount: 5,
+      correctedDamagePerPotency: 70,
+      baselineDamagePerPotency: 100,
+    }),
+  ])
+  expect(body.payload).toMatchObject({
+    modelVersion: periodicDefs.version,
+    opcodeVersion: periodicDefs.version,
+    territoryId: 123,
+  })
+  await h.dispose()
+})
+it('keeps two encounters in one input batch separate and never repeats a finalized report', async () => {
+  const h = await telemetrySetup()
+  await h.events([...telemetryFight(2000), ...telemetryFight(3000, 130)])
+  expect(h.http).toHaveBeenCalledTimes(2)
+  expect(
+    h.http.mock.calls.map((call) => JSON.parse(call[1].body).payload.observations[0].correctedDamagePerPotency),
+  ).toEqual([70, 130])
+  await h.events([sample(combat(300, false), 300)])
+  expect(h.http).toHaveBeenCalledTimes(2)
+  await h.dispose()
+})
+it.each([
+  { enabled: false, granted: true, complete: true, replay: false },
+  { enabled: true, granted: false, complete: true, replay: false },
+  { enabled: true, granted: true, complete: false, replay: false },
+  { enabled: true, granted: true, complete: true, replay: true },
+])('does not collect without consent, permission, complete statuses or live inputs: %j', async (options) => {
+  const h = await telemetrySetup(options)
+  await h.events(telemetryFight(2000))
+  expect(h.http).not.toHaveBeenCalled()
+  await h.dispose()
+})
+it('does not enable network collection without permission and reports save errors', async () => {
+  const h = await telemetrySetup({ enabled: false, granted: false, complete: true, replay: false })
+  const command = h.commands.get('statistics')!
+  const value = { mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'party', telemetryEnabled: true }
+  await expect(command({ kind: 'settings', value })).rejects.toThrow('插件权限')
+  expect(h.configSet).not.toHaveBeenCalled()
+  await h.dispose()
+})
+
+it('includes the last hit when quiet finalization happens after that input', async () => {
+  const h = await telemetrySetup()
+  const fight = telemetryFight(2000).filter((item) => item.value.type !== 'playerCombatChanged')
+  await h.events(fight.slice(0, -1))
+  h.setNow(fight.at(-1)!.meta.observedAt + 10001)
+  await h.events([fight.at(-1)!])
+  expect(h.http).toHaveBeenCalledTimes(1)
+  expect(JSON.parse(h.http.mock.calls[0][1].body).payload.observations[0].sampleCount).toBe(5)
+  await h.dispose()
+})
+it('enabling during combat waits for the next encounter; scope changes discard the current samples', async () => {
+  const h = await telemetrySetup({ enabled: false, granted: true, complete: true, replay: false })
+  const command = h.commands.get('statistics')!
+  const value = { mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'party', telemetryEnabled: true }
+  const fight = telemetryFight(2000)
+  await h.events(fight.slice(0, 7))
+  await command({ kind: 'settings', value })
+  await h.events(fight.slice(7))
+  expect(h.http).not.toHaveBeenCalled()
+  const second = telemetryFight(3000)
+  await h.events(second.slice(0, 7))
+  await command({ kind: 'settings', value: { ...value, scope: 'all' } })
+  await h.events(second.slice(7))
+  expect(h.http).not.toHaveBeenCalled()
+  await h.events(telemetryFight(4000))
+  expect(h.http).toHaveBeenCalledTimes(1)
   await h.dispose()
 })

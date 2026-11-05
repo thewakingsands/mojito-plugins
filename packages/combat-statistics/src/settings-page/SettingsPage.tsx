@@ -100,6 +100,23 @@ export function SettingsPage() {
             onChange={(event) => edit({ mergePets: event.target.checked })}
           />
         </div>
+        <div className="mojito-field">
+          <div>
+            <label htmlFor="telemetry">共享匿名状态样本</label>
+            <small>
+              {statistics?.telemetryAvailable
+                ? '战后共享异常倍率及版本信息，不包含角色身份。开启后从下一场开始。'
+                : '请先在宿主的插件权限中允许网络请求。'}
+            </small>
+          </div>
+          <input
+            id="telemetry"
+            type="checkbox"
+            checked={!!form.telemetryEnabled}
+            disabled={!statistics?.telemetryAvailable}
+            onChange={(event) => edit({ telemetryEnabled: event.target.checked })}
+          />
+        </div>
       </form>
       <div className="mojito-panel">
         <div className="mojito-field">

@@ -26,8 +26,15 @@ export interface Settings {
   quietSeconds: number
   mergePets: boolean
   scope: Scope
+  telemetryEnabled?: boolean
 }
-export const defaults: Settings = { mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'party' }
+export const defaults: Settings = {
+  mode: 'auto',
+  quietSeconds: 10,
+  mergePets: true,
+  scope: 'party',
+  telemetryEnabled: false,
+}
 export function settings(value: unknown): Settings {
   if (!value || typeof value !== 'object') throw new Error('无效分场设置')
   const input = value as Settings
@@ -42,7 +49,9 @@ export function settings(value: unknown): Settings {
   // Settings saved before the scope option existed keep the original own-party behavior.
   const scope = input.scope ?? 'party'
   if (!['party', 'alliance', 'all'].includes(scope)) throw new Error('无效解析范围')
-  return { mode: input.mode, quietSeconds: input.quietSeconds, mergePets: input.mergePets, scope }
+  const telemetryEnabled = input.telemetryEnabled ?? false
+  if (typeof telemetryEnabled !== 'boolean') throw new Error('无效匿名采集设置')
+  return { mode: input.mode, quietSeconds: input.quietSeconds, mergePets: input.mergePets, scope, telemetryEnabled }
 }
 export interface Amounts {
   damage: number

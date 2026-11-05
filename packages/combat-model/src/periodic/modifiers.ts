@@ -1,3 +1,4 @@
+import { invalidTarget } from '../constants.js'
 import {
   type ActionCategory,
   type AttackType,
@@ -45,6 +46,8 @@ export type ModifierSide = 'all' | 'caster' | 'target'
 export interface ModifierResult {
   /** M, the product of the multipliers */
   multiplier: number
+  /** Whether every potentially applicable rule had the data it needed; does not change calculation. */
+  telemetryComplete: boolean
   /** Δc, damage only */
   critRate: number
   /** Δd, damage only */
@@ -80,6 +83,7 @@ export class ModifierCalculator {
   compute(query: ModifierQuery, side: ModifierSide = 'all'): ModifierResult {
     const result: ModifierResult = {
       multiplier: 1,
+      telemetryComplete: true,
       critRate: 0,
       directRate: 0,
       forcedCritical: false,
@@ -123,7 +127,9 @@ export class ModifierCalculator {
     holder: 'caster' | 'target',
   ): void {
     for (const modifier of this.defs.modifiers.get(buff.id) ?? []) {
-      if (!this.applies(modifier, query, buff, holder)) continue
+      const applies = this.applies(modifier, query, buff, holder)
+      if (applies === undefined) result.telemetryComplete = false
+      if (!applies) continue
       switch (modifier.type) {
         case 'forceCritical':
           result.forcedCritical = true
@@ -137,7 +143,16 @@ export class ModifierCalculator {
       }
 
       const value = this.valueOf(modifier, buff, holderId)
-      if (value === null) continue
+      if (value === null) {
+        result.telemetryComplete = false
+        continue
+      }
+      if (
+        'value' in modifier &&
+        modifier.value.some((entry) => entry.value !== modifier.value[0].value) &&
+        !this.combatants.get(buff.source).level
+      )
+        result.telemetryComplete = false
       const effect = { statusId: buff.id, sourceId: buff.source, holder }
       switch (modifier.type) {
         case 'critRate':
@@ -162,18 +177,25 @@ export class ModifierCalculator {
     query: ModifierQuery,
     buff: WorldStatus,
     holder: 'caster' | 'target',
-  ): boolean {
+  ): boolean | undefined {
+    let unknown = false
     const { type } = modifier
     const onTarget = type === 'damageTaken' || type === 'healingReceived' || type === 'critRateTaken'
     if (onTarget !== (holder === 'target')) return false
-    if ('scope' in modifier && modifier.scope === 'source' && buff.source !== query.caster) return false
+    if ('scope' in modifier && modifier.scope === 'source' && buff.source !== query.caster) {
+      if (buff.source === 0 || buff.source === invalidTarget) unknown = true
+      else return false
+    }
 
     const damage = query.kind === 'damage'
     if ((type === 'damageDealt' || type === 'damageTaken') && !damage) return false
     if ((type === 'healingDealt' || type === 'healingReceived') && damage) return false
     if ((type === 'critRate' || type === 'critRateTaken' || type === 'directHitRate') && !damage) return false
 
-    if (modifier.zones && (this.zone === null || !modifier.zones.includes(this.zone))) return false
+    if (modifier.zones) {
+      if (this.zone === null) unknown = true
+      else if (!modifier.zones.includes(this.zone)) return false
+    }
     const action = query.action.id
     if (modifier.actions) {
       if (!modifier.actions.includes(action)) return false
@@ -184,15 +206,20 @@ export class ModifierCalculator {
       return false
     }
 
-    if ('category' in modifier && modifier.category && modifier.category !== query.action.category) return false
+    if ('category' in modifier && modifier.category) {
+      if (query.action.category === null) unknown = true
+      else if (modifier.category !== query.action.category) return false
+    }
     if ('damageType' in modifier && modifier.damageType) {
-      if (!matchesDamageType(modifier.damageType, query.action.attackType)) return false
+      if (query.action.attackType === null) unknown = true
+      else if (!matchesDamageType(modifier.damageType, query.action.attackType)) return false
     }
     if (type === 'healingDealt' || type === 'healingReceived') {
       const category = query.action.category
-      if (category === null || !HEALED_BY_MULTIPLIERS.has(category)) return false
+      if (category === null) unknown = true
+      else if (!HEALED_BY_MULTIPLIERS.has(category)) return false
     }
-    return true
+    return unknown ? undefined : true
   }
 
   /** @returns The value of the modifier, with the stacks; null for a byte that was not recorded */
@@ -213,7 +240,10 @@ export class ModifierCalculator {
 
   private applyGauge(result: ModifierResult, query: ModifierQuery): void {
     const state = this.elements.stateOf(query.caster)
-    if (!state) return
+    if (!state) {
+      if (this.elements.hasElements(query.caster)) result.telemetryComplete = false
+      return
+    }
     const level = this.combatants.get(query.caster).level ?? 0
     for (const modifier of this.defs.gauge) {
       if (modifier.type === 'damageDealt' && query.kind !== 'damage') continue

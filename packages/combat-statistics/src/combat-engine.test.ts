@@ -265,3 +265,70 @@ describe('CombatEngineRunner', () => {
     expect(value.receive(sample(effect(3), 3000))).toEqual([])
   })
 })
+
+it('requires a complete status snapshot, captures it per input, and forgets it after a gap', () => {
+  const { runner: value } = runner()
+  value.setTelemetryEnabled(true)
+  value.receive(sample(paladin, 0))
+  const hit = effect(5, 22000)
+  hit.data.actionId = 9
+  value.receive(sample(hit, 100))
+  expect(value.takeTelemetry()).toEqual([])
+  const list = (actorId: number, ids: number[]) =>
+    sample(
+      {
+        type: 'statusesReplaced' as const,
+        packet: effect(2).packet,
+        data: {
+          actorId,
+          statuses: ids.map((statusId, slot) => ({
+            statusId,
+            slot,
+            param: 1,
+            sourceActorId: 1,
+            durationMs: null,
+            observedAt: 1,
+          })),
+        },
+      },
+      1,
+    )
+  value.receive(list(9, []))
+  value.receive(list(1, [40001]))
+  value.receive(sample(hit, 101))
+  expect(value.takeTelemetry()).toEqual([])
+  value.receive(
+    sample(
+      {
+        type: 'statusSlotsChanged',
+        packet: effect(3).packet,
+        data: {
+          actorId: 1,
+          slots: [{ slot: 0, status: { statusId: 40001, param: 1, sourceActorId: 1 } }],
+          changes: [],
+        },
+      },
+      2,
+    ),
+  )
+  value.receive(sample(hit, 102))
+  const captured = value.takeTelemetry()
+  expect(captured).toHaveLength(1)
+  value.receive(
+    sample(
+      {
+        type: 'statusSlotsChanged',
+        packet: effect(4).packet,
+        data: { actorId: 1, slots: [{ slot: 0, status: null }], changes: [] },
+      },
+      3,
+    ),
+  )
+  expect(captured[0].unknownStatuses).toEqual([{ id: 40001, param: 1 }])
+  value.receive(sample(hit, 103))
+  expect(value.takeTelemetry()[0].unknownStatuses).toEqual([])
+  value.clearTelemetryState()
+  value.receive(sample(hit, 104))
+  expect(value.takeTelemetry()).toEqual([])
+  value.dispose()
+})

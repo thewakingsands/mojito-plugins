@@ -1,3 +1,5 @@
+import type { TelemetrySample } from './telemetry.js'
+
 /** The results of CombatEngine. Actor ids are null for no actor, as in the inputs. */
 
 export interface PeriodicTick {
@@ -92,6 +94,7 @@ export interface AttributionDelta {
 }
 
 export type CombatOutput =
+  | { type: 'telemetrySample'; data: TelemetrySample }
   | { type: 'periodicTick'; data: PeriodicTick }
   | { type: 'periodicRevision'; data: { ticks: PeriodicTick[] } }
   | { type: 'potencySample'; data: PotencySample }

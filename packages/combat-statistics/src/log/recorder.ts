@@ -173,7 +173,12 @@ export class Recorder {
   }
   settings(value: Settings) {
     this.prelude(this.latest)
-    this.settingsValue = { ...value }
+    this.settingsValue = {
+      mode: value.mode,
+      quietSeconds: value.quietSeconds,
+      mergePets: value.mergePets,
+      scope: value.scope,
+    }
     this.record({ kind: 'settings', value: this.settingsValue }, this.latest)
   }
   /**

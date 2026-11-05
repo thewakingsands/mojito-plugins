@@ -487,5 +487,6 @@ export class Encounters {
     } finally {
       this.trailing = false
     }
+    return accepted ? encounter.id : undefined
   }
 }
