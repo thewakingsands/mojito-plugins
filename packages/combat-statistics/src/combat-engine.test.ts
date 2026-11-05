@@ -195,6 +195,7 @@ describe('CombatEngineRunner', () => {
 
   it('drains at the deadline of the model, and starts over without the state after reset', () => {
     const { runner: value, timers, drained, setNow } = runner()
+    setNow(1000)
     value.receive(sample(tick(1, 0, null), 1000))
     // The summed tick waits 100 ms for its status list
     expect(timers.at(-1)).toMatchObject({ ms: 101, cancelled: false })
@@ -215,6 +216,26 @@ describe('CombatEngineRunner', () => {
     expect(timers.at(-1)?.cancelled).toBe(true)
     // The ids start over with the engine
     expect(value.receive(sample(tick(13, 248, 1), 13000))[0].value.data).toMatchObject({ tickId: 1 })
+  })
+
+  it('lets a deadline pass on the source clock, also when the next packet says it is before the deadline', () => {
+    const { runner: value } = runner()
+    value.receive(sample(paladin, 0))
+    const first = sample(tick(1, 0, null), 1000)
+    value.receive(first)
+    // The status list, 50 ms after the tick by its packet, comes 150 ms after it
+    const list = sample(
+      {
+        type: 'statusesReplaced',
+        packet: { seq: 2, timestamp: 1050, sourceActorId: 9, targetActorId: 1 },
+        data: { actorId: 9, statuses: [] },
+      },
+      1150,
+    )
+    list.value.packet = { seq: 2, timestamp: 1050, sourceActorId: 9, targetActorId: 1 }
+    const results = value.receive(list)
+    expect(results.map((item) => item.value.type)).toEqual(['periodicTick'])
+    expect(results[0].value.data).toMatchObject({ confirmed: false })
   })
 
   it('reads the actors and their statuses the host knows when it starts over', () => {

@@ -167,8 +167,12 @@ export class CombatEngineRunner {
   private origins = new Map<number, Origin>()
   private attributedTicks = new Map<number, Origin>()
   private lastMeta: SourceMeta | null = null
-  /** The time of the model the last input or deadline reached */
-  private modelTime: number | null = null
+  /**
+   * Relates the source clock to the packet times of the model; set by the packet that starts a wait. Packets arrive
+   * later than their times say and by varying amounts, so a deadline passes on the source clock, not at the time of the
+   * next packet.
+   */
+  private anchor: { source: number; model: number } | null = null
   private cancelTimer: (() => void) | null = null
   /** The inputs and the milliseconds the model took in each second of the source */
   private seconds = new Map<number, { inputs: number; ms: number }>()
@@ -212,7 +216,7 @@ export class CombatEngineRunner {
     this.ticks = 0
     this.origins.clear()
     this.attributedTicks.clear()
-    this.modelTime = null
+    this.anchor = null
   }
 
   /**
@@ -228,10 +232,13 @@ export class CombatEngineRunner {
     if (!input) return []
     const packet = item.value.packet
     const origin: Origin | null = packet ? { meta: item.meta, packet } : null
+    // Timers may be behind the events, which come in batches
+    const passed = this.drainUntil(item.meta.observedAt)
+    if (packet && (!this.anchor || this.engine.nextDeadline() === null))
+      this.anchor = { source: item.meta.observedAt, model: packet.timestamp }
     if (input.type === 'tick' && origin) this.origins.set(this.ticks + 1, origin)
     if (input.type === 'tick') this.ticks++
-    const results = this.convert(this.engine.handle(input), origin)
-    this.modelTime = Math.max(this.modelTime ?? input.time, input.time)
+    const results = [...passed, ...this.convert(this.engine.handle(input), origin)]
     this.measure(input.time, performance.now() - started)
     this.schedule()
     return results
@@ -242,9 +249,22 @@ export class CombatEngineRunner {
     const due = this.engine.nextDeadline()
     if (this.disposed || due === null) return []
     const results = this.convert(this.engine.drain(due), null)
-    this.modelTime = Math.max(this.modelTime ?? due, due)
     this.schedule()
     return results
+  }
+
+  /** Lets the deadlines before the source time pass */
+  private drainUntil(sourceTime: number): Sample<CombatResultEvent>[] {
+    const results: Sample<CombatResultEvent>[] = []
+    for (let due = this.dueOnSource(); due !== null && due <= sourceTime; due = this.dueOnSource())
+      results.push(...this.convert(this.engine.drain(this.engine.nextDeadline() as number), null))
+    return results
+  }
+
+  /** The source time of the next deadline of the model */
+  private dueOnSource(): number | null {
+    const due = this.engine.nextDeadline()
+    return due === null || !this.anchor ? null : this.anchor.source + due - this.anchor.model
   }
 
   dispose(): void {
@@ -272,15 +292,15 @@ export class CombatEngineRunner {
   private schedule() {
     this.cancelTimer?.()
     this.cancelTimer = null
-    const due = this.engine.nextDeadline()
-    if (due === null || this.modelTime === null) return
+    const due = this.dueOnSource()
+    if (due === null) return
     this.cancelTimer = this.options.setTimeout(
       () => {
         this.cancelTimer = null
         const results = this.drain()
         if (results.length) this.options.drained(results)
       },
-      Math.max(0, due - this.modelTime),
+      Math.max(0, due - (this.options.now() ?? due)),
     )
   }
 
