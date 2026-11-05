@@ -1,4 +1,5 @@
-import type { Field, GameEvent, Status } from '@ffcafe/mojito-plugin-sdk'
+import type { Field, Status } from '@ffcafe/mojito-plugin-sdk'
+import type { GameEvent } from '../combat-events.js'
 import { castSpace, effect, sample } from '../fixtures.js'
 import type { LogRecord, PositionActor } from '../log/types.js'
 import { defaults } from '../model.js'

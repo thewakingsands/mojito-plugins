@@ -1,4 +1,5 @@
-import type { DamageAttribution, Field, GameEvent, PeriodicTick, Sample, SourceMeta } from '@ffcafe/mojito-plugin-sdk'
+import type { Field, Sample, SourceMeta } from '@ffcafe/mojito-plugin-sdk'
+import type { DamageAttribution, GameEvent, PeriodicTick } from './combat-events.js'
 import { Identities } from './identity.js'
 import type { Actor } from './model.js'
 export const actors = () =>
@@ -47,6 +48,7 @@ export const effect = (seq: number, value = 100, source = 1, target = 9, type = 
     targets: [
       {
         targetPosition: unobserved,
+        rawEntries: [],
         targetId: target,
         targetIndex: 0,
         effects: [

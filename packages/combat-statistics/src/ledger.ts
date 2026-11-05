@@ -1,4 +1,4 @@
-import type { AttributionPart, DamageAttribution, GameEvent, PeriodicTick } from '@ffcafe/mojito-plugin-sdk'
+import type { AttributionPart, DamageAttribution, GameEvent, PeriodicTick } from './combat-events.js'
 import type { Hp } from './hp-tracker.js'
 import {
   type Actor,

@@ -1,7 +1,7 @@
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type {
   CombatantState,
   Disposer,
-  GameEvent,
   GameTopics,
   Json,
   PluginContext,
@@ -10,6 +10,8 @@ import type {
   Subscription,
   Value,
 } from '@ffcafe/mojito-plugin-sdk'
+import { CombatEngineRunner, MODEL_INPUTS } from './combat-engine.js'
+import type { GameEvent } from './combat-events.js'
 import { compatibility } from './compatibility.js'
 import { displaySummary } from './display.js'
 import { dutyName } from './duty.js'
@@ -39,6 +41,19 @@ const REPLAYS = 3
 const GLOBAL_COOLDOWN = 58
 /** Shortest gap between two event-driven publications; moments the user waits for publish at once. */
 export const PUBLISH_MS = 200
+/** The events only the combat model reads */
+const MODEL_ONLY = new Set<string>([
+  'statusSlotsChanged',
+  'actorProfileChanged',
+  'overTimeTick',
+  'jobGaugeChanged',
+  'playerStatsChanged',
+])
+/**
+ * The events of the main subscription only the log takes, for the fight review; the model reads the casts and the
+ * status lists too, so they come in the order of the other events
+ */
+const LOG_ONLY = new Set<string>(['statusesReplaced', 'castStarted', 'castCancelled', 'potencySample'])
 
 export async function activate(ctx: PluginContext) {
   let queue = Promise.resolve(),
@@ -114,7 +129,9 @@ export async function activate(ctx: PluginContext) {
   let positionSub: Subscription | null = null,
     reviewSub: Subscription | null = null,
     sceneSub: Subscription | null = null,
-    potencySub: Subscription | null = null,
+    /** The combat model of the current subscription; null while it is unavailable */
+    runner: CombatEngineRunner | null = null,
+    runnerGeneration = 0,
     logTimer: ReturnType<typeof setInterval> | null = null,
     logPending = false,
     notifiedLogError: string | null = null
@@ -724,6 +741,10 @@ export async function activate(ctx: PluginContext) {
     for (const item of items) {
       if (`${item.meta.sessionId}:${item.meta.characterGeneration}:${item.meta.clockGeneration}` !== identities?.source)
         continue
+      if (LOG_ONLY.has(item.value.type)) {
+        log.recorder.event(item)
+        continue
+      }
       const at = item.meta.observedAt,
         now = ctx.clock.now() ?? at
       encounters.accept(item, replay ? Math.min(now, at) : now)
@@ -742,25 +763,70 @@ export async function activate(ctx: PluginContext) {
     )
     timer()
   }
+  /**
+   * Hands the events to the combat model, also while the statistics are paused so that it keeps the state of the game,
+   * and the events and the results that follow each of them to receive
+   */
+  async function receiveInputs(items: Sample<GameEvent>[]) {
+    const current = runner
+    const events: Sample<GameEvent>[] = []
+    for (const item of items) {
+      if (!MODEL_ONLY.has(item.value.type)) events.push(item)
+      if (!current || runner !== current) continue
+      try {
+        events.push(...current.receive(item))
+      } catch (error) {
+        ctx.log.error('战斗模型处理事件失败', { error: String(error), event: item.value.type })
+        current.dispose()
+        runner = null
+        unavailable.set('model', String(error))
+      }
+    }
+    if (!runner && current) await updatePause()
+    await receive(events)
+  }
+  /** Starts a combat model for the subscription; it is unavailable when the data is for another opcode version */
+  async function startModel(generation: number) {
+    runner?.dispose()
+    runner = null
+    if (session?.opcodeVersion !== periodicDefs.version) {
+      unavailable.set(
+        'model',
+        `状态数据对应的解析版本是 ${periodicDefs.version}，当前解析版本是 ${session?.opcodeVersion ?? '无'}`,
+      )
+      return false
+    }
+    const next = new CombatEngineRunner({
+      defs: periodicDefs,
+      previousGeneration: runnerGeneration,
+      now: () => ctx.clock.now(),
+      setTimeout: (callback, ms) => ctx.clock.setTimeout(callback, ms),
+      drained: (results) =>
+        void enqueue(() => (generation === eventGeneration && runner === next ? receive(results) : undefined)),
+      timing: (fields) => ctx.log.debug('combat-model timing', fields),
+    })
+    runnerGeneration = next.generation
+    try {
+      const fields = ['classJob', 'level', 'ownerId', 'statuses'] as const
+      next.reset((await ctx.game.getCombatants({ fields: [...fields] })).value.entities)
+    } catch (error) {
+      // The actors come again with their next changes
+      ctx.log.debug('读取角色失败，战斗模型从空白开始', { error: String(error) })
+    }
+    runner = next
+    unavailable.delete('model')
+    return true
+  }
   async function subscribeEvents() {
     if (!session || session.state === 'idle' || subscription || stopped) return
     const generation = ++eventGeneration
-    const receiveCurrent = (items: Sample<GameEvent>[]) => (generation === eventGeneration ? receive(items) : undefined)
-    // HP shares the subscription of actionEffect to keep their order. The periodic model and the damage splits are
-    // needed as well: a host without them gives unavailable, which pauses the statistics.
-    const sub = ctx.events.subscribe(
-      [
-        'actionEffect',
-        'hpChanged',
-        'actorDied',
-        'zoneChanged',
-        'playerCombatChanged',
-        'periodicTick',
-        'periodicRevision',
-        'damageAttributed',
-        'attributionRevision',
-      ],
-      (batch) => enqueue(() => receiveCurrent(batch.items)),
+    if (!(await startModel(generation))) return
+    const receiveCurrent = (items: Sample<GameEvent>[]) =>
+      generation === eventGeneration ? receiveInputs(items) : undefined
+    // HP shares the subscription of actionEffect to keep their order, and so do the inputs of the combat model: a host
+    // without them gives unavailable, which pauses the statistics.
+    const sub = ctx.events.subscribe(['hpChanged', 'playerCombatChanged', ...MODEL_INPUTS], (batch) =>
+      enqueue(() => receiveCurrent(batch.items)),
     )
     try {
       await sub.ready
@@ -775,11 +841,11 @@ export async function activate(ctx: PluginContext) {
     subscribeReview()
     sceneSub?.dispose()
     subscribeScene()
-    potencySub?.dispose()
-    subscribePotency()
     void sub.closed.then((result) => {
       if (subscription !== sub || stopped) return
       subscription = null
+      runner?.dispose()
+      runner = null
       void enqueue(async () => {
         if (stopped || generation !== eventGeneration) return
         encounters.boundary(result.reason, ctx.clock.now() ?? 0)
@@ -807,27 +873,13 @@ export async function activate(ctx: PluginContext) {
     sceneSub = scene
     void scene.ready.catch((error) => ctx.log.warn('可选中状态和过场动画订阅失败', { error: String(error) }))
   }
-  /** For the curves of the review; a host without the periodic model only leaves them out of the log */
-  function subscribePotency() {
-    const generation = eventGeneration
-    const potency = ctx.events.subscribe(['potencySample'], (batch) =>
-      enqueue(() => {
-        if (generation !== eventGeneration || potencySub !== potency || paused) return
-        for (const item of batch.items) if (sourceKey(item.meta) === identities?.source) log.recorder.event(item)
-      }),
-    )
-    potencySub = potency
-    void potency.ready.catch((error) => ctx.log.warn('每威力样本订阅失败', { error: String(error) }))
-  }
   function subscribeReview() {
     const generation = eventGeneration
-    const review = ctx.events.subscribe(
-      ['castStarted', 'castCancelled', 'statusChanged', 'statusesReplaced'],
-      (batch) =>
-        enqueue(() => {
-          if (generation !== eventGeneration || reviewSub !== review || paused) return
-          for (const item of batch.items) if (sourceKey(item.meta) === identities?.source) log.recorder.event(item)
-        }),
+    const review = ctx.events.subscribe(['statusChanged'], (batch) =>
+      enqueue(() => {
+        if (generation !== eventGeneration || reviewSub !== review || paused) return
+        for (const item of batch.items) if (sourceKey(item.meta) === identities?.source) log.recorder.event(item)
+      }),
     )
     reviewSub = review
     watchInput(
@@ -1121,8 +1173,8 @@ export async function activate(ctx: PluginContext) {
       reviewSub = null
       sceneSub?.dispose()
       sceneSub = null
-      potencySub?.dispose()
-      potencySub = null
+      runner?.dispose()
+      runner = null
       encounters.boundary('sourceChanged', ctx.clock.now() ?? 0)
       encounters.zone = null
       dutyNames.clear()
@@ -1265,7 +1317,8 @@ export async function activate(ctx: PluginContext) {
     zoneSub?.dispose()
     reviewSub?.dispose()
     sceneSub?.dispose()
-    potencySub?.dispose()
+    runner?.dispose()
+    runner = null
     positionSub?.dispose()
     for (const dispose of disposers.reverse()) await dispose()
     await queue

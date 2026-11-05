@@ -1,5 +1,5 @@
-import type { GameEvent } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it } from 'vitest'
+import type { GameEvent } from '../../combat-events.js'
 import { attribution } from '../../fixtures.js'
 import { replay } from '../../log/replay.js'
 import type { LogRecord } from '../../log/types.js'

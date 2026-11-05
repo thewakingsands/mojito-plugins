@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ffcafe/mojito-combat-model": "workspace:*",
     "@ffcafe/mojito-plugin-sdk": "workspace:*",
     "@noble/hashes": "2.4.0",
     "fflate": "0.8.3",

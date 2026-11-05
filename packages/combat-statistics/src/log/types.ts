@@ -1,12 +1,12 @@
 import type {
   CombatantState,
-  GameEvent,
   GameTopics,
   PlayerState,
   Sample,
   SessionSnapshot,
   TimeBase,
 } from '@ffcafe/mojito-plugin-sdk'
+import type { GameEvent } from '../combat-events.js'
 import type { Hp } from '../hp-tracker.js'
 import type { FightResult, Scope, Settings } from '../model.js'
 

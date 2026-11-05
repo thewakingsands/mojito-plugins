@@ -1,4 +1,5 @@
-import type { GameEvent, Status } from '@ffcafe/mojito-plugin-sdk'
+import type { Status } from '@ffcafe/mojito-plugin-sdk'
+import type { GameEvent } from '../combat-events.js'
 import { roleOf } from '../jobs.js'
 import type { LedgerEntry } from '../ledger.js'
 import type { ReplayObservers } from '../log/replay.js'

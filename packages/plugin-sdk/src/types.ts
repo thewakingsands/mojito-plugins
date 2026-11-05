@@ -101,6 +101,8 @@ export interface SessionSnapshot {
   characterGeneration: number
   process: { pid: number; name: string } | null
   build: string | null
+  /** The opcode version the host parses the packets with, such as 7.57; null without a parser */
+  opcodeVersion: string | null
   region: string | null
   login: 'unknown' | 'logged-out' | 'logged-in'
   character: { actorId: number | null; contentId: bigint | null } | null
@@ -133,65 +135,8 @@ export interface EffectTarget {
   targetIndex?: number
   targetId: number | null
   effects: Effect[]
-}
-export interface PeriodicTick {
-  estimatorGeneration: number
-  tickId: number
-  occurredAt: number
-  target: number | null
-  isHeal: boolean
-  statusId: number
-  total: number
-  unknown: number
-  confirmed: boolean
-  phase: 'realtime' | 'post'
-  shares: {
-    sourceId: number | null
-    statusId: number
-    amount: number
-    basis: 'exact' | 'sourceExact' | 'estimated' | 'unconfirmed'
-  }[]
-}
-/** One part of a damage given to the status of a player */
-export interface AttributionPart {
-  statusId: number
-  /** The player who gave the status; the owner when a pet gave it */
-  sourceId: number | null
-  amount: number
-}
-/** A damage of a player, split as it came */
-export interface DamageAttribution {
-  estimatorGeneration: number
-  /** Increases within estimatorGeneration; attributionRevision refers to it */
-  id: number
-  origin:
-    | { type: 'action'; actionId: number; sequence: number }
-    /** statusId: the status of the share or of the separately sent tick */
-    | { type: 'tick'; tickId: number; statusId: number }
-  /** The player the damage counts for: who dealt it, or the owner of the pet that dealt it */
-  attackerId: number | null
-  /** Who dealt it: the attacker or a pet of the attacker */
-  actorId: number | null
-  targetId: number | null
-  amount: number
-  /** amount without the contributions and the unattributed part */
-  retained: number
-  /** The part the modifiers of sources that are not players gave */
-  unattributed: number
-  /** Sorted by sourceId, then statusId; never the attacker */
-  contributions: AttributionPart[]
-}
-/** How the split of one damage changed when its window closed: the result after the window minus the realtime one */
-export interface AttributionDelta {
-  /** The id of the realtime damageAttributed; null for a share of a summed tick */
-  id: number | null
-  /** The tickId of the summed tick; null otherwise */
-  tickId: number | null
-  actorId: number | null
-  origin: { type: 'action'; actionId: number } | { type: 'tick'; statusId: number }
-  unattributed: number
-  /** amount is the change; a part the realtime split did not have, or the one after the window does not have, is included */
-  contributions: AttributionPart[]
+  /** The 8 effect entries of the target as the packet holds them, each as [low u32, high u32]; hosts >=1.9.0 */
+  rawEntries: [number, number][]
 }
 export interface GameEventMap {
   actorMoved: { actorId: number; position: { x: number; y: number; z: number }; rotation: number; moveType: number }
@@ -210,28 +155,6 @@ export interface GameEventMap {
   countdownStarted: { actorId: number | null; worldId: number; durationMs: number; result: number; name: string }
   countdownCancelled: { actorId: number | null; worldId: number; name: string }
   gameLog: { time: number; code: number; sender: Uint8Array; message: Uint8Array }
-  periodicTick: PeriodicTick
-  periodicRevision: { estimatorGeneration: number; ticks: PeriodicTick[] }
-  damageAttributed: DamageAttribution
-  /** A hit of an action with a known potency, as the host measured its damage per potency */
-  potencySample: {
-    casterId: number | null
-    targetId: number | null
-    actionId: number
-    /** The global sequence of the actionEffect it came from */
-    sequence: number
-    amount: number
-    /** The potency at the level of the caster, in a combo or from a side as the hit was, times the potency modifiers of the gauge */
-    potency: number
-    /** The product of the damage multipliers of the statuses the host knows */
-    multiplier: number
-    factors: { statusId: number; sourceId: number | null; holder: 'caster' | 'target'; value: number }[]
-    /** Hosts >=1.8.0 always give it; older hosts and persisted events lack it, and their samples are not critical */
-    critical?: boolean
-    /** Hosts >=1.8.0 always give it; older hosts and persisted events lack it, and their samples are not direct */
-    direct?: boolean
-  }
-  attributionRevision: { estimatorGeneration: number; records: AttributionDelta[] }
   playerCombatChanged: { actorId: number; inCombat: boolean }
   castStarted: {
     casterId: number | null
@@ -275,6 +198,35 @@ export interface GameEventMap {
   /** Slot is present on hosts >=1.7.0; older persisted events can lack it. */
   statusesReplaced: { actorId: number | null; statuses: (Status & { slot?: number })[] }
   statusChanged: { actorId: number | null; slot: number; status: Status | null }
+  /**
+   * The slots of the statuses of an actor after a status update or a status list: the slots whose content changed,
+   * and the statuses that came and left in the order the host found them. A refreshed status leaves, then comes. It
+   * follows the statusesReplaced of the same packet.
+   */
+  statusSlotsChanged: {
+    actorId: number | null
+    slots: { slot: number; status: { statusId: number; param: number; sourceActorId: number | null } | null }[]
+    changes: { kind: 'gained' | 'lost'; slot: number; statusId: number; sourceActorId: number | null }[]
+  }
+  /** The class or job, the level or the owner of an actor changed; an actor the host forgets has them all 0 */
+  actorProfileChanged: { actorId: number; classJob: number; level: number; ownerId: number | null }
+  /** A tick of a damage or heal over time effect */
+  overTimeTick: {
+    targetId: number | null
+    /** Who applied the status; when statusId is 0, not the one who applied any of them */
+    sourceActorId: number | null
+    /** 0 for a tick that sums every effect on the target */
+    statusId: number
+    isHeal: boolean
+    amount: number
+  }
+  /** The job gauge of the player; elementStance and enochianActive are those of the black mage, 0 and false else */
+  jobGaugeChanged: {
+    actorId: number
+    gauge: { job: string; elementStance: number; enochianActive: boolean } | null
+  }
+  /** The critical hit and direct hit attributes of the player, when a combat attribute changed */
+  playerStatsChanged: { actorId: number; criticalHit: number; directHit: number }
   zoneChanged: { territoryTypeId: number }
   /** A character became targetable or untargetable; also sent once when the character is first seen */
   targetableChanged: { actorId: number; targetable: boolean }
@@ -286,15 +238,7 @@ export type GameEvent<T extends keyof GameEventMap = keyof GameEventMap> = {
   [K in T]: {
     type: K
     data: GameEventMap[K]
-  } & (K extends
-    | 'periodicTick'
-    | 'periodicRevision'
-    | 'damageAttributed'
-    | 'potencySample'
-    | 'attributionRevision'
-    | 'gameLog'
-    | 'targetableChanged'
-    | 'cutsceneChanged'
+  } & (K extends 'actorProfileChanged' | 'statusSlotsChanged' | 'gameLog' | 'targetableChanged' | 'cutsceneChanged'
     ? { packet?: { seq: number; timestamp: number; sourceActorId: number; targetActorId: number } }
     : { packet: { seq: number; timestamp: number; sourceActorId: number; targetActorId: number } })
 }[T]

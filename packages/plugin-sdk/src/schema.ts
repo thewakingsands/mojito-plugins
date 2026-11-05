@@ -57,7 +57,7 @@ export function range(value: unknown): string {
   return s
 }
 /** The plugin API this host implements; manifests and catalog releases declare a range that must include it */
-export const pluginApiVersion = '1.8.0'
+export const pluginApiVersion = '1.9.0'
 export function supportsApiVersion(value: string): boolean {
   return satisfies(pluginApiVersion, range(value))
 }

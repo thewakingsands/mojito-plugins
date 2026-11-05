@@ -1,13 +1,7 @@
-import type {
-  Batch,
-  GameEvent,
-  GameTopics,
-  PluginContext,
-  Sample,
-  SessionSnapshot,
-  Value,
-} from '@ffcafe/mojito-plugin-sdk'
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
+import type { Batch, GameTopics, PluginContext, Sample, SessionSnapshot, Value } from '@ffcafe/mojito-plugin-sdk'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import type { GameEvent } from './combat-events.js'
 import { activate, PUBLISH_MS } from './entry.js'
 import { castSpace, combat, effect, meta, sample } from './fixtures.js'
 import { localDate } from './log/schema.js'
@@ -57,13 +51,13 @@ async function setup(
   rejection = 'unavailable',
   files = new Map<string, Uint8Array>(),
   partyData = true,
+  opcodeVersion = periodicDefs.version,
 ) {
   let serviceRequest!: (method: string, payload: Value) => Promise<Value>
   let playerAvailable = !delayedIdentity
   let receiveSession!: (batch: Batch<SessionSnapshot>) => Promise<void>
   let receiveReview: ((batch: Batch<Sample<GameEvent>>) => Promise<void>) | null = null
   let receiveScene: ((batch: Batch<Sample<GameEvent>>) => Promise<void>) | null = null
-  let receivePotency: ((batch: Batch<Sample<GameEvent>>) => Promise<void>) | null = null
   const warnings: string[] = []
   let receiveEvents!: (batch: Batch<ReturnType<typeof sample<GameEvent>>>) => Promise<void>
   let receiveZone!: (batch: Batch<Sample<GameTopics['zone']>>) => Promise<void>
@@ -158,7 +152,6 @@ async function setup(
           }
         }
         if (selection.includes('targetableChanged')) receiveScene = listener
-        else if (selection.includes('potencySample')) receivePotency = listener
         else receiveReview = listener
         return subscription()
       },
@@ -281,6 +274,7 @@ async function setup(
       batch([
         {
           state: 'replay',
+          opcodeVersion,
           sessionId: 'source',
           characterGeneration: 1,
           clock: { generation: 1 },
@@ -367,7 +361,6 @@ async function setup(
     },
     review: (items: Sample<GameEvent>[]) => receiveReview?.(batch(items)),
     scene: (items: Sample<GameEvent>[]) => receiveScene?.(batch(items)),
-    potency: (items: Sample<GameEvent>[]) => receivePotency?.(batch(items)),
     warnings,
     player: async (inCombat: boolean | null, at = now) => {
       await receivePlayer(
@@ -413,15 +406,19 @@ it('clears every visit but the current one, runs one ordered subscription and ke
   ])
   expect(snapshots.get('combat')).toMatchObject({ zone: { id: 339, name: '海雾村' } })
   expect(types()).toEqual([
-    'actionEffect',
     'hpChanged',
+    'playerCombatChanged',
+    'actionEffect',
     'actorDied',
     'zoneChanged',
-    'playerCombatChanged',
-    'periodicTick',
-    'periodicRevision',
-    'damageAttributed',
-    'attributionRevision',
+    'castStarted',
+    'castCancelled',
+    'statusesReplaced',
+    'statusSlotsChanged',
+    'actorProfileChanged',
+    'overTimeTick',
+    'jobGaugeChanged',
+    'playerStatsChanged',
   ])
   await events([sample(effect(1), 1000)])
   expect(snapshots.get('combat')).toMatchObject({ inCombat: null, combatData: { Encounter: { damage: '100' } } })
@@ -572,7 +569,7 @@ it('keeps the fight in progress and the last party when a party sample lacks its
   await h.dispose()
 })
 it('pauses when the host rejects the complete event set, without trying a smaller one', async () => {
-  const h = await setup(false, false, ['damageAttributed'])
+  const h = await setup(false, false, ['overTimeTick'])
   expect(h.paused()).toBe(true)
   expect(h.selections.filter((selection) => selection.includes('actionEffect'))).toHaveLength(1)
   await h.dispose()
@@ -718,7 +715,7 @@ it('writes the combat log to a daily Parquet file with readable notes', async ()
     >,
   ])
   await h.events([sample(effect(1), 1000)])
-  await h.review([
+  await h.events([
     sample(
       {
         type: 'castStarted',
@@ -795,41 +792,75 @@ it('keeps the statistics and the cast log when the host rejects the targetable a
   const rows = await fileRows(h.files.get(`log/${localDate(1000)}.parquet`)!)
   expect(rows.map((row) => row.kind)).toEqual(expect.arrayContaining(['action', 'castStart', 'fightEnd']))
 })
-const potencySample = (casterId: number): GameEvent => ({
-  type: 'potencySample',
-  packet: effect(1).packet,
-  data: { casterId, targetId: 9, actionId: 10, sequence: 1, amount: 9000, potency: 200, multiplier: 1, factors: [] },
+/** The level and job of a paladin, which the combat model reads */
+const paladin = (actorId: number): GameEvent => ({
+  type: 'actorProfileChanged',
+  data: { actorId, classJob: 19, level: 100, ownerId: null },
 })
-it('writes the potency samples of members to the combat log', async () => {
+/** Fast Blade, an action of the paladin with a potency of 220 at level 100 */
+const fastBlade = (seq: number, source: number): GameEvent<'actionEffect'> => {
+  const event = effect(seq, 9000, source)
+  return { ...event, data: { ...event.data, actionId: 9 } }
+}
+it('writes the potency samples the combat model takes from the members to the combat log only', async () => {
   const h = await setup()
   await h.zone([
     { meta: meta(1000), value: { territoryType: h.field(339), mapId: h.field(1) } } as unknown as Sample<
       GameTopics['zone']
     >,
   ])
-  await h.events([sample(effect(1), 1000)])
-  await h.potency([sample(potencySample(1), 1000), sample(potencySample(9), 1100)])
+  await h.events([
+    sample(paladin(1), 900),
+    sample(paladin(10), 900),
+    sample(fastBlade(1, 1), 1000),
+    sample(fastBlade(2, 10), 1100),
+  ])
+  // The samples do not count as damage: only the two hits do
+  expect((h.snapshots.get('statistics') as unknown as StatisticsState).current).toMatchObject({
+    encounterDamage: { value: 9000 },
+  })
   h.setNow(12000)
   await h.timers.at(-1)!()
   await h.dispose()
   const rows = await fileRows(h.files.get(`log/${localDate(1000)}.parquet`)!)
   expect(rows.filter((row) => row.kind === 'potency')).toEqual([
-    expect.objectContaining({ kind: 'potency', t: 1000n, actor: 1n, target: 9n, amount: 9000, retained: 200 }),
+    expect.objectContaining({ kind: 'potency', t: 1000n, actor: 1n, target: 9n, amount: 9000, retained: 220 }),
   ])
-  expect(h.warnings).not.toContain('每威力样本订阅失败')
 })
-it('keeps the statistics running when the host has no potency samples', async () => {
-  const h = await setup(false, false, ['potencySample'])
-  await settle()
-  expect(h.warnings.filter((message) => message === '每威力样本订阅失败')).toHaveLength(1)
-  expect(h.paused()).toBe(false)
+it('logs the status lists of the main subscription for the review', async () => {
+  const h = await setup()
   await h.zone([
     { meta: meta(1000), value: { territoryType: h.field(339), mapId: h.field(1) } } as unknown as Sample<
       GameTopics['zone']
     >,
   ])
-  await h.events([sample(effect(1), 1000)])
-  expect((h.snapshots.get('statistics') as unknown as StatisticsState).current!.rows.length).toBeGreaterThan(0)
+  await h.events([
+    sample(effect(1), 1000),
+    sample(
+      {
+        type: 'statusesReplaced',
+        packet: effect(2).packet,
+        data: {
+          actorId: 9,
+          statuses: [{ statusId: 7, param: 0, sourceActorId: 1, durationMs: 30000, observedAt: 1100, slot: 0 }],
+        },
+      },
+      1100,
+    ),
+  ])
+  h.setNow(12000)
+  await h.timers.at(-1)!()
+  await h.dispose()
+  const rows = await fileRows(h.files.get(`log/${localDate(1000)}.parquet`)!)
+  expect(rows.filter((row) => row.kind === 'statuses' || row.kind === 'statusItem')).toEqual([
+    expect.objectContaining({ kind: 'statuses', t: 1100n, actor: 9n }),
+    expect.objectContaining({ kind: 'statusItem', status: 7 }),
+  ])
+})
+it('pauses when the status data of the combat model is for another opcode version', async () => {
+  const h = await setup(false, false, [], 'unavailable', new Map(), true, '7.0')
+  expect(h.paused()).toBe(true)
+  expect(h.selections.filter((selection) => selection.includes('actionEffect'))).toEqual([])
   await h.dispose()
 })
 it('reads job icons and the icons of Action and Status rows once each', async () => {
@@ -846,7 +877,7 @@ it('reads job icons and the icons of Action and Status rows once each', async ()
   await h.dispose()
 })
 it('does not pause while no game is connected', async () => {
-  const h = await setup(false, false, ['periodicTick'])
+  const h = await setup(false, false, ['overTimeTick'])
   expect(h.paused()).toBe(true)
   expect(h.snapshots.get('statistics')).toMatchObject({ inputError: null })
   await h.idle()

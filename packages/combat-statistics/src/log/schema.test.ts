@@ -61,9 +61,10 @@ describe('rows', () => {
   it('reads back every record kind', () => {
     const multi = effect(1)
     multi.data.targets.push(
-      { targetPosition: unobserved, targetId: 10, effects: [] },
+      { targetPosition: unobserved, rawEntries: [], targetId: 10, effects: [] },
       {
         targetPosition: unobserved,
+        rawEntries: [],
         targetId: null,
         effects: [
           {

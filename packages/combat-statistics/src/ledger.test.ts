@@ -1,5 +1,5 @@
-import type { GameEvent } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it } from 'vitest'
+import type { GameEvent } from './combat-events.js'
 import { actors, attribution, effect, npcParty, sample, tick } from './fixtures.js'
 import { Ledger, overhealMetrics } from './ledger.js'
 import { REFLECT_SKILL } from './model.js'

@@ -177,20 +177,24 @@ entry. Empty slots remain omitted. Match a later `statusChanged` by its slot, ne
 the filtered list's array index. Query `Status` values are unchanged. Consumers that
 require slot tracking should require `apiVersion: "^1.7.0"`.
 
-### Potency samples
+### Combat model inputs
 
-`potencySample` gives the hits the host measures the damage per potency with: hits of
-the actions of each job that have a fixed potency, on the first target, while the level of
-the caster is known. `potency` already follows the combo and the position of the hit. Hits
-forced to be critical or direct, and hits under a status that adds potency, are left out.
-Critical and direct hits are included: `critical` and `direct` tell them apart, and their
-`amount` carries the critical or direct hit bonus. Plugin API 1.8.0 adds the two fields;
-an older host gives samples of hits that are neither critical nor direct only, without
-them. `amount ÷ potency` is the damage per potency; `multiplier` is the product of the
-damage multipliers the host knows, and `factors` lists them with the status, its source
-and whether the caster or the target holds it (`statusId` 0 is a modifier of the gauge).
+Plugin API 1.9.0 removes the results the host computed: `periodicTick`, `periodicRevision`,
+`damageAttributed`, `potencySample` and `attributionRevision`, with their types. A host
+of 1.9.0 or later rejects a subscription to any of them like an unknown event type, so a
+plugin that needs these results requires `apiVersion: "^1.9.0"` and computes them itself
+with `@ffcafe/mojito-combat-model` from these events:
 
-The event comes with the packet of its actionEffect and is not sent without one. It is
-available while the periodic model is: otherwise the subscription fails with
-`unavailable`. `actorIds` matches the caster or the target and `actionIds` the action;
-`statusIds` is not valid for it and fails with `invalid_argument`.
+- `actionEffect`: each target has `rawEntries`, the 8 effect entries of the packet, which
+  `parseStatusEntries` of the model reads the applied statuses from.
+- `statusSlotsChanged`: the slots of an actor that changed after a status update or a
+  status list, and the statuses that came and left, in order. A refreshed status leaves,
+  then comes. The `statusesReplaced` of the same packet comes first.
+- `actorProfileChanged`: the class or job, the level or the owner of an actor changed. It
+  may come from a memory record, without a packet.
+- `overTimeTick`, `jobGaugeChanged` and `playerStatsChanged`: the ticks of the over time
+  effects, the job gauge of the player, and its critical hit and direct hit attributes.
+
+`SessionSnapshot.opcodeVersion` is the opcode version the host parses the packets with.
+A plugin compares it with the version its status data is for, and stops computing when
+they differ: the game changed and the data has not followed yet.

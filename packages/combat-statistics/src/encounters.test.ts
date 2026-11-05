@@ -1,5 +1,5 @@
-import type { AttributionDelta, DamageAttribution, GameEvent } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it, vi } from 'vitest'
+import type { AttributionDelta, DamageAttribution, GameEvent } from './combat-events.js'
 import { type ChangedEncounter, Encounters } from './encounters.js'
 import { actors, attribution, combat, effect, sample, tick } from './fixtures.js'
 import { Ledger } from './ledger.js'

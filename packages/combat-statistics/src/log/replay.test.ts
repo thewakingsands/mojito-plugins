@@ -1,7 +1,6 @@
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type {
   Batch,
-  DamageAttribution,
-  GameEvent,
   GameTopics,
   Limits,
   PluginContext,
@@ -10,6 +9,7 @@ import type {
   Value,
 } from '@ffcafe/mojito-plugin-sdk'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import type { DamageAttribution, GameEvent } from '../combat-events.js'
 import { displaySummary } from '../display.js'
 import { activate, PUBLISH_MS } from '../entry.js'
 import { attribution, castSpace, effect, meta, sample, tick } from '../fixtures.js'
@@ -132,6 +132,7 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
   await send('session', [
     {
       state: 'replay',
+      opcodeVersion: periodicDefs.version,
       sessionId: 'source',
       characterGeneration: 1,
       clock: { generation: 1 },

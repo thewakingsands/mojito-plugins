@@ -59,6 +59,7 @@ function setup(
     const value = effect(random())
     value.data.targets = Array.from({ length: Math.ceil(bytes / 9) }, () => ({
       targetPosition: unobserved,
+      rawEntries: [],
       targetId: 9,
       effects: [{ ...value.data.targets[0].effects[0], rawValue: random() / 7 }],
     }))

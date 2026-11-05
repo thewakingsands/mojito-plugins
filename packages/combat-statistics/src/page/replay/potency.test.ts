@@ -19,13 +19,6 @@ const sample = (t: number, r: number, extra: Extra = {}): PotencySample => ({
   direct: false,
   ...extra,
 })
-/** A sample like `sample`, critical with a bonus of 1.6 and direct as the flags say */
-const hit = (t: number, r: number, flags: { critical?: boolean; direct?: boolean }, extra: Extra = {}) => {
-  const critical = flags.critical ?? false
-  const direct = flags.direct ?? false
-  const base = sample(t, r, { ...extra, critical, direct })
-  return { ...base, amount: base.amount * (critical ? 1.6 : 1) * (direct ? 1.25 : 1) }
-}
 /** Samples every SPACING from `from`, before `to` */
 const series = (from: number, to: number, r: number | ((index: number) => number), extra: Extra = {}) =>
   Array.from({ length: Math.ceil((to - from) / SPACING) }, (_, index) =>
@@ -60,124 +53,9 @@ function data(potency: PotencySample[], patch: Partial<Pick<ReplayData, 'fight' 
     ...patch,
   })
 }
-const shape = (region: { from: number; to: number; deviation: number; count: number }) => ({
-  from: region.from,
-  to: region.to,
-  deviation: Number(region.deviation.toFixed(6)),
-  count: region.count,
-})
 
+// The algorithm is tested in the combat model; these cases check the names the reasons get.
 describe('analyzePotency', () => {
-  it('gives nothing for a member without samples', () => {
-    expect(analyzePotency(data(fight([])), 1)).toBeNull()
-  })
-
-  it('has no window value with fewer than three samples within five seconds, and no region then', () => {
-    // A sample every six seconds is alone in its window
-    const samples = Array.from({ length: 15 }, (_, index) => sample(index * 6000, index % 2 ? 80 : 40))
-    const analysis = analyzePotency(data(samples), 0)!
-    expect(analysis.points.every((point) => point.w === null)).toBe(true)
-    expect(analysis.points[1]).toEqual({ t: 6000, r: 80, w: null, critical: false, direct: false })
-    expect(analysis.regions).toEqual([])
-  })
-
-  it('leaves the samples with known multipliers out of the baseline', () => {
-    const analysis = analyzePotency(data(fight(series(20_000, 50_000, 56, { multiplier: 1.12 }))), 0)!
-    expect(analysis.baseline).toBe(50)
-  })
-
-  it('takes every sample for the baseline when fewer than five have no known multiplier', () => {
-    const samples = [...series(0, 10_000, 50), ...series(10_000, 30_000, 60, { multiplier: 1.2 })]
-    expect(analyzePotency(data(samples), 0)!.baseline).toBe(60)
-  })
-
-  it('takes the median again without the samples whose window strays from the first one', () => {
-    // 48 to 52 around 50, then 60 for a while: the first median is 52, the second 50
-    const samples = [...series(0, 50_000, (index) => 48 + (index % 5)), ...series(50_000, 87_500, 60)]
-    expect(analyzePotency(data(samples), 0)!.baseline).toBe(50)
-  })
-
-  it('splits regions by their direction', () => {
-    const analysis = analyzePotency(data(fight([...series(20_000, 30_000, 60), ...series(30_000, 40_000, 40)])), 0)!
-    expect(analysis.baseline).toBe(50)
-    expect(analysis.regions.map(shape)).toEqual([
-      { from: 18_750, to: 28_750, deviation: 0.2, count: 4 },
-      { from: 28_750, to: 38_750, deviation: -0.2, count: 4 },
-    ])
-    expect(analysis.regions[0].median).toBe(60)
-  })
-
-  it('splits regions over a pause of more than fifteen seconds, and keeps them within the fight', () => {
-    const samples = fight(
-      [
-        ...series(0, 10_000, 60),
-        ...series(35_000, 45_000, 60),
-        ...series(65_000, 75_000, 60),
-        ...series(130_000, 138_000, 60),
-      ],
-      138_000,
-    ).filter((item) => item.t < 45_000 || item.t >= 65_000)
-    const analysis = analyzePotency(data(samples, { fight: { visitId: 'v', fightId: 'f', durationMs: 138_000 } }), 0)!
-    expect(analysis.regions.map(shape)).toEqual([
-      { from: 0, to: 8750, deviation: 0.2, count: 4 },
-      { from: 33_750, to: 43_750, deviation: 0.2, count: 4 },
-      { from: 63_750, to: 73_750, deviation: 0.2, count: 4 },
-      { from: 128_750, to: 138_000, deviation: 0.2, count: 4 },
-    ])
-  })
-
-  describe('critical and direct hits', () => {
-    it('measures the critical bonus and takes it and the direct bonus out', () => {
-      const samples = series(0, 100_000, 50).map((item, index) =>
-        hit(item.t, 50, { critical: index % 3 === 0, direct: index % 5 === 0 }),
-      )
-      const analysis = analyzePotency(data(samples), 0)!
-      expect(analysis.critical).toBeCloseTo(1.6, 9)
-      expect(analysis.droppedCritical).toBe(0)
-      expect(analysis.points).toHaveLength(40)
-      for (const point of analysis.points) expect(point.r).toBeCloseTo(50, 9)
-      expect(analysis.points[0]).toMatchObject({ critical: true, direct: true })
-      expect(analysis.baseline).toBeCloseTo(50, 9)
-      expect(analysis.regions).toEqual([])
-    })
-
-    it('leaves the critical hits out when fewer than ten are only critical', () => {
-      // 9 only critical, 1 critical and direct, 4 only direct
-      const samples = series(0, 100_000, 50).map((item, index) =>
-        hit(item.t, 50, { critical: index < 10, direct: index >= 9 && index < 14 }),
-      )
-      const analysis = analyzePotency(data(samples), 0)!
-      expect(analysis.critical).toBeNull()
-      expect(analysis.droppedCritical).toBe(10)
-      expect(analysis.points).toHaveLength(30)
-      expect(analysis.points.every((point) => !point.critical)).toBe(true)
-      for (const point of analysis.points) expect(point.r).toBeCloseTo(50, 9)
-    })
-
-    it('leaves the critical hits out when fewer than ten are neither critical nor direct', () => {
-      const samples = series(0, 100_000, 50).map((item, index) => hit(item.t, 50, { critical: index >= 9 }))
-      const analysis = analyzePotency(data(samples), 0)!
-      expect(analysis.critical).toBeNull()
-      expect(analysis.droppedCritical).toBe(31)
-      expect(analysis.points).toHaveLength(9)
-    })
-
-    it('does not take a higher bonus from the critical hits gathered under a raid buff', () => {
-      const raid = { statusId: 1001, source: 1, holder: 'caster' as const, value: 1.2 }
-      const samples = series(0, 100_000, 50).map((item, index) => {
-        const buffed = item.t >= 20_000 && item.t < 40_000
-        return buffed
-          ? hit(item.t, 60, { critical: true }, { multiplier: 1.2, factors: [raid] })
-          : hit(item.t, 50, { critical: index % 10 === 0 })
-      })
-      expect(analyzePotency(data(samples), 0)!.critical).toBeCloseTo(1.6, 9)
-    })
-
-    it('gives nothing when every sample is a critical hit it cannot take', () => {
-      expect(analyzePotency(data([hit(0, 50, { critical: true })]), 0)).toBeNull()
-    })
-  })
-
   describe('reasons', () => {
     it('explains a region by the multipliers of others, of the member, of the target and below one', () => {
       const raid = { statusId: 1001, source: 1, holder: 'caster' as const, value: 1.1 }

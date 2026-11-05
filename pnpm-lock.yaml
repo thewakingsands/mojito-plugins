@@ -211,6 +211,9 @@ importers:
 
   packages/combat-statistics:
     dependencies:
+      '@ffcafe/mojito-combat-model':
+        specifier: workspace:*
+        version: link:../combat-model
       '@ffcafe/mojito-plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk

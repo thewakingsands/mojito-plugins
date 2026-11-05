@@ -1,5 +1,6 @@
-import type { GameEvent, Sample } from '@ffcafe/mojito-plugin-sdk'
+import type { Sample } from '@ffcafe/mojito-plugin-sdk'
 import type { EndEncounterResult } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
+import type { GameEvent } from './combat-events.js'
 import { HpTracker } from './hp-tracker.js'
 import { Ledger, type LedgerEntry, remember, remembered, tickKey } from './ledger.js'
 import type { Carry } from './log/types.js'

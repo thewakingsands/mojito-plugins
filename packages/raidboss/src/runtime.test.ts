@@ -224,8 +224,8 @@ it('projects AoE targets without collapsing sequence and names actors seen after
       animationTargetId: null,
       dataFlag: 0,
       targets: [
-        { targetId: 1, targetIndex: 3, targetPosition: field({ x: 0, y: 0, z: 0 }), effects: [] },
-        { targetId: 2, targetIndex: 7, targetPosition: field({ x: 0, y: 0, z: 0 }), effects: [] },
+        { targetId: 1, targetIndex: 3, targetPosition: field({ x: 0, y: 0, z: 0 }), effects: [], rawEntries: [] },
+        { targetId: 2, targetIndex: 7, targetPosition: field({ x: 0, y: 0, z: 0 }), effects: [], rawEntries: [] },
       ],
     },
   }

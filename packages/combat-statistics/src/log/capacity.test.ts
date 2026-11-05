@@ -1,14 +1,7 @@
 import { writeFileSync } from 'node:fs'
-import type {
-  AttributionDelta,
-  AttributionPart,
-  DamageAttribution,
-  Field,
-  GameEvent,
-  Limits,
-  SessionSnapshot,
-} from '@ffcafe/mojito-plugin-sdk'
+import type { Field, Limits, SessionSnapshot } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it } from 'vitest'
+import type { AttributionDelta, AttributionPart, DamageAttribution, GameEvent } from '../combat-events.js'
 import { effectSpace, meta, unobserved } from '../fixtures.js'
 import type { Actor, Summary } from '../model.js'
 import { Recorder } from './recorder.js'
@@ -179,6 +172,7 @@ async function hour(withSplits: boolean) {
             isAoe: aoe,
             targets: targets.map((target, targetIndex) => ({
               targetPosition: unobserved,
+              rawEntries: [],
               targetId: target,
               targetIndex,
               effects: [

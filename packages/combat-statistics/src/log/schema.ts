@@ -1,12 +1,5 @@
-import type {
-  AttributionDelta,
-  AttributionPart,
-  CombatantState,
-  DamageAttribution,
-  GameEvent,
-  PeriodicTick,
-  Status,
-} from '@ffcafe/mojito-plugin-sdk'
+import type { CombatantState, Status } from '@ffcafe/mojito-plugin-sdk'
+import type { AttributionDelta, AttributionPart, DamageAttribution, GameEvent, PeriodicTick } from '../combat-events.js'
 import type { Scope } from '../model.js'
 import type { Cell, ColumnSpec, Encoding, PhysicalType } from './parquet.js'
 import {
@@ -399,7 +392,7 @@ function eventRows(event: LogEvent): Row[] {
     case 'potencySample': {
       const { data } = event
       // A potency row takes the columns of the sample by their meaning where it can; retained holds the potency and
-      // unknown the multiplier the host knows. A host older than Plugin API 1.8.0 gives neither critical nor direct,
+      // unknown the multiplier the model knows. Logs of hosts older than Plugin API 1.8.0 have neither critical nor direct,
       // and only samples that are neither. Each factor row that follows holds the source in actor, the
       // multiplier in amount, and in flag whether the target holds the status.
       const { potency, multiplier } = data
@@ -611,6 +604,8 @@ export class Assembler {
           ...(row.index === null || row.index === undefined ? {} : { targetIndex: num(row, 'index')! }),
           targetId: num(row, 'target'),
           targetPosition: parse<GameEvent<'actionEffect'>['data']['targets'][number]['targetPosition']>(row),
+          // The log does not keep the entries: its results are logged with it
+          rawEntries: [],
           effects: [],
         })
         return true
@@ -812,7 +807,7 @@ export class Assembler {
           }),
         )
       case 'potency': {
-        // See eventRows: retained is the potency, unknown the multiplier the host knows
+        // See eventRows: retained is the potency, unknown the multiplier the model knows
         const potency = num(row, 'retained')!
         const multiplier = num(row, 'unknown')!
         return this.event(

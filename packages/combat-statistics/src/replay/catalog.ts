@@ -1,3 +1,4 @@
+import { damageDownStatuses } from '@ffcafe/mojito-combat-model/analysis'
 // Read from the game data of client 2026.10.06.0000.0000 (Chinese). Each skill lists every player action of the same
 // name, which takes in the versions of the trust NPCs and of PvP; the review only looks them up for party members.
 // The durations follow the skill descriptions at level 100.
@@ -84,10 +85,6 @@ export const partyMitigations: ReadonlyMap<number, number> = new Map(
   ).flatMap(([ids, seconds]) => ids.map((id) => [id, seconds * 1000] as const)),
 )
 
-/** The Damage Down statuses, which lower the damage the holder deals */
-export const damageDownStatuses: ReadonlySet<number> = new Set([
-  62, 215, 628, 696, 1016, 1090, 2092, 2404, 2522, 2911, 3166, 3304, 3964, 4370, 4371, 4514, 4874, 5451,
-])
 /** Damage Down, Vulnerability Up, Physical Vulnerability Up and Magic Vulnerability Up: the marks of a failed mechanic */
 export const penaltyStatuses: ReadonlySet<number> = new Set([
   ...damageDownStatuses,

@@ -1,13 +1,7 @@
-import type {
-  Batch,
-  GameEvent,
-  GameTopics,
-  PluginContext,
-  Sample,
-  SessionSnapshot,
-  Value,
-} from '@ffcafe/mojito-plugin-sdk'
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
+import type { Batch, GameTopics, PluginContext, Sample, SessionSnapshot, Value } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it, vi } from 'vitest'
+import type { GameEvent } from './combat-events.js'
 import { activate, PUBLISH_MS } from './entry.js'
 import { effect, meta, sample } from './fixtures.js'
 import type { StatisticsState } from './view-model.js'
@@ -132,6 +126,7 @@ async function harness() {
     batch([
       {
         state: 'replay',
+        opcodeVersion: periodicDefs.version,
         sessionId: 'source',
         characterGeneration: 1,
         clock: { generation: 1 },
