@@ -4,7 +4,14 @@ import type { Span } from './aggregate.js'
 import { dpsCurves } from './curves.js'
 import type { FilterMember } from './filter.js'
 import { actorName } from './parts.js'
-import { analyzePotency, GAP_MS, type PotencyAnalysis, type PotencyPoint, type PotencyRegion } from './potency.js'
+import {
+  analyzePotency,
+  GAP_MS,
+  MIN_WINDOW_SAMPLES,
+  type PotencyAnalysis,
+  type PotencyPoint,
+  type PotencyRegion,
+} from './potency.js'
 import { clockText } from './timeline.js'
 
 export const DPS_HEIGHT = 96
@@ -211,6 +218,13 @@ function conversionOf(point: PotencyPoint): string {
   return ''
 }
 
+/** The window value of a sample; one alone in its window has no value of its own to show */
+export function windowNote(point: PotencyPoint): string {
+  if (point.n === 1) return '窗口内只有这一个样本，不参与区域判定'
+  const value = `窗口值 ${point.w.toFixed(1)}`
+  return point.n < MIN_WINDOW_SAMPLES ? `${value}（窗口内 ${point.n} 个样本，不参与区域判定）` : value
+}
+
 export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | null) => void }) {
   const { window, width, curves, onRegion } = props
   const [hover, setHover] = useState<number | null>(null)
@@ -242,12 +256,12 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
     const y = (value: number) =>
       POTENCY_HEIGHT - INSET - ((value - range.low) / (range.high - range.low)) * (POTENCY_HEIGHT - INSET * 2)
     const visible = (t: number) => t >= window.from - GAP_MS && t <= window.to + GAP_MS
-    const judged = analysis.points.filter((point) => point.w !== null && visible(point.t))
+    const shown = analysis.points.filter((point) => visible(point.t))
     const line = path(
-      judged.map((point, index) => ({
+      shown.map((point, index) => ({
         x: x(point.t),
-        y: y(point.w!),
-        break: index > 0 && point.t - judged[index - 1].t > GAP_MS,
+        y: y(point.w),
+        break: index > 0 && point.t - shown[index - 1].t > GAP_MS,
       })),
     )
     const regionHover = (region: PotencyRegion, event: ReactPointerEvent<HTMLElement>) => {
@@ -318,10 +332,10 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
             最近样本 {clockText(point.t)} · 每威力 {point.r.toFixed(1)}
             {conversionOf(point)}
           </span>
-          <span className="number">窗口值 {point.w === null ? '样本不足' : point.w.toFixed(1)}</span>
+          <span className="number">{windowNote(point)}</span>
           <span className="number">
             基准 {analysis.baseline.toFixed(1)}
-            {point.w !== null && ` · 偏离 ${signedPercent(point.w / analysis.baseline - 1)}`}
+            {` · 偏离 ${signedPercent(point.w / analysis.baseline - 1)}`}
           </span>
           {analysis.critical !== null && (
             <span className="number">暴击倍率 {analysis.critical.toFixed(2)}（本场实测）</span>

@@ -645,6 +645,50 @@ it('tells the critical bonus, the critical hits left out and how the nearest sam
   }
 })
 
+it('tells the window value with the samples in the window, without saying the samples are too few', async () => {
+  const sample = (t: number, actor: number, amount = 10_000): PotencySample => ({
+    t,
+    actor,
+    target: 3,
+    actionId: 9,
+    amount,
+    potency: 200,
+    multiplier: 1,
+    factors: [],
+    critical: false,
+    direct: false,
+  })
+  const potency: PotencySample[] = []
+  for (let index = 0; index < 24; index++) potency.push(sample(index * 2500, 0))
+  // The bard is alone in its window at 0, 10 and 20 seconds, and has two samples in it at 30 and 33 seconds
+  potency.push(sample(0, 2), sample(10_000, 2), sample(20_000, 2), sample(30_000, 2, 8000), sample(33_000, 2, 12_000))
+  const rect = HTMLElement.prototype.getBoundingClientRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (!this.classList.contains('curve')) return rect.call(this)
+    return { ...rect.call(this), left: 0, width: 600 }
+  })
+  try {
+    await open({ ...data, potency: potency.sort((a, b) => a.t - b.t) })
+    expandTimeline()
+    const lane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
+    fireEvent.pointerMove(lane(), { clientX: 25 })
+    expect(lane().textContent).toContain('窗口值 50.0')
+    expect(lane().textContent).not.toContain('窗口内')
+    expect(lane().textContent).not.toContain('样本不足')
+
+    fireEvent.change(potencySelect(), { target: { value: '2' } })
+    fireEvent.pointerMove(lane(), { clientX: 100 })
+    expect(lane().textContent).toContain('窗口内只有这一个样本，不参与区域判定')
+    expect(lane().textContent).toContain('偏离')
+    expect(lane().textContent).not.toContain('样本不足')
+    fireEvent.pointerMove(lane(), { clientX: 300 })
+    expect(lane().textContent).toContain('窗口值 50.0（窗口内 2 个样本，不参与区域判定）')
+    expect(lane().textContent).not.toContain('样本不足')
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
 it('shows why a region strays only in its card while the pointer is on it', async () => {
   await open(potencyData)
   expandTimeline()

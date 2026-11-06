@@ -4,6 +4,7 @@ import type { PotencySample } from './output.js'
 export const POTENCY_THRESHOLD = 0.05
 /** The samples on each side of a sample whose median is its window value */
 export const WINDOW_MS = 5_000
+/** A point with fewer samples within WINDOW_MS judges no region, nor takes part in the second pass of the baseline */
 export const MIN_WINDOW_SAMPLES = 3
 /** Fewer samples without known multipliers than this, and the baseline takes all samples */
 export const MIN_BASELINE_SAMPLES = 5
@@ -43,8 +44,10 @@ export interface PotencyPoint {
   r: number
   critical: boolean
   direct: boolean
-  /** Median r of the samples within WINDOW_MS; null when fewer than MIN_WINDOW_SAMPLES */
-  w: number | null
+  /** Median r of the samples within WINDOW_MS, the sample itself included */
+  w: number
+  /** The samples within WINDOW_MS, the sample itself included; below MIN_WINDOW_SAMPLES the point judges no region */
+  n: number
 }
 export type ReasonKind = 'raid' | 'self' | 'target' | 'down'
 export interface PotencyRegion {
@@ -84,6 +87,7 @@ function median(values: readonly number[]): number {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 const deviates = (value: number, baseline: number) => Math.abs(value / baseline - 1) > POTENCY_THRESHOLD
+const judged = (point: PotencyPoint) => point.n >= MIN_WINDOW_SAMPLES
 
 /**
  * The critical bonus of the member in the fight: the median damage per potency of the hits that are only critical over
@@ -108,22 +112,18 @@ export function analyzePotency(samples: readonly AnalysisSample[], context: Anal
   const critical = criticalBonusOf(samples)
   const kept = critical === null ? samples.filter((sample) => !sample.critical) : samples
   if (!kept.length) return null
-  const points = kept.map(
-    (sample): PotencyPoint => ({
-      t: sample.t,
-      r:
-        sample.amount /
-        sample.potency /
-        (sample.direct ? DIRECT_MULTIPLIER : 1) /
-        (sample.critical ? (critical as number) : 1),
-      critical: sample.critical,
-      direct: sample.direct,
-      w: null,
-    }),
-  )
+  const points = kept.map((sample): PotencyPoint => {
+    const r =
+      sample.amount /
+      sample.potency /
+      (sample.direct ? DIRECT_MULTIPLIER : 1) /
+      (sample.critical ? (critical as number) : 1)
+    return { t: sample.t, r, critical: sample.critical, direct: sample.direct, w: r, n: 1 }
+  })
   for (const point of points) {
     const near = points.filter((other) => Math.abs(other.t - point.t) <= WINDOW_MS).map((other) => other.r)
-    point.w = near.length >= MIN_WINDOW_SAMPLES ? median(near) : null
+    point.w = median(near)
+    point.n = near.length
   }
   const baseline = baselineOf(kept, points)
 
@@ -131,8 +131,8 @@ export function analyzePotency(samples: readonly AnalysisSample[], context: Anal
   let current: number[] | null = null
   let direction = 0
   for (let i = 0; i < points.length; i++) {
+    if (!judged(points[i])) continue
     const { w, t } = points[i]
-    if (w === null) continue
     if (!deviates(w, baseline)) {
       current = null
       continue
@@ -154,7 +154,7 @@ function baselineOf(samples: readonly AnalysisSample[], points: readonly Potency
   let candidates = points.filter((_, i) => Math.abs(samples[i].multiplier - 1) < NO_MULTIPLIER)
   if (candidates.length < MIN_BASELINE_SAMPLES) candidates = [...points]
   const first = median(candidates.map((point) => point.r))
-  const kept = candidates.filter((point) => point.w === null || !deviates(point.w, first))
+  const kept = candidates.filter((point) => !judged(point) || !deviates(point.w, first))
   return kept.length ? median(kept.map((point) => point.r)) : first
 }
 
@@ -170,7 +170,7 @@ function regionOf(
   const to = Math.min(context.durationMs, points[group.at(-1)!].t + REGION_PAD_MS)
   const regionMedian = median(group.map((i) => points[i].r))
   const deviation = regionMedian / baseline - 1
-  const down = points[group[0]].w! < baseline
+  const down = points[group[0]].w < baseline
   const statusesOf = (holder: number) =>
     context.statuses.filter((status) => status.actor === holder && status.from < to && status.to > from)
 

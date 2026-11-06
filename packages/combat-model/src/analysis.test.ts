@@ -49,13 +49,35 @@ describe('analyzePotency', () => {
     expect(analyze([], { actor: 1 })).toBeNull()
   })
 
-  it('has no window value with fewer than three samples within five seconds, and no region then', () => {
+  it('takes the window value of a sample alone in its window from itself, and judges no region by it', () => {
     // A sample every six seconds is alone in its window
     const samples = Array.from({ length: 15 }, (_, index) => sample(index * 6000, index % 2 ? 80 : 40))
     const analysis = analyze(samples)!
-    expect(analysis.points.every((point) => point.w === null)).toBe(true)
-    expect(analysis.points[1]).toEqual({ t: 6000, r: 80, w: null, critical: false, direct: false })
+    expect(analysis.points.every((point) => point.w === point.r && point.n === 1)).toBe(true)
+    expect(analysis.points[1]).toEqual({ t: 6000, r: 80, w: 80, n: 1, critical: false, direct: false })
     expect(analysis.regions).toEqual([])
+  })
+
+  it('takes the median of two samples within five seconds', () => {
+    const analysis = analyze([sample(0, 40), sample(4000, 60)])!
+    expect(analysis.points.map((point) => [point.w, point.n])).toEqual([
+      [50, 2],
+      [50, 2],
+    ])
+  })
+
+  it('keeps a region over a sample alone in its window', () => {
+    const samples = [
+      ...series(0, 20_000, 50),
+      ...series(20_000, 30_000, 60),
+      sample(33_750, 40),
+      ...series(40_000, 50_000, 60),
+      ...series(50_000, 100_000, 50),
+    ].sort((a, b) => a.t - b.t)
+    const analysis = analyze(samples)!
+    expect(analysis.baseline).toBe(50)
+    expect(analysis.points.find((point) => point.t === 33_750)).toMatchObject({ w: 40, n: 1 })
+    expect(analysis.regions.map(shape)).toEqual([{ from: 18_750, to: 48_750, deviation: 0.2, count: 8 }])
   })
 
   it('leaves the samples with known multipliers out of the baseline', () => {

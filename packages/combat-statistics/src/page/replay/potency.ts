@@ -6,7 +6,7 @@ import {
 } from '@ffcafe/mojito-combat-model/analysis'
 import type { ReplayData } from '../../view-model.js'
 
-export { GAP_MS, type PotencyPoint, type ReasonKind } from '@ffcafe/mojito-combat-model/analysis'
+export { GAP_MS, MIN_WINDOW_SAMPLES, type PotencyPoint, type ReasonKind } from '@ffcafe/mojito-combat-model/analysis'
 
 export interface PotencyRegion extends Omit<ModelRegion, 'known' | 'unknown'> {
   /** In the order raid, self, target, down; only groups that have names */

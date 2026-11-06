@@ -1,5 +1,5 @@
 import type { RegionHover } from './CurveLanes.js'
-import { signedPercent } from './CurveLanes.js'
+import { signedPercent, windowNote } from './CurveLanes.js'
 import type { ReasonKind } from './potency.js'
 import { clockText } from './timeline.js'
 
@@ -46,8 +46,7 @@ export function RegionPopover(props: { hover: RegionHover; left: number; bottom:
             <tr>
               <th>最近样本</th>
               <td className="number">
-                {clockText(point.t)} · 每威力 {point.r.toFixed(1)} · 窗口值{' '}
-                {point.w === null ? '样本不足' : point.w.toFixed(1)}
+                {clockText(point.t)} · 每威力 {point.r.toFixed(1)} · {windowNote(point)}
               </td>
             </tr>
           )}
