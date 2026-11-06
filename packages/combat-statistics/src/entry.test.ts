@@ -191,7 +191,7 @@ async function setup(
       icon: async (id: number) => {
         open()
         icons.push(id)
-        if (id === 62125) throw new Error('missing')
+        if (id === 62125) return null
         return { mime: 'image/png', width: 1, height: 1, data: Uint8Array.of(id % 256) }
       },
     },

@@ -6,7 +6,13 @@ import { memoryStorage } from './log/storage.test-helper.js'
 /** Game data whose Action rows have the icon 1000 + id and the cooldown group 58; it counts every request */
 function fakeData() {
   const calls: string[] = []
-  const state = { version: 'v1' as string | null, closed: false, iconBytes: 4 }
+  const state = {
+    version: 'v1' as string | null,
+    closed: false,
+    iconBytes: 4,
+    rowsError: null as object | null,
+    iconError: null as object | null,
+  }
   const open = () => {
     if (state.closed) throw { code: 'unavailable' }
   }
@@ -23,6 +29,7 @@ function fakeData() {
     rows: async (sheet, ids) => {
       open()
       calls.push(`rows:${sheet}:${ids.join(',')}`)
+      if (state.rowsError) throw state.rowsError
       return ids.map((rowId): DataRow => {
         const cells: DataRow['subrows'][number]['cells'] = Array.from({ length: 42 }, () => ({
           type: 'number',
@@ -37,6 +44,7 @@ function fakeData() {
     icon: async (id) => {
       open()
       calls.push(`icon:${id}`)
+      if (state.iconError) throw state.iconError
       return { mime: 'image/png', width: 1, height: 1, data: new Uint8Array(state.iconBytes).fill(id % 256) }
     },
   }
@@ -210,4 +218,33 @@ it('keeps the names of the language of the open game data only', async () => {
   await cache.flush()
   expect(stored(memory.files)).toEqual(['game-data/index.json', 'game-data/names-ja.json'])
   expect(game.calls).toEqual(['name:action:7', 'name:action:7'])
+})
+
+it('keeps nothing of a row or icon the host failed to read for another reason than its absence', async () => {
+  const { cache, game } = setup()
+  await cache.validate('chs')
+  game.state.rowsError = { code: 'quota_exceeded' }
+  await expect(cache.iconId('action:1')).rejects.toEqual({ code: 'quota_exceeded' })
+  game.state.rowsError = null
+  expect(await cache.iconId('action:1')).toBe(1001)
+  expect(game.calls.filter((call) => call === 'rows:Action:1')).toHaveLength(2)
+
+  game.state.iconError = { code: 'quota_exceeded' }
+  await expect(cache.icon(1001)).rejects.toEqual({ code: 'quota_exceeded' })
+  game.state.iconError = null
+  expect(await cache.icon(1001)).toMatchObject({ mime: 'image/png' })
+  expect(game.calls.filter((call) => call === 'icon:1001')).toHaveLength(2)
+})
+
+it.each(['not_found', 'invalid_argument'])('keeps a row or icon the host reports %s as missing', async (code) => {
+  const { cache, game } = setup()
+  await cache.validate('chs')
+  game.state.rowsError = game.state.iconError = { code }
+  expect(await cache.iconId('action:2')).toBeNull()
+  expect(await cache.icon(1002)).toBeNull()
+  game.state.rowsError = game.state.iconError = null
+  const calls = game.calls.length
+  expect(await cache.iconId('action:2')).toBeNull()
+  expect(await cache.icon(1002)).toBeNull()
+  expect(game.calls).toHaveLength(calls)
 })

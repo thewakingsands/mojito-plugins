@@ -42,6 +42,11 @@ function unavailable(error: unknown) {
   return (error as { code?: string } | null)?.code === 'unavailable'
 }
 const notFound = (error: unknown) => (error as { code?: string } | null)?.code === 'not_found'
+/** The open game data has no such row or icon; any other failure may pass, such as the host refusing for load. */
+const absent = (error: unknown) => {
+  const code = (error as { code?: string } | null)?.code
+  return code === 'not_found' || code === 'invalid_argument'
+}
 const pairs = (value: unknown): [unknown, unknown][] =>
   Array.isArray(value)
     ? value.filter((item): item is [unknown, unknown] => Array.isArray(item) && item.length === 2)
@@ -197,8 +202,8 @@ export class GameDataCache {
   }
 
   /**
-   * The icon ID in the row of an Action or Status key, null when it has none. Without the game data open, one the
-   * cache lacks fails with the error of the host, so the page asks again later.
+   * The icon ID in the row of an Action or Status key, null when the game data has no such row or it has no icon. Any
+   * other failure, the game data not being open among them, is thrown and nothing is kept, so the page asks again.
    */
   async iconId(key: `${'action' | 'status'}:${number}`): Promise<number | null> {
     await this.checking
@@ -216,7 +221,7 @@ export class GameDataCache {
       this.schedule()
       return icon
     } catch (error) {
-      if (unavailable(error)) throw error
+      if (!absent(error)) throw error
       this.missing.set(key, this.now())
       return null
     }
@@ -261,7 +266,7 @@ export class GameDataCache {
     return { values, complete }
   }
 
-  /** An icon by ID, null when the game data lacks it; without the game data open it fails as iconId does */
+  /** An icon by ID, null when the game data lacks it; any other failure is thrown and nothing is kept, as in iconId */
   async icon(id: number): Promise<CachedIcon | null> {
     await this.checking
     if (this.icons.has(id)) return this.icons.get(id)!
@@ -281,7 +286,7 @@ export class GameDataCache {
       const read = await this.data.icon(id)
       result = read && { mime: read.mime, data: read.data }
     } catch (error) {
-      if (unavailable(error)) throw error
+      if (!absent(error)) throw error
       result = null
     }
     this.icons.set(id, result)
