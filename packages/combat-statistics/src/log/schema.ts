@@ -119,6 +119,7 @@ export const visitStartNote = (note: {
   enteredAt: number
   scope: Scope
   members: Member[]
+  self: number | null
 }) => ({
   note: 'visitStart' as const,
   visit: note.visit,
@@ -133,6 +134,7 @@ export const visitStartNote = (note: {
     job: member.job,
     jobName: member.jobName,
   })),
+  self: note.self,
 })
 export const fightStartNote = (note: {
   visit: string

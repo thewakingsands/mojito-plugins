@@ -80,6 +80,8 @@ export interface VisitEntry {
   current: boolean
   scope: Scope
   members: Member[]
+  /** The user's own actorId as the log recorded it; null for logs from before it was recorded, or when it was unknown. */
+  self: number | null
   integrity: 'live' | 'unchecked' | 'verified' | 'failed'
   error: string | null
   fights: FightEntry[]

@@ -249,6 +249,48 @@ describe('recorder', () => {
     expect(timed.trace().slice(0, 2)).toEqual(['begin 20261026-200512-1263', `visitStart@${ENTER}`])
     expect(timed.trace().at(-1)).toBe(`zone@${ENTER}`)
   })
+  it('records the logged-in character in visitStart as of when it is written', () => {
+    const startNote = (h: ReturnType<typeof harness>) =>
+      JSON.parse(String(h.rows().find((row) => row.kind === 'visitStart')!.note))
+    const withActor = (actorId: number | null) =>
+      ({ ...session(), character: actorId === null ? null : { actorId, contentId: null } }) as SessionSnapshot
+
+    const logged = harness()
+    logged.recorder.zone(zone(1263), ENTER, carry)
+    logged.recorder.identities('entities', [], [], new Set([1, 2]), 'party', ENTER)
+    expect(startNote(logged).self).toBe(1)
+
+    const none = harness()
+    none.recorder.source(withActor(null))
+    none.recorder.zone(zone(1263), ENTER, carry)
+    none.recorder.identities('entities', [], [], new Set([1, 2]), 'party', ENTER)
+    expect(startNote(none).self).toBeNull()
+
+    const late = harness()
+    late.recorder.source(withActor(null))
+    late.actors.set(2, { ...late.actors.get(2)!, name: null })
+    late.recorder.zone(zone(1263), ENTER, carry)
+    late.recorder.identities('entities', [], [], new Set([1]), 'party', ENTER + 100)
+    expect(late.rows().some((row) => row.kind === 'visitStart')).toBe(false)
+    expect(late.recorder.current()!.self).toBeNull()
+    late.recorder.source(withActor(5))
+    expect(late.recorder.current()!.self).toBe(5)
+    late.actors.set(2, { ...late.actors.get(2)!, name: '有名' })
+    late.recorder.identities(
+      'entities',
+      [{ id: 2, objectKind: field(1), name: field('有名') }],
+      [],
+      new Set([1]),
+      'party',
+      ENTER + 200,
+    )
+    expect(startNote(late).self).toBe(5)
+    expect(late.rows().some((row) => row.kind === 'visitEnd')).toBe(false)
+    expect(late.recorder.current()!.id).toBe('20261026-200512-1263')
+    // Once written, the recorded value stays even if the session later reports another character.
+    late.recorder.source(withActor(6))
+    expect(late.recorder.current()!.self).toBe(5)
+  })
   it('writes readable local times in notes and exact times in t', () => {
     const h = harness()
     h.recorder.zone(zone(1263), ENTER, carry)

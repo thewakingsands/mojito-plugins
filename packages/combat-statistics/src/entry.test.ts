@@ -1063,6 +1063,64 @@ async function storedLog() {
   vi.setSystemTime(new Date(2026, 9, 22, 9).getTime())
   return memory.files
 }
+it('filters self only by the member the log recorded rather than the logged-in character', async () => {
+  const memory = memoryStorage()
+  const t = new Date(2026, 9, 21, 10).getTime()
+  const field = <T>(value: T) => ({ state: 'ok', value, observedAt: 0, from: 'packet', timeBase: 'packet-unix' })
+  const store = new LogStore(memory.storage, { values: {} } as never, 'test')
+  const member = (id: number, job: number) => ({
+    key: `source:${id}:1`,
+    id,
+    name: `P${id}`,
+    worldId: 1,
+    job,
+    kind: 'member' as const,
+    ownerKey: null,
+  })
+  const recorder = new Recorder({
+    sink: store,
+    actors: () => new Map([member(1, 24), member(2, 19)].map((actor) => [actor.id, actor])),
+    names: { zone: () => '区域', job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  // Recorded while playing actor 2, the Paladin; the worker below runs as actor 1, a White Mage in this visit.
+  recorder.source({
+    state: 'replay',
+    sessionId: 's',
+    characterGeneration: 1,
+    clock: { generation: 1 },
+    character: { actorId: 2 },
+    dataLanguage: 'chs',
+  } as unknown as SessionSnapshot)
+  vi.setSystemTime(t)
+  const carry = {
+    encounters: {
+      localActorId: 2,
+      inCombat: null,
+      combatValue: null,
+      packetSeq: null,
+      combatSeq: null,
+      combatAt: null,
+    },
+    generations: [],
+  }
+  recorder.zone({ territoryType: field(777), mapId: field(1) } as never, t, carry)
+  recorder.identities('entities', [], [], new Set([1, 2]), 'party', t)
+  recorder.fightStarted({ id: 'enc-1', at: t + 1000 })
+  recorder.fightEnded({ id: 'enc-1', reason: 'manual', at: t + 2000, summary: { durationMs: 1, rows: [] } as never })
+  recorder.stop(t + 3000)
+  await store.flush()
+  vi.setSystemTime(new Date(2026, 9, 22, 9).getTime())
+  const h = await setup(false, false, [], 'unavailable', memory.files)
+  const visits = () => (h.snapshots.get('visits') as unknown as VisitsState).visits
+  const command = (input: Command) => h.commands.get('statistics')!(input as unknown as Value)
+  await command({ kind: 'visits', query: { ...DEFAULT_QUERY, jobs: [19] }, page: 0 })
+  expect(visits().map((visit) => visit.territoryType)).toEqual([777])
+  await command({ kind: 'visits', query: { ...DEFAULT_QUERY, jobs: [24] }, page: 0 })
+  expect(visits()).toEqual([])
+  await h.dispose()
+})
 it('reads older log files for a search until the page is full, and tells the page meanwhile', async () => {
   const files = await storedLog()
   const h = await setup(false, false, [], 'unavailable', files)

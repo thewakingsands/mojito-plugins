@@ -437,12 +437,12 @@ export async function activate(ctx: PluginContext) {
   }
   /** The visits that match the query, with the names they are listed by */
   async function matchingVisits(all: VisitEntry[]) {
-    const selfActorId = session?.character?.actorId ?? null
+    const currentActorId = session?.character?.actorId ?? null
     const matched: { entry: VisitEntry; name: string | null | undefined }[] = []
     for (const entry of all) {
       // Only a duty query needs the name of every visit; the others are named when shown.
       const name = query.duty ? await visitName(entry.territoryType, entry.zoneName) : undefined
-      if (matchVisit(entry, name ?? null, query, selfActorId)) matched.push({ entry, name })
+      if (matchVisit(entry, name ?? null, query, currentActorId)) matched.push({ entry, name })
     }
     return matched
   }

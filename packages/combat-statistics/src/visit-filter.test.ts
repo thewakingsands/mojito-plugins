@@ -9,7 +9,11 @@ const member = (actorId: number, job: number | null, name: string | null = `角�
   job,
   jobName: null,
 })
-const visit = (members: Member[], zoneName: string | null = '某地') => ({ zoneName, members })
+const visit = (members: Member[], zoneName: string | null = '某地', self: number | null = null) => ({
+  zoneName,
+  members,
+  self,
+})
 const query = (patch: Partial<VisitQuery>): VisitQuery => ({ ...DEFAULT_QUERY, ...patch })
 
 describe('jobsOf', () => {
@@ -37,6 +41,16 @@ describe('matchVisit', () => {
   it('with self only, does not match without the own character', () => {
     expect(matchVisit(party, null, query({ jobs: [19] }), null)).toBe(false)
     expect(matchVisit(party, null, query({ jobs: [19] }), 9)).toBe(false)
+  })
+  it('with self only, takes the user from the log before the logged-in character', () => {
+    const recorded = visit(party.members, '某地', 1)
+    expect(matchVisit(recorded, null, query({ jobs: [19] }), 3)).toBe(true)
+    expect(matchVisit(recorded, null, query({ jobs: [27] }), 3)).toBe(false)
+    expect(matchVisit(recorded, null, query({ jobs: [19] }), null)).toBe(true)
+    expect(matchVisit(party, null, query({ jobs: [27] }), 3)).toBe(true)
+  })
+  it('with self only, does not fall back to the logged-in character when the recorded one is not a member', () => {
+    expect(matchVisit(visit(party.members, '某地', 9), null, query({ jobs: [19] }), 1)).toBe(false)
   })
   it('without self only, needs every chosen job in the party, the user included', () => {
     const all = query({ jobs: [19, 24, 27], selfOnly: false })

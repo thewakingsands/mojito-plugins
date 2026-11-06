@@ -201,6 +201,20 @@ describe('rows', () => {
     ]
     expect(roundTrip(records)).toEqual(records)
   })
+  it('writes self after the members of visitStart', () => {
+    const note = JSON.stringify(
+      visitStartNote({
+        visit: 'v',
+        territoryType: 1,
+        zone: null,
+        enteredAt: 100,
+        scope: 'party',
+        members: [],
+        self: 7,
+      }),
+    )
+    expect(note.indexOf('"self":7')).toBeGreaterThan(note.indexOf('"members"'))
+  })
   it('reads notes into records with the times from the t column', () => {
     const rows: Row[] = [
       {
@@ -212,6 +226,7 @@ describe('rows', () => {
             enteredAt: 100,
             scope: 'party',
             members: [{ actorId: 1, name: null, worldId: 79, job: 19, jobName: '骑士' }],
+            self: 1,
           }),
         ),
         visit: 'v',

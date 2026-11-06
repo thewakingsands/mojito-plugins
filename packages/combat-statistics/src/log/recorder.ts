@@ -85,6 +85,8 @@ interface Visit {
   buffer: Row[]
   fights: FightEntry[]
   members: Member[] | null
+  /** The logged-in character's actorId when visitStart was written. */
+  self: number | null
 }
 interface Fight {
   number: number
@@ -136,6 +138,7 @@ export class Recorder {
       current: true,
       scope: visit.scope,
       members: visit.members ?? this.members(),
+      self: visit.released ? visit.self : (this.sourceValue?.actorId ?? null),
       integrity: 'live',
       error: null,
       fights: visit.fights.map((fight) => ({ ...fight })),
@@ -403,6 +406,7 @@ export class Recorder {
       buffer: [],
       fights: [],
       members: null,
+      self: null,
     }
     this.visit.snapshot = records.flatMap((record) => this.rows(record, t))
   }
@@ -411,6 +415,8 @@ export class Recorder {
     const visit = this.visit!
     visit.released = true
     visit.members = this.members()
+    // Taken on release rather than on entry: the character's identity may arrive in between.
+    visit.self = this.sourceValue?.actorId ?? null
     this.options.sink.beginVisit(visit.id, visit.enteredAt)
     this.append({
       ...noteRow(
@@ -421,6 +427,7 @@ export class Recorder {
           enteredAt: visit.enteredAt,
           scope: visit.scope,
           members: visit.members,
+          self: visit.self,
         }),
       ),
       visit: visit.id,

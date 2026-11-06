@@ -117,6 +117,27 @@ describe('log store', () => {
     const visits = (await fileRows(memory.files.get('log/2026-10-26.parquet')!)).map((row) => row.visit)
     expect(new Set(visits)).toEqual(new Set(['20261026-100000-1263', '20261026-110000-1263']))
   })
+  it('reads the recorded self of a visit, and null from a visitStart written before it was recorded', async () => {
+    const memory = memoryStorage()
+    const first = setup(undefined, undefined, memory)
+    await first.store.open()
+    first.enter(at(26, 10))
+    first.recorder.stop(at(26, 10, 5))
+    const append = first.store.append.bind(first.store)
+    first.store.append = (row) => {
+      if (row.kind !== 'visitStart') return append(row)
+      const { self: _, ...old } = JSON.parse(String(row.note))
+      append({ ...row, note: JSON.stringify(old) })
+    }
+    first.enter(at(26, 11), 339)
+    first.recorder.stop(at(26, 11, 5))
+    await first.store.flush()
+    const second = setup(undefined, undefined, memory)
+    await second.store.open()
+    const entries = second.store.index.entries
+    expect(entries.get('20261026-100000-1263')!.self).toBe(1)
+    expect(entries.get('20261026-110000-339')).toMatchObject({ self: null, endReason: 'stopped' })
+  })
   it('moves to the next part of the day near the file limit and keeps a fight in one file', async () => {
     const h = setup(64 * KiB + 24 * KiB)
     await h.store.open()

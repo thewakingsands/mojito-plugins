@@ -82,6 +82,7 @@ describe('combat log', () => {
       expect.objectContaining({
         id: '20261026-200100-2',
         territoryType: 2,
+        self: 1,
         zoneName: '区域2',
         enteredAt: T + 60_000,
         leftAt: T + 70_000,

@@ -5,7 +5,10 @@ import type { VisitEntry } from './log/types.js'
 export interface VisitQuery {
   /** Jobs by ClassJob ID */
   jobs: number[]
-  /** With jobs chosen: the user's own job is one of them; otherwise all of them are in the party */
+  /**
+   * With jobs chosen: the user's own job is one of them; otherwise all of them are in the party. The user is the member
+   * the log recorded, or the logged-in character for a visit that recorded none.
+   */
   selfOnly: boolean
   duty: string
   character: string
@@ -83,15 +86,19 @@ export function jobsOf(job: number | null): number[] {
 
 const contains = (text: string | null, part: string) => !!text?.toLowerCase().includes(part)
 
-/** `displayName` is the name the list shows the visit by. */
+/**
+ * `displayName` is the name the list shows the visit by. `currentActorId` is the logged-in character, which stands for
+ * the user only when the visit did not record one.
+ */
 export function matchVisit(
-  entry: Pick<VisitEntry, 'zoneName' | 'members'>,
+  entry: Pick<VisitEntry, 'zoneName' | 'members' | 'self'>,
   displayName: string | null,
   query: VisitQuery,
-  selfActorId: number | null,
+  currentActorId: number | null,
 ): boolean {
   if (query.jobs.length) {
     if (query.selfOnly) {
+      const selfActorId = entry.self ?? currentActorId
       const self = selfActorId === null ? undefined : entry.members.find((member) => member.actorId === selfActorId)
       if (!self || !jobsOf(self.job).some((job) => query.jobs.includes(job))) return false
     } else {

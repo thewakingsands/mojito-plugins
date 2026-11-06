@@ -90,6 +90,8 @@ class VisitIndex {
         current: false,
         scope: note.scope,
         members: note.members,
+        // Notes written before the field existed lack it.
+        self: typeof note.self === 'number' ? note.self : null,
         integrity: 'unchecked',
         error: null,
         fights: [],
