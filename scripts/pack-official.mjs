@@ -17,6 +17,15 @@ const plugins = [
   ['OverlayKagerou', 'packages/overlay-plugins/dist/kagerou'],
   ['OverlaySkyline', 'packages/overlay-plugins/dist/skyline'],
   ['OverlayMopiMopi2', 'packages/overlay-plugins/dist/mopimopi2'],
+  ['OverlayFaceroll', 'packages/overlay-plugins/dist/faceroll'],
+  ['OverlayHorizoverlay', 'packages/overlay-plugins/dist/horizoverlay'],
+  ['OverlayCMSkin', 'packages/overlay-plugins/dist/cmskin'],
+  ['OverlayMopiMopi1', 'packages/overlay-plugins/dist/mopimopi1'],
+  ['OverlayIkegami', 'packages/overlay-plugins/dist/ikegami'],
+  ['OverlayEmber', 'packages/overlay-plugins/dist/ember'],
+  ['OverlayAmethyst', 'packages/overlay-plugins/dist/amethyst'],
+  ['OverlayKlondike', 'packages/overlay-plugins/dist/klondike'],
+  ['OverlayGlass', 'packages/overlay-plugins/dist/glass'],
 ]
 await mkdir(output, { recursive: true })
 const sums = []

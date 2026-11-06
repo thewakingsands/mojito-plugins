@@ -1,0 +1,405 @@
+diff --git a/faceroll_config.js b/faceroll_config.js
+new file mode 100644
+index 0000000..faa1cd1
+--- /dev/null
++++ b/faceroll_config.js
+@@ -0,0 +1,150 @@
++/*=============================
++　　　　　　　基本设定
++=============================*/
++
++// 列表中显示自己角色相对应的宠物的DPS
++// 召、学不使用的话，不设定也没关系
++var youNameList = ["You", "Me"];
++
++// 宠物加自身的DPS是否合计(1:不合计, 2:合计)
++// 合计后自身的DPS旁会加一个标记(宠物的DPS不会变化)
++var plusPet = 2;
++
++// 合计后的DPS将强制排序(1:不同意, 2:同意)
++// 同意后OverlayPlugin的分类键设定会无视
++var sortList = 2;
++
++// 不透明度设定（％）
++var boxAlpha = 0;
++
++// 开关按钮的操作(1:点击操作, 2:鼠标移上去)
++var toggleMode = 1;
++
++
++/*=============================
++　　　　　　　显示设定
++=============================*/
++
++// 名称显示模式(1:标准,2:无效)
++var nameMode = 1;
++
++// 职业显示模式(1:单汉字, 2:图标[参照文件夹jobicon内图标])
++var jobMode = 2;
++
++// 辅助项目显示(1:Miss数＆死亡数, 2:暴击率&直击率)
++var opItem = 2;
++
++// 治疗柱条显示(1:DPS柱条, 2:治疗量柱条)
++var healerBar = 2;
++
++
++/* 显示隐藏按钮(推荐点击穿透时全隐藏) */
++
++// 辅助项目切换按钮(1:隐藏, 2:显示)
++var opMode = 1;
++
++// 玩家名字显示按钮(1:只显示自己的名字, 2:自定义, 3:按钮隐藏)
++var maskMode = 2;
++
++// 总DPS切换按钮(1:隐藏, 2:显示)
++var dpsMode = 2;
++
++// 过滤按钮(1:隐藏, 2:显示)
++var filterkMode = 1;
++
++// 总伤害切换按钮(1:隐藏, 2:显示)
++var dmgMode = 2;
++
++
++/*=============================
++　　　　　　　变化设定
++=============================*/
++
++/*--- 以DRA(DPS全员的平均DPS)为基础，根据表示的DPS变化 ---*/
++
++// 战斗时间(秒)经过↓指定值后，开始判断DPS的颜色
++var cDuration = 120;
++
++/*--- 以下设定的数值以最高DPS的实数表示 ---*/
++
++/* 超过DRA指定百分比后颜色变化 */ 
++
++// 最高DPS(全员)（平均125%）
++var cDpsUpper = 125;
++
++// 坦克用（平均75%）
++var dpsAveTank = 75;
++
++// 治疗用（平均50%）
++var dpsAveHealer = 50;
++
++
++/* 低于DRA指定百分比后颜色变化 */
++
++// DPS用
++var cDpsLower = 75;
++
++
++/*=============================
++　　　　　　　其他设定
++=============================*/
++
++// 列表上的文字自动调整阈值（表示宽320px设定25左右）
++var exPosition = 25;
++
++
++/*=============================
++　　　　　　　显示数据
++=============================*/
++/*--- 单汉字职业名 ---*/
++var tanJob = {	Pld: "骑", War: "战", Drk: "暗", Mnk: "僧", Drg: "龙", Brd: "诗", Nin: "忍", Mch: "机",
++				Smn: "召", Blm: "黑", Whm: "白", Sch: "学", Ast: "占", Sam: "侍", Rdm: "赤", Rpr: "镰", Sge: "贤",
++				Gla: "剑", Mrd: "斧", Pgl: "格", Lnc: "枪", Arc: "弓", Rog: "双", Acn: "巴", Thm: "咒", Cnj: "幻",
++				LtB: "LB", Gar: "迦楼罗之灵", Tit: "泰坦之灵", Ifr: "伊芙利特之灵", Eos: "朝日小仙女", Sle: "夕月小仙女", Eme: "绿宝石兽", Tpz: "黄宝石兽", Cho: "陆行鸟", Atr: "车式浮空炮塔", Atb: "象式浮空炮塔" };
++
++/*--- 宝宝省略名 ---*/
++var omit = {	break: ":", Cho: "陆行鸟",
++				Gar: "迦楼罗之灵", Ifr: "伊芙利特之灵", Tit: "泰坦之灵", Eos: "朝日小仙女", Sle: "夕月小仙女", Atr: "车式浮空炮塔", Atb: "象式浮空炮塔",
++				Eme: "绿宝石兽", Tpz: "黄宝石兽" };
++
++/*--- 自定义名称 ---*/
++farce["Pld"] = ['圣骑士', '铁板', '我后面很安全'];
++farce["War"] = ['战士', '真爸爸', '战爹'];
++farce["Drk"] = ['暗黑骑士', '我是纸', '装逼王'];
++farce["Mnk"] = ['武僧', 'OT了OT了', '打死螺旋T'];
++farce["Drg"] = ['龙骑士', '奶！妈！爱！我！', '让我放完这个LB'];
++farce["Brd"] = ['吟游诗人', '爱抖露', '我负责优雅'];
++farce["Nin"] = ['忍者', '我负责膜', '兔忍'];
++farce["Mch"] = ['机工士', '同性真爱'];
++farce["Smn"] = ['召唤师', '来叫我爸爸', '现在好像是爸爸'];
++farce["Blm"] = ['黑魔法师', '我要死在黑魔纹里', '让我读完这个条'];
++farce["Whm"] = ['白魔法师', '某书呆子学着点', '最强近战'];
++farce["Sch"] = ['学者', '我就一拉皮条的', '小仙女才是奶'];
++farce["Ast"] = ['占星术士', '抽卡抽卡', '我负责美美美'];
++farce["Sam"] = ['武士', '自嗨毒瘤', '14万！'];
++farce["Rdm"] = ['赤魔法师', '我不是奶妈', '拒绝拉人'];
++farce["Rpr"] = ['钐镰客', '镰刀', '我是镰刀'];
++farce["Sge"] = ['贤者', '我负责贤者'];
++
++farce["Gar"] = ['迦楼罗之灵'];
++farce["Ifr"] = ['伊芙利特之灵']; 
++farce["Tit"] = ['泰坦之灵',];
++farce["Eos"] = ['朝日小仙女'];
++farce["Sle"] = ['夕月小仙女'];
++
++farce["LtB"] = ['雕金武神霸斩！', '我是LB',];
++farce["Cho"] = ['陆行鸟'];
++
++farce["Gla"] = ['剑术师'];
++farce["Mrd"] = ['斧术师'];
++farce["Pgl"] = ['格斗家'];
++farce["Lnc"] = ['枪术师'];
++farce["Arc"] = ['弓箭手'];
++farce["Rog"] = ['双剑士'];
++farce["Acn"] = ['秘术师'];
++farce["Thm"] = ['咒术师'];
++farce["Cnj"] = ['幻术师'];
++farce["Eme"] = ['绿宝石兽'];
++farce["Tpz"] = ['黄宝石兽'];
++farce["Atr"] = ['车式浮空炮塔'];
++farce["Atb"] = ['象式浮空炮塔'];
+diff --git a/faceroll_parse.js b/faceroll_parse.js
+index 41a35ef..614b729 100644
+--- a/faceroll_parse.js
++++ b/faceroll_parse.js
+@@ -45,9 +45,23 @@ function hideResizeHandle() {
+ }
+ 
+ // ACT从主体发送信息时开始更新
+-document.addEventListener("onOverlayDataUpdate", function (e) {
+-    update(e.detail);
++window.addEventListener('DOMContentLoaded', function () {
++    window.addOverlayListener('CombatData', function (data) { update(structuredClone(data)); });
++    window.startOverlayEvents();
++    const saved = JSON.parse(localStorage.getItem('faceroll-toggles') || '{}');
++    for (const id of ['toggle1', 'toggle2', 'toggle3', 'toggle4', 'toggle5', 'toggle7']) {
++        const control = document.getElementById(id);
++        if (saved[id] === true) control.click();
++        control.addEventListener('click', function () {
++            saved[id] = !saved[id];
++            localStorage.setItem('faceroll-toggles', JSON.stringify(saved));
++        });
++    }
+ });
++function displayNumber(value) {
++    return value !== undefined && value !== null && Number.isFinite(Number(value)) ? String(value) : '—';
++}
++function percentNumber(value) { return displayNumber(parseFloat(value)); }
+ 
+ // 更新显示元素
+ function update(data) {
+@@ -94,13 +108,13 @@ function getData(data) {
+         // 未知的encdps被视为0
+         if (combatant.encdps === undefined || combatant.encdps == "+∞" ||
+             combatant.encdps == "---" || combatant.encdps === "") {
+-            combatant.encdps = 0;
++            combatant.encdps = NaN;
+         }
+ 
+         // 极限突破和未知最后60 D被视为0
+         if (combatant.Last60DPS === undefined || combatant.Last60DPS == "+∞" ||
+             combatant.Last60DPS == "---" || combatant.Last60DPS === "" || combatant.name == "Limit Break") {
+-            combatant.Last60DPS = 0;
++            combatant.Last60DPS = NaN;
+         }
+ 
+         // 宠物合并
+@@ -150,13 +164,13 @@ function getData(data) {
+             // 宠物DPS总和
+             if (ownerPlus[combatantSub.name] > 0) {
+                 combatantSub.encdps -= -ownerPlus[combatantSub.name];
+-                combatantSub.encdps = Math.floor(combatantSub.encdps * 100) / 100;
++                combatantSub.encdps = combatantSub.encdps;
+                 ownerPlus[combatantSub.name] = "flag";
+             }
+ 
+             if (ownerPlusL60[combatantSub.name] > 0) {
+                 combatantSub.Last60DPS -= -ownerPlusL60[combatantSub.name];
+-                combatantSub.Last60DPS = Math.floor(combatantSub.Last60DPS * 100) / 100;
++                combatantSub.Last60DPS = combatantSub.Last60DPS;
+                 ownerPlusL60[combatantSub.name] = "flag";
+             }
+ 
+@@ -200,21 +214,12 @@ function getData(data) {
+         }
+     }
+ 
+-    // DPSロールの平均ダメージ
+-    if (dpsList.length > 1) {
+-        data.Encounter.dpsav = dpsList.reduce(function (i, j) {
+-            if (j === dpsList[dpsList.length - 1]) return Math.floor(100 * ((i + j) / dpsList.length)) / 100;
+-            return i + j;
+-        });
+-    } else {
+-        data.Encounter.dpsav = 0;
+-    }
+-    data.Encounter.dpsav.toFixed(2);
++    data.Encounter.dpsav = dpsList.length ? dpsList.reduce(function (sum, value) { return sum + value; }, 0) / dpsList.length : NaN;
+ 
+     // 全体のLast60DPSが取得出来ない際は手動計算を入れる
+     if (data.Encounter.Last60DPS === undefined || data.Encounter.Last60DPS == "+∞" ||
+         data.Encounter.Last60DPS == "---" || data.Encounter.Last60DPS === "") {
+-        data.Encounter.Last60DPS = L60D;
++        data.Encounter.Last60DPS = NaN;
+     }
+ 
+     // DPSバー用の最大値を代入
+@@ -453,7 +458,7 @@ function writeHeaderCell(encounter, isActive) {
+     }
+ 
+     var cellBottomValue1 = document.createElement('span');
+-    cellBottomValue1.innerText = encounter.encdps;
++    cellBottomValue1.innerText = displayNumber(encounter.encdps);
+     cellBottomValue1.classList.add('dpsHeader');
+     cellBottomValue1.classList.add('floatRight');
+     cellBottomValue1.classList.add('num');
+@@ -482,28 +487,28 @@ function writeHeaderCell(encounter, isActive) {
+     cellBottomSubItem1.innerText = "DRA:";
+     cellBottomSubItem1.classList.add('titleHeader');
+     var cellBottomSubValue1 = document.createElement('span');
+-    cellBottomSubValue1.innerText = encounter.dpsav.toFixed(0);
++    cellBottomSubValue1.innerText = displayNumber(encounter.dpsav.toFixed(0));
+     cellBottomSubValue1.classList.add('num');
+     var cellBottomSubItem2 = document.createElement('span');
+     cellBottomSubItem2.innerText = "T:";
+     cellBottomSubItem2.classList.add('titleHeader');
+     cellBottomSubItem2.classList.add('marginLeft');
+     var cellBottomSubValue2 = document.createElement('span');
+-    cellBottomSubValue2.innerText = (encounter.dpsav * dpsAveTank / 100).toFixed(0) + "↑";
++    cellBottomSubValue2.innerText = displayNumber((encounter.dpsav * dpsAveTank / 100).toFixed(0)) + "↑";
+     cellBottomSubValue2.classList.add('num');
+     var cellBottomSubItem3 = document.createElement('span');
+     cellBottomSubItem3.innerText = "H:";
+     cellBottomSubItem3.classList.add('titleHeader');
+     cellBottomSubItem3.classList.add('marginLeft');
+     var cellBottomSubValue3 = document.createElement('span');
+-    cellBottomSubValue3.innerText = (encounter.dpsav * dpsAveHealer / 100).toFixed(0) + "↑";
++    cellBottomSubValue3.innerText = displayNumber((encounter.dpsav * dpsAveHealer / 100).toFixed(0)) + "↑";
+     cellBottomSubValue3.classList.add('num');
+     var cellBottomSubItem4 = document.createElement('span');
+     cellBottomSubItem4.innerText = "D:";
+     cellBottomSubItem4.classList.add('titleHeader');
+     cellBottomSubItem4.classList.add('marginLeft');
+     var cellBottomSubValue4 = document.createElement('span');
+-    cellBottomSubValue4.innerText = (encounter.dpsav * cDpsLower / 100).toFixed(0) + "↓";
++    cellBottomSubValue4.innerText = displayNumber((encounter.dpsav * cDpsLower / 100).toFixed(0)) + "↓";
+     cellBottomSubValue4.classList.add('num');
+ 
+     cellBottomSub.appendChild(cellBottomSubItem1);
+@@ -587,13 +592,13 @@ function writeNameCell(combatant, isActive, index, dpsav, duration) {
+ 
+     /* DPS */
+     var dps = document.createElement('span');
+-    dps.innerText = combatant.encdps.toString() + "\u00a0";
++    dps.innerText = displayNumber(combatant.encdps) + "\u00a0";
+     dps.classList.add('dps');
+     dps.classList.add('floatRight');
+     dps.classList.add('num');
+     dps.classList.add('colorBlue');
+     var dpsSub = document.createElement('span');
+-    dpsSub.innerText = combatant.damage.toString() + "\u00a0";
++    dpsSub.innerText = displayNumber(combatant.damage) + "\u00a0";
+     dpsSub.classList.add('dpsSub');
+     dpsSub.classList.add('floatRight');
+     dpsSub.classList.add('num');
+@@ -674,8 +679,8 @@ function writeNameCell(combatant, isActive, index, dpsav, duration) {
+             exNum.innerText = "";
+         } else {
+             ex.innerText = "有效治疗：";
+-            barMinValue = parseInt(barMax) - parseInt(parseInt(barMax) * (parseInt(combatant.OverHealPct.slice(0, -1)) / 100));
+-            exNum.innerText = barMinValue.toFixed(0).toString() + "\u00a0";
++            barMinValue = parseInt(barMax) - parseInt(parseInt(barMax) * (parseFloat(combatant.OverHealPct) / 100));
++            exNum.innerText = displayNumber(barMinValue.toFixed(0)) + "\u00a0";
+         }
+         leftColor = "rgba(50,205,50,0.5)";
+         rightColor = "rgba(173,255,47,0.25)";
+@@ -724,7 +729,7 @@ function writeNameCell(combatant, isActive, index, dpsav, duration) {
+             exNum.innerText = "";
+         } else {
+             ex.innerText = "直暴：";
+-            exNum.innerText = combatant.CritDirectHitPct.slice(0, -1).toString() + " ";
++            exNum.innerText = percentNumber(combatant.CritDirectHitPct) + " ";
+             exNum.appendChild(cdhpPercent);
+         }
+ 
+@@ -751,6 +756,8 @@ function writeNameCell(combatant, isActive, index, dpsav, duration) {
+         barSize = (parseInt(barMax) * 100 / parseInt(dpsMax));
+     }
+ 
++    if (!Number.isFinite(barMin)) barMin = 0;
++    if (!Number.isFinite(barSize)) barSize = 0;
+     bar.style.background = "-webkit-gradient(linear, left top,right top, color-stop(" + barMin + "," + leftColor + "), color-stop(" + barMin + "," + rightColor + "))";
+     bar.style.width = barSize + "%";
+ 
+@@ -808,14 +815,14 @@ function writeNameCell(combatant, isActive, index, dpsav, duration) {
+ 
+     if (healerRole.indexOf(combatant.exJob) > -1 && combatant.OverHealPct !== undefined) {
+         opItem3.innerHTML = "治疗:";
+-        opValue3.innerHTML = combatant['heals'] + "&nbsp;";
++        opValue3.innerHTML = displayNumber(combatant['heals']) + "&nbsp;";
+         opItem1.innerHTML = "过量:";
+-        opValue1.innerHTML = parseInt(combatant.OverHealPct.slice(0, -1));
++        opValue1.innerHTML = percentNumber(combatant.OverHealPct);
+         opTop.appendChild(ohPercent);
+     }
+-    else if (healerRole.indexOf(combatant.exJob) === -1 && parseFloat(combatant.enchps) > 0.00) {
++    else if (healerRole.indexOf(combatant.exJob) === -1 && Number.isFinite(parseFloat(combatant.OverHealPct)) && parseFloat(combatant.enchps) > 0.00) {
+         opItem1.innerHTML = "自救:";
+-        opValue1.innerHTML = parseInt(combatant.enchps) - parseInt(parseInt(combatant.enchps) * (parseInt(combatant.OverHealPct.slice(0, -1)) / 100));
++        opValue1.innerHTML = parseInt(combatant.enchps) - parseInt(parseInt(combatant.enchps) * (parseFloat(combatant.OverHealPct) / 100));
+         opValue1.innerHTML = opValue1.innerHTML + "&nbsp;";
+     }
+     if (combatant.deaths > 0) {
+@@ -877,8 +884,8 @@ function writeOpCell(combatant) {
+     // 値
+     var topValue = document.createElement('span');
+     var underValue = document.createElement('span');
+-    topValue.innerText = combatant.misses;
+-    underValue.innerText = combatant.deaths;
++    topValue.innerText = displayNumber(combatant.misses);
++    underValue.innerText = displayNumber(combatant.deaths);
+     topValue.classList.add('floatRight');
+     underValue.classList.add('floatRight');
+     topValue.classList.add('numMissDeath');
+@@ -914,8 +921,8 @@ function writeOpCell(combatant) {
+     var topValueSub = document.createElement('span');
+     var underValueSub = document.createElement('span');
+     var temptopValueSub = combatant.DirectHitPct + "";
+-    topValueSub.innerText = temptopValueSub.slice(0, -1);
+-    underValueSub.innerText = combatant["crithit%"].slice(0, -1);
++    topValueSub.innerText = percentNumber(combatant.DirectHitPct);
++    underValueSub.innerText = percentNumber(combatant["crithit%"]);
+     topValueSub.classList.add('num');
+     underValueSub.classList.add('num');
+     topValueSub.classList.add('colorBlue');
+@@ -1004,7 +1011,7 @@ function createJobAndName(combatant) {
+             combatant.exJob = "Err";
+         }
+     } else {
+-        combatant.exJob = combatant.Job;
++        combatant.exJob = (combatant.Job || "Err").slice(0, 1).toUpperCase() + (combatant.Job || "Err").slice(1).toLowerCase();
+         combatant.ownerName = "";
+     }
+ 
+@@ -1068,7 +1075,7 @@ function toggleName() {
+     for (var i = 0, j = valueName.length; i < j; i++) {
+         valueName[i].classList.toggle('toggleVisible');
+     }
+-    valueNameYou[0].classList.remove('toggleVisible');
++    if (valueNameYou[0]) valueNameYou[0].classList.remove('toggleVisible');
+ 
+     var toggleIcon = document.getElementById('toggle3');
+     toggleIcon.classList.toggle('colorGreen');
+diff --git a/index.html b/index.html
+index 08265a4..599ee8e 100644
+--- a/index.html
++++ b/index.html
+@@ -1,10 +1,11 @@
+ <html>
+ <head>
++<script src="/plugin/ngld.js"></script>
+     <meta charset="utf-8"/>
+     <title>Faceroll Overlay</title>
+     <link rel="stylesheet" type="text/css" href="faceroll_parse.css"/>
+     <script src="faceroll_parse.js"></script>
+-    <script src="faceroll_config.ini"></script>
++    <script src="faceroll_config.js"></script>
+ </head>
+ <body>
+ <div id="table_box">

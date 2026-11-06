@@ -1,0 +1,995 @@
+diff --git a/css/css.css b/css/css.css
+index ed0bfae..ff748f5 100644
+--- a/css/css.css
++++ b/css/css.css
+@@ -1,34 +1,14 @@
+-@font-face {
+-    font-family: 'Montserrat';
+-    font-style: normal;
+-    font-weight: 500;
+-    src: local('Montserrat Medium'), local('Montserrat-Medium'), url(https://fonts.gstatic.com/s/montserrat/v12/BYPM-GE291ZjIXBWrtCweu46x7QEqGuF-FJIFiH1W2g.woff) format('woff');
+-}
+-
+-@font-face {
+-    font-family: 'Roboto';
+-    font-style: normal;
+-    font-weight: 400;
+-    src: local('Roboto'), local('Roboto-Regular'), url(https://fonts.gstatic.com/s/roboto/v18/2UX7WLTfW3W8TclTUvlFyQ.woff) format('woff');
+-}
+-
+-@font-face {
+-    font-family: 'Roboto';
+-    font-style: normal;
+-    font-weight: 700;
+-    src: local('Roboto Bold'), local('Roboto-Bold'), url(https://fonts.gstatic.com/s/roboto/v18/d-6IYplOFocCacKzxwXSOD8E0i7KZn-EPnyo3HZu7kw.woff) format('woff');
+-}
+-
+-@font-face {
+-    font-family: 'Roboto Condensed';
+-    font-style: normal;
+-    font-weight: 400;
+-    src: local('Roboto Condensed'), local('RobotoCondensed-Regular'), url(https://fonts.gstatic.com/s/robotocondensed/v16/Zd2E9abXLFGSr9G3YK2MsFzqCfRpIA3W6ypxnPISCPA.woff) format('woff');
+-}
+-
+-@font-face {
+-    font-family: '更纱黑体';
+-    font-style: normal;
+-    font-weight: normal;
+-    src: url("https://sh.yorushika.xyz/ffxiv/font/sarasa-gothic-sc-regular.woff") format('woff')
+-}
++@import '../fonts/montserrat/500.css';
++@import '../fonts/roboto/400.css';
++@import '../fonts/roboto/700.css';
++@import '../fonts/roboto-condensed/400.css';
++@font-face { font-family: 'Sarasa Gothic SC'; src: local('Sarasa Gothic SC'); }
++
++
++
++
++
++
++
++
++
+diff --git a/index.html b/index.html
+index 54b5037..4133477 100644
+--- a/index.html
++++ b/index.html
+@@ -2,6 +2,7 @@
+ <html>
+ 
+ <head>
++<script src="/plugin/ngld.js"></script>
+     <link href="css/icon.css" rel="stylesheet">
+     <link href="css/css.css?family=Roboto:400,700|Montserrat:500|Roboto+Condensed" rel="stylesheet">
+     <script src="js/jquery-3.1.1.min.js"></script>
+@@ -11,10 +12,7 @@
+     <script type="text/javascript" src="js/jscolor.js"></script>
+     <script type="text/javascript" src="js/language.js"></script>
+     <script type="text/javascript" src="js/materialize.min.js"></script>
+-    <script>
+-        var wsUri = "ws://@HOST_PORT@/MiniParse";
+-        /*DO NOT EDIT THIS VALUE*/
+-    </script>
++
+     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+     <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1"/>
+     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+@@ -558,7 +556,7 @@
+                         <input id="accentColor" placeholder="" type="text" name="accentColor"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'accentColor',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"accentColor","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="accentColor" name="m9"></label>
+                     </div>
+                 </div>
+@@ -573,7 +571,7 @@
+                         <input id="borderColor" placeholder="" type="text" name="borderColor"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'borderColor',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"borderColor","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="accentColor" name="m9"></label>
+                     </div>
+                 </div>
+@@ -588,7 +586,7 @@
+                         <input id="topbarBackgroundColor" placeholder="" type="text" name="topbarBackgroundColor"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'topbarBackgroundColor',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"topbarBackgroundColor","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="accentColor" name="m9"></label>
+                     </div>
+                 </div>
+@@ -603,7 +601,7 @@
+                         <input id="headerColor" placeholder="" type="text" name="header"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'header',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"header","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="header" name="m9"></label>
+                     </div>
+                 </div>
+@@ -618,7 +616,7 @@
+                         <input id="bigTextColor" placeholder="" type="text" name="bigTextColor"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'bigTextColor',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"bigTextColor","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="bigTextColor" name="m9"></label>
+                     </div>
+                 </div>
+@@ -633,7 +631,7 @@
+                         <input id="smallTextColor" placeholder="" type="text" name="smallTextColor"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'smallTextColor',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"smallTextColor","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="smallTextColor" name="m9"></label>
+                     </div>
+                 </div>
+@@ -648,7 +646,7 @@
+                         <input id="headerText" placeholder="" type="text" name="headerText"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate(this.id);"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'headerText',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"headerText","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="headerText" name="m9"></label>
+                     </div>
+                 </div>
+@@ -940,7 +938,7 @@
+                         <input id="me" placeholder="" type="text" name="me"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate('textColor');"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'me',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"me","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="me" name="m9"></label>
+                     </div>
+                 </div>
+@@ -955,7 +953,7 @@
+                         <input id="other" placeholder="" type="text" name="other"
+                                onChange="jscolorUpdate(this.jscolor); onSettingsUpdate('textColor');"
+                                autocomplete="off" autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'other',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"other","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="other" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1026,7 +1024,7 @@
+                             <input id="YOU" placeholder="" type="text" name="YOU" onChange="jscolorUpdate(this.jscolor)"
+                                    autocomplete="off" autocapitalize="off"
+                                    autocorrect="off"
+-                                   class="jscolor{styleElement:'YOU',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                                   class="jscolor" data-jscolor='{"styleElement":"YOU","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                             <label class="active" for="YOU" name="m9"></label>
+                         </div>
+                     </div>
+@@ -1042,7 +1040,7 @@
+                         <input id="background" placeholder="" type="text" name="background"
+                                onChange="jscolorUpdate(this.jscolor);" autocomplete="off"
+                                autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'background',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"background","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="background" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1057,7 +1055,7 @@
+                         <input id="lineColor" placeholder="" type="text" name="lineColor"
+                                onChange="jscolorUpdate(this.jscolor)" autocomplete="off"
+                                autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'lineColor',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"lineColor","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="lineColor" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1074,7 +1072,7 @@
+                         <input id="tank1" placeholder="" type="text" name="tank1" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'tank1',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"tank1","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="tank1" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1089,7 +1087,7 @@
+                         <input id="tank2" placeholder="" type="text" name="tank2" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'tank2',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"tank2","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="tank2" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1104,7 +1102,7 @@
+                         <input id="tank3" placeholder="" type="text" name="tank3" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'tank3',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"tank3","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="tank3" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1119,7 +1117,7 @@
+                         <input id="tank4" placeholder="" type="text" name="tank4" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'tank4',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"tank4","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="tank4" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1136,7 +1134,7 @@
+                         <input id="heal1" placeholder="" type="text" name="heal1" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'heal1',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"heal1","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="heal1" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1151,7 +1149,7 @@
+                         <input id="heal2" placeholder="" type="text" name="heal2" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'heal2',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"heal2","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="heal2" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1166,7 +1164,7 @@
+                         <input id="heal3" placeholder="" type="text" name="heal3" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'heal3',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"heal3","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="heal3" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1181,7 +1179,7 @@
+                         <input id="shield" placeholder="" type="text" name="shield"
+                                onChange="jscolorUpdate(this.jscolor)" autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'shield',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"shield","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="shield" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1196,7 +1194,7 @@
+                         <input id="overheal" placeholder="" type="text" name="overheal"
+                                onChange="jscolorUpdate(this.jscolor)" autocomplete="off"
+                                autocapitalize="off" autocorrect="off"
+-                               class="jscolor{styleElement:'overheal',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"overheal","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="overheal" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1213,7 +1211,7 @@
+                         <input id="dps1" placeholder="" type="text" name="dps1" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps1',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps1","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps1" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1228,7 +1226,7 @@
+                         <input id="dps2" placeholder="" type="text" name="dps2" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps2',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps2","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps2" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1243,7 +1241,7 @@
+                         <input id="dps3" placeholder="" type="text" name="dps3" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps3',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps3","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps3" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1258,7 +1256,7 @@
+                         <input id="dps8" placeholder="" type="text" name="dps8" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps8',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps8","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps8" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1273,7 +1271,7 @@
+                         <input id="dps6" placeholder="" type="text" name="dps6" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps6',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps6","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps6" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1288,7 +1286,7 @@
+                         <input id="dps7" placeholder="" type="text" name="dps7" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps7',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps7","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps7" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1303,7 +1301,7 @@
+                         <input id="dps4" placeholder="" type="text" name="dps4" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps4',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps4","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps4" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1318,7 +1316,7 @@
+                         <input id="dps5" placeholder="" type="text" name="dps5" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps5',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps5","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps5" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1333,7 +1331,7 @@
+                         <input id="dps9" placeholder="" type="text" name="dps9" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps9',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps9","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps9" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1348,7 +1346,7 @@
+                         <input id="dps10" placeholder="" type="text" name="dps10" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'dps10',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"dps10","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="dps10" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1365,7 +1363,7 @@
+                         <input id="life1" placeholder="" type="text" name="life1" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'life1',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"life1","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="life1" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1380,7 +1378,7 @@
+                         <input id="life2" placeholder="" type="text" name="life2" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'life2',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"life2","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="life2" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1397,7 +1395,7 @@
+                         <input id="LB" placeholder="" type="text" name="LB" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'LB',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"LB","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="LB" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1412,7 +1410,7 @@
+                         <input id="ava" placeholder="" type="text" name="ava" onChange="jscolorUpdate(this.jscolor)"
+                                autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'ava',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"ava","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="ava" name="m9"></label>
+                     </div>
+                 </div>
+@@ -1427,7 +1425,7 @@
+                         <input id="chocobo" placeholder="" type="text" name="chocobo"
+                                onChange="jscolorUpdate(this.jscolor)" autocomplete="off" autocapitalize="off"
+                                autocorrect="off"
+-                               class="jscolor{styleElement:'chocobo',width:200, padding:10, shadow:false, borderWidth:0, backgroundColor:'transparent', insetColor:'#000'}">
++                               class="jscolor" data-jscolor='{"styleElement":"chocobo","width":200,"padding":10,"shadow":false,"borderWidth":0,"backgroundColor":"transparent","insetColor":"#000"}'>
+                         <label class="active" for="chocobo" name="m9"></label>
+                     </div>
+                 </div>
+diff --git a/js/core.js b/js/core.js
+index 1709843..4053b68 100644
+--- a/js/core.js
++++ b/js/core.js
+@@ -1,232 +1,3 @@
+-var webs = null;
+-var QueryString = function () {
+-    var query_string = {};
+-    var query = window.location.search.substring(1);
+-    var vars = query.split("&");
+-    for (var i = 0; i < vars.length; i++) {
+-        var pair = vars[i].split("=");
+-        if (typeof query_string[pair[0]] === "undefined") {
+-            query_string[pair[0]] = decodeURIComponent(pair[1])
+-        } else if (typeof query_string[pair[0]] === "string") {
+-            var arr = [query_string[pair[0]], decodeURIComponent(pair[1])];
+-            query_string[pair[0]] = arr
+-        } else {
+-            query_string[pair[0]].push(decodeURIComponent(pair[1]))
+-        }
+-    }
+-    return query_string
+-}();
+-
+-var host_port = QueryString.HOST_PORT;
+-while (host_port.endsWith('/')) {
+-    host_port = host_port.substring(0, host_port.length - 1)
+-}
+-if (wsUri.indexOf("//") == 0) {
+-    wsUri = wsUri.substring(2)
+-}
+-if (wsUri.indexOf("ws://") == 0 || wsUri.indexOf("wss://") == 0) {
+-    if (host_port.indexOf("ws://") == 0 || host_port.indexOf("wss://") == 0) {
+-        wsUri = wsUri.replace(/ws:\/\/@HOST_PORT@/im, host_port);
+-        wsUri = wsUri.replace(/wss:\/\/@HOST_PORT@/im, host_port)
+-    } else {
+-        wsUri = wsUri.replace(/@HOST_PORT@/im, host_port)
+-    }
+-} else {
+-    if (host_port.indexOf("ws://") == 0 || host_port.indexOf("wss://") == 0) {
+-        wsUri = wsUri.replace(/@HOST_PORT@/im, host_port)
+-    } else {
+-        wsUri = "ws://" + wsUri.replace(/@HOST_PORT@/im, host_port)
+-    }
+-}
+-
+-class ActWebsocketInterface {
+-    constructor(uri, path = "MiniParse") {
+-        var querySet = this.getQuerySet();
+-        this.uri = uri;
+-        this.id = null;
+-        this.activate = !1;
+-        var This = this;
+-        document.addEventListener('onBroadcastMessage', function (evt) {
+-            This.onBroadcastMessage(evt)
+-        });
+-        document.addEventListener('onRecvMessage', function (evt) {
+-            This.onRecvMessage(evt)
+-        });
+-        window.addEventListener('message', function (e) {
+-            if (e.data.type === 'onBroadcastMessage') {
+-                This.onBroadcastMessage(e.data)
+-            }
+-            if (e.data.type === 'onRecvMessage') {
+-                This.onRecvMessage(e.data)
+-            }
+-        })
+-    }
+-
+-    connect() {
+-        if (typeof this.websocket != "undefined" && this.websocket != null)
+-            this.close();
+-        this.activate = !0;
+-        var This = this;
+-        this.websocket = new WebSocket(this.uri);
+-        this.websocket.onopen = function (evt) {
+-            This.onopen(evt)
+-        };
+-        this.websocket.onmessage = function (evt) {
+-            This.onmessage(evt)
+-        };
+-        this.websocket.onclose = function (evt) {
+-            This.onclose(evt)
+-        };
+-        this.websocket.onerror = function (evt) {
+-            This.onerror(evt)
+-        }
+-    }
+-
+-    close() {
+-        this.activate = !1;
+-        if (this.websocket != null && typeof this.websocket != "undefined") {
+-            this.websocket.close()
+-        }
+-    }
+-
+-    onopen(evt) {
+-        if (this.id != null && typeof this.id != "undefined") {
+-            this.set_id(this.id)
+-        } else {
+-            if (typeof overlayWindowId != "undefined") {
+-                this.set_id(overlayWindowId)
+-            } else {
+-                var r = new RegExp('[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}');
+-                var id = r.exec(navigator.userAgent);
+-                if (id != null && id.length == 1) {
+-                    this.set_id(id[0])
+-                }
+-            }
+-        }
+-    }
+-
+-    onclose(evt) {
+-        this.websocket = null;
+-        if (this.activate) {
+-            var This = this;
+-            setTimeout(function () {
+-                This.connect()
+-            }, 5000)
+-        }
+-    }
+-
+-    onmessage(evt) {
+-        if (evt.data == ".") {
+-            this.websocket.send(".")
+-        } else {
+-            try {
+-                var obj = JSON.parse(evt.data);
+-                var type = obj.type;
+-                if (type == "broadcast") {
+-                    var from = obj.from;
+-                    var type = obj.msgtype;
+-                    var msg = obj.msg;
+-                    document.dispatchEvent(new CustomEvent('onBroadcastMessage', {
+-                        detail: obj
+-                    }))
+-                }
+-                if (type == "send") {
+-                    var from = obj.from;
+-                    var type = obj.msgtype;
+-                    var msg = obj.msg;
+-                    document.dispatchEvent(new CustomEvent('onRecvMessage', {
+-                        detail: obj
+-                    }))
+-                }
+-                if (type == "set_id") {
+-                }
+-            } catch (e) {
+-            }
+-        }
+-    }
+-
+-    onerror(evt) {
+-        this.websocket.close();
+-        console.log(evt)
+-    }
+-
+-    getQuerySet() {
+-        var querySet = {};
+-        var query = window.location.search.substring(1);
+-        var vars = query.split('&');
+-        for (var i = 0; i < vars.length; i++) {
+-            try {
+-                var pair = vars[i].split('=');
+-                querieSet[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1])
+-            } catch (e) {
+-            }
+-        }
+-        return querySet
+-    }
+-
+-    broadcast(type, msg) {
+-        if (typeof overlayWindowId != 'undefined' && this.id != overlayWindowId) {
+-            this.set_id(overlayWindowId)
+-        }
+-        var obj = {};
+-        obj.type = "broadcast";
+-        obj.msgtype = type;
+-        obj.msg = msg;
+-        this.websocket.send(JSON.stringify(obj))
+-    }
+-
+-    send(to, type, msg) {
+-        if (typeof overlayWindowId != 'undefined' && this.id != overlayWindowId) {
+-            this.set_id(overlayWindowId)
+-        }
+-        var obj = {};
+-        obj.type = "send";
+-        obj.to = to;
+-        obj.msgtype = type;
+-        obj.msg = msg;
+-        this.websocket.send(JSON.stringify(obj))
+-    }
+-
+-    overlayAPI(type, msg) {
+-        var obj = {};
+-        if (typeof overlayWindowId != 'undefined' && this.id != overlayWindowId) {
+-            this.set_id(overlayWindowId)
+-        }
+-        obj.type = "overlayAPI";
+-        obj.to = overlayWindowId;
+-        obj.msgtype = type;
+-        obj.msg = msg;
+-        this.websocket.send(JSON.stringify(obj))
+-    }
+-
+-    set_id(id) {
+-        var obj = {};
+-        obj.type = "set_id";
+-        obj.id = id;
+-        this.id = overlayWindowId;
+-        this.websocket.send(JSON.stringify(obj))
+-    }
+-
+-    onRecvMessage(e) {
+-    }
+-
+-    onBroadcastMessage(e) {
+-    }
+-};
+-
+-class WebSocketImpl extends ActWebsocketInterface {
+-    constructor(uri, path = "MiniParse") {
+-        super(uri, path)
+-    }
+-
+-    onRecvMessage(e) {
+-        onRecvMessage(e)
+-    }
+-
+-    onBroadcastMessage(e) {
+-        onBroadcastMessage(e)
+-    }
+-};
+ String.prototype.format = function (a) {
+     var reg = /(\{([^}]+)\})/im;
+     var matches = this.match(reg);
+@@ -247,7 +18,7 @@ String.prototype.replaceArray = function (a) {
+     return r
+ };
+ Number.prototype.nanFix = function () {
+-    return parseFloat(isNaN(this) ? 0 : this)
++    return Number.isFinite(Number(this)) ? Number(this) : NaN
+ };
+ Number.prototype.numFormat = new function () {
+     var str = "";
+@@ -263,126 +34,54 @@ Number.prototype.numFormat = new function () {
+         return "0"
+     }
+ };
+-if (document.addEventListener) {
+-    document.addEventListener("DOMContentLoaded", function () {
+-        document.removeEventListener("DOMContentLoaded", arguments.callee, !1);
+-        domReady()
+-    }, !1);
+-    window.onbeforeunload = function () {
+-        webs.close()
+-    };
+-    window.addEventListener("unload", function () {
+-        webs.close()
+-    }, !1)
+-} else if (document.attachEvent) {
+-    document.attachEvent("onreadystatechange", function () {
+-        if (document.readyState === "complete") {
+-            document.detachEvent("onreadystatechange", arguments.callee);
+-            domReady()
+-        }
+-    })
+-}
+-window.addEventListener('message', function (e) {
+-    if (e.data.type === 'onBroadcastMessage') {
+-        onBroadcastMessage(e.data)
+-    }
+-    if (e.data.type === 'onRecvMessage') {
+-        onRecvMessage(e.data)
+-    }
+-});
+ 
++var mojitoCombatKey = 0;
++var mojitoWasActive = false;
++document.addEventListener('DOMContentLoaded', domReady, { once: true });
++function receiveCombat(data) {
++    const active = data.isActive === true || data.isActive === 'true';
++    if (!mojitoCombatKey || (active && !mojitoWasActive)) mojitoCombatKey++;
++    mojitoWasActive = active;
++    lastCombatRaw = data;
++    onOverlayDataUpdate({ detail: data });
++    if (lastCombat && lastCombat.Combatant.YOU && myName) lastCombat.Combatant.YOU.displayName = myName;
++}
+ function domReady() {
+-    try {
+-        webs = new WebSocketImpl(wsUri);
+-        webs.connect();
+-        console.log("Connecting...")
+-    } catch (ex) {
+-        console.log("[ERROR] : WebSocket has Error [] " + ex)
+-    }
+-    try {
+-        document.addEventListener('beforeLogLineRead', beforeLogLineRead)
+-    } catch (ex) {
+-    }
+-    try {
+-        document.addEventListener('onLogLineRead', onLogLineRead)
+-    } catch (ex) {
+-    }
+-    try {
+-        document.addEventListener('onOverlayDataUpdate', onOverlayDataUpdate)
+-    } catch (ex) {
+-        console.log("Core Error : onOverlayDataUpdate is not defined.")
+-    }
+-    try {
+-        document.addEventListener('onOverlayStateUpdate', onOverlayStateUpdate)
+-    } catch (ex) {
+-    }
+-    try {
+-        onDocumentLoad()
+-    } catch (ex) {
+-    }
++    if (typeof onDocumentLoad === 'function') onDocumentLoad();
++    window.addOverlayListener('CombatData', receiveCombat);
++    window.addOverlayListener('ChangePrimaryPlayer', function (data) {
++        myName = data.charName;
++        document.dispatchEvent(new CustomEvent('onCharacterNameRecive', { detail: data }));
++        if (lastCombatRaw) onOverlayDataUpdate({ detail: lastCombatRaw });
++    });
++    window.addOverlayListener('OverlayStateUpdate', function (data) {
++        if (typeof onOverlayStateUpdate === 'function') onOverlayStateUpdate({ detail: data });
++    });
++    window.startOverlayEvents();
+ }
+-
+-function onRecvMessage(e) {
+-    if (e.detail.msgtype == "Chat") {
+-        document.dispatchEvent(new CustomEvent("onChatting", {
+-            detail: e.detail.msg
+-        }))
+-    } else {
+-        console.log(e.detail.msgtype + ":" + e.detail.msg)
+-    }
++function displayNumber(value) {
++    return value !== undefined && value !== null && Number.isFinite(Number(value)) ? String(value) : '—';
+ }
+-
+-function onBroadcastMessage(e) {
+-    if (e.detail.msgtype == "CombatData") {
+-        lastCombatRaw = e.detail.msg;
+-        lastCombat = new Combatant({
+-            detail: lastCombatRaw
+-        }, sortKey);
+-        if (lastCombat.Combatant.YOU != undefined && myName != "" && myName != undefined && myName != null) {
+-            lastCombat.Combatant.YOU.displayName = myName
+-        }
+-        document.dispatchEvent(new CustomEvent('onOverlayDataUpdate', {
+-            detail: lastCombatRaw
+-        }))
+-    } else {
+-        switch (e.detail.msgtype) {
+-            case "SendCharName":
+-                document.dispatchEvent(new CustomEvent("onCharacterNameRecive", {
+-                    detail: e.detail.msg
+-                }));
+-                myName = e.detail.msg.charName;
+-                break;
+-            case "AddCombatant":
+-                break;
+-            case "RemoveCombatant":
+-                break;
+-            case "AbilityUse":
+-                break;
+-            case "Chat":
+-                document.dispatchEvent(new CustomEvent("onChatting", {
+-                    detail: e.detail.msg
+-                }));
+-                break;
+-            default:
+-                console.log(e.detail.msgtype + ":" + e.detail.msg);
+-                break
+-        }
+-    }
++function inputRate(person, key) {
++    let rate = person.inputRates[key];
++    for (const pet of Object.values(person.pets)) rate += pet.inputRates[key];
++    return rate;
+ }
+-
+ function Person(e, p) {
++    this.inputRates = Object.fromEntries(['dps', 'encdps', 'hps', 'enchps'].map(key => [key, parseFloat(e[key])]));
+     this.parent = p;
+     this.Class = "";
+     for (var i in e) {
++        if (i === 'Job' || i === 'name' || i === 'ID') { this[i] = e[i]; continue; }
+         if (i.indexOf("NAME") > -1) continue;
+         if (i == "t" || i == "n") continue;
+         var onlyDec = e[i].replace(/[0-9.,%]+/ig, "");
+         if (onlyDec != "") {
+             if (onlyDec == "---" || onlyDec == "--")
+-                this[i] = 0;
++                this[i] = NaN;
+             else this[i] = e[i]
+         } else {
+-            var tmp = parseFloat(e[i].replace(/[,%]+/ig, "")).nanFix().toFixed(underDot);
++            var tmp = parseFloat(e[i].replace(/[,%]+/ig, "")).nanFix();
+             if (e[i].indexOf("%") > 0)
+                 this[i] = parseFloat(tmp);
+             else if (Math.floor(tmp) != tmp || e[i].indexOf(".") > 0)
+@@ -392,8 +91,8 @@ function Person(e, p) {
+         }
+     }
+     if (this.DURATION <= 0) {
+-        this.dps = parseFloat((this.damage / this.parent.DURATION).nanFix().toFixed(underDot));
+-        this.hps = parseFloat((this.healed / this.parent.DURATION).nanFix().toFixed(underDot));
++        this.dps = this.inputRates.dps;
++        this.hps = this.inputRates.hps;
+         this.DPS = Math.floor(this.dps);
+         this.HPS = Math.floor(this.hps);
+         this["DPS-k"] = Math.floor(this.dps / 1000);
+@@ -499,17 +198,17 @@ function Person(e, p) {
+         if (this.maxhitstr == "Unknown" && this.Class == "MCH" && localStorage.getItem("lang") == "kr")
+             this.maxhitstr = "급속 출력"
+     } catch (ex) {
+-        this.maxhit = "?-0";
++        this.maxhit = "—";
+         this.maxhitstr = "";
+-        this.maxhitval = 0
++        this.maxhitval = NaN
+     }
+     try {
+         this.maxhealstr = this.maxheal.split('-')[0];
+         this.maxhealval = parseInt(this.maxheal.split('-')[1].replace(/\D/g, ""))
+     } catch (ex) {
+-        this.maxheal = "?-0";
++        this.maxheal = "—";
+         this.maxhealstr = "";
+-        this.maxhealval = 0
++        this.maxhealval = NaN
+     }
+     this.visible = !0;
+     this.original = {
+@@ -599,10 +298,10 @@ Person.prototype.recalc = function () {
+ Person.prototype.recalculate = function () {
+     var dur = this.DURATION;
+     if (dur == 0) dur = 1;
+-    this.dps = pFloat(this.mergedDamage / dur);
+-    this.encdps = pFloat(this.mergedDamage / this.parent.DURATION);
+-    this.hps = pFloat(this.mergedHealed / dur);
+-    this.enchps = pFloat(this.mergedHealed / this.parent.DURATION);
++    this.dps = inputRate(this, "dps");
++    this.encdps = inputRate(this, "encdps");
++    this.hps = inputRate(this, "hps");
++    this.enchps = inputRate(this, "enchps");
+     this["DAMAGE-k"] = Math.floor(this.mergedDamage / 1000);
+     this["DAMAGE-m"] = Math.floor(this.mergedDamage / 1000000);
+     this.DPS = Math.floor(this.dps);
+@@ -717,10 +416,10 @@ function Combatant(e, sortkey) {
+         var onlyDec = e.detail.Encounter[i].replace(/[0-9.,%]+/ig, "");
+         if (onlyDec != "") {
+             if (onlyDec == "---" || onlyDec == "--")
+-                this.Encounter[i] = 0;
++                this.Encounter[i] = NaN;
+             else this.Encounter[i] = e.detail.Encounter[i]
+         } else {
+-            var tmp = parseFloat(e.detail.Encounter[i].replace(/[,%]+/ig, "")).nanFix().toFixed(underDot);
++            var tmp = parseFloat(e.detail.Encounter[i].replace(/[,%]+/ig, "")).nanFix();
+             if (e.detail.Encounter[i].indexOf("%") > 0)
+                 this.Encounter[i] = parseFloat(tmp);
+             else if (Math.floor(tmp) != tmp || e.detail.Encounter[i].indexOf(".") > 0)
+@@ -729,7 +428,8 @@ function Combatant(e, sortkey) {
+         }
+     }
+     for (var i in e.detail.Combatant) {
+-        this.Combatant[i] = new Person(e.detail.Combatant[i], this)
++        this.Combatant[i] = new Person(e.detail.Combatant[i], this);
++        this.Combatant[i].overlayKey = i
+     }
+     for (var i in e.detail.Combatant) {
+         this.Combatant[i].parent = this
+@@ -752,7 +452,7 @@ function Combatant(e, sortkey) {
+     this.sortkey = sortkey;
+     this.langpack = new Language(lang);
+     this.isActive = e.detail.isActive;
+-    this.combatKey = this.Encounter.title.concat(this.Encounter.damage).concat(this.Encounter.healed);
++    this.combatKey = String(mojitoCombatKey);
+     this.persons = this.Combatant;
+     this.resort()
+ }
+@@ -903,7 +603,7 @@ Combatant.prototype.sort = function (vector) {
+     this.maxValue = tmpMax;
+ 
+     for (var i in tmp) {
+-        this.Combatant[tmp[i].val.name] = tmp[i].val
++        this.Combatant[tmp[i].val.overlayKey] = tmp[i].val
+     }
+     for (var i in this.Combatant) {
+         if (!this.Combatant[i].visible) continue;
+@@ -1220,7 +920,7 @@ function saveLog(e) {
+ }
+ 
+ function pFloat(num) {
+-    return parseFloat(num.nanFix().toFixed(underDot))
++    return parseFloat(num.nanFix())
+ }
+ 
+ function loadSetting(key) {
+diff --git a/js/jscolor.js b/js/jscolor.js
+index c9d06c7..cb981b2 100644
+--- a/js/jscolor.js
++++ b/js/jscolor.js
+@@ -1,6 +1,6 @@
+ "use strict";if(!window.jscolor){window.jscolor=(function(){var jsc={register:function(){jsc.attachDOMReadyEvent(jsc.init);jsc.attachEvent(document,'mousedown',jsc.onDocumentMouseDown);jsc.attachEvent(document,'touchstart',jsc.onDocumentTouchStart);jsc.attachEvent(window,'resize',jsc.onWindowResize)},init:function(){if(jsc.jscolor.lookupClass){jsc.jscolor.installByClassName(jsc.jscolor.lookupClass)}},tryInstallOnElements:function(elms,className){var matchClass=new RegExp('(^|\\s)('+className+')(\\s*(\\{[^}]*\\})|\\s|$)','i');for(var i=0;i<elms.length;i+=1){if(elms[i].type!==undefined&&elms[i].type.toLowerCase()=='color'){if(jsc.isColorAttrSupported){continue}}
+ var m;if(!elms[i].jscolor&&elms[i].className&&(m=elms[i].className.match(matchClass))){var targetElm=elms[i];var optsStr=null;var dataOptions=jsc.getDataAttr(targetElm,'jscolor');if(dataOptions!==null){optsStr=dataOptions}else if(m[4]){optsStr=m[4]}
+-var opts={};if(optsStr){try{opts=(new Function('return ('+optsStr+')'))()}catch(eParseError){jsc.warn('Error parsing jscolor options: '+eParseError+':\n'+optsStr)}}
++var opts={};if(optsStr){try{opts=JSON.parse(optsStr)}catch(eParseError){jsc.warn('Error parsing jscolor options: '+eParseError+':\n'+optsStr)}}
+ targetElm.jscolor=new jsc.jscolor(targetElm,opts)}}},isColorAttrSupported:(function(){var elm=document.createElement('input');if(elm.setAttribute){elm.setAttribute('type','color');if(elm.type.toLowerCase()=='color'){return!0}}
+ return!1})(),isCanvasSupported:(function(){var elm=document.createElement('canvas');return!!(elm.getContext&&elm.getContext('2d'))})(),fetchElement:function(mixed){return typeof mixed==='string'?document.getElementById(mixed):mixed},isElementType:function(elm,type){return elm.nodeName.toLowerCase()===type.toLowerCase()},getDataAttr:function(el,name){var attrName='data-'+name;var attrValue=el.getAttribute(attrName);if(attrValue!==null){return attrValue}
+ return null},attachEvent:function(el,evnt,func){if(el.addEventListener){el.addEventListener(evnt,func,!1)}else if(el.attachEvent){el.attachEvent('on'+evnt,func)}},detachEvent:function(el,evnt,func){if(el.removeEventListener){el.removeEventListener(evnt,func,!1)}else if(el.detachEvent){el.detachEvent('on'+evnt,func)}},_attachedGroupEvents:{},attachGroupEvent:function(groupName,el,evnt,func){if(!jsc._attachedGroupEvents.hasOwnProperty(groupName)){jsc._attachedGroupEvents[groupName]=[]}
+diff --git a/js/mopimopi.js b/js/mopimopi.js
+index 871a090..8ee56fd 100644
+--- a/js/mopimopi.js
++++ b/js/mopimopi.js
+@@ -728,7 +728,7 @@ function autoHidden(flag) {
+                 objTime = objTimeArray.shift();
+             }
+             hidden = false
+-            if (lastCombat.title != 'Encounter')
++            if (lastCombat.isActive === false || lastCombat.isActive === 'false')
+                 autoHidden("OFF")
+         }
+     }
+@@ -1118,7 +1118,7 @@ function buttonCotrol(obj) {
+                 $('.tooltipped').tooltip('remove');
+             $('body').find('.dropdown-button').dropdown('close');
+             setTimeout(function () {
+-                webs.overlayAPI("Capture")
++                void 0
+             }, 2000);
+             if (localStorage.getItem("toast") == 1) {
+                 setTimeout(function () {
+@@ -1138,7 +1138,7 @@ function buttonCotrol(obj) {
+             $('#endEncounter i').removeClass('flash animated').addClass('flash animated').one('animationend', function () {
+                 $(this).removeClass('flash animated')
+             });
+-            webs.overlayAPI("RequestEnd");
++            window.callOverlayHandler({ call: "endEncounter" });
+             break;
+         case 'init':
+             if (confirm(mpLang.m163) == !0) {
+@@ -1850,7 +1850,7 @@ function onCreateTable(lastData, flag, container) {
+         if (lastData.summonerMerge == !0 && a.get("Job") == 'AVA') {
+         } else {
+             if ((lastData == lastCombat || (lastData == lastCombatHPS && a.get("role") == "Healer"))) {
+-                var userName = a.get("name").replace(/ /g, "").replace("(", "").replace(")", "").replace(/'/g, "_");
++                var userName = 'actor_' + Array.from(d).map(function (char) { return char.codePointAt(0).toString(16); }).join('_');
+                 var exist = $('#' + container).find('#' + flag + userName).length;
+                 if (exist == 0) {
+                     var tableBody = document.getElementById(container);
+@@ -2059,8 +2059,8 @@ function addClassName(name) {
+ }
+ 
+ function addComma(num) {
+-    if (isNaN(num))
+-        return 0; else {
++    if (num === undefined || num === null || !Number.isFinite(Number(num)))
++        return "—"; else {
+         if (localStorage.getItem('dot') == 1) {
+             num = num.toString().replace(/[.]/g, ',')
+         }
+@@ -2463,11 +2463,17 @@ function inputBarWidth(a, flag, container, name) {
+ function saveLog() {
+     if (lastCombat == null)
+         return; else {
+-        if (lastCombat.title != 'Encounter') {
++        if (lastCombat.isActive === false || lastCombat.isActive === 'false') {
+             encounterArray.unshift({lastCombat: lastCombat, lastCombatHPS: lastCombatHPS});
+             if (encounterArray.length >= 2) {
+                 if (encounterArray[1].lastCombat.combatKey == lastCombat.combatKey) {
+-                    encounterArray.shift()
++                    encounterArray.splice(1, 1);
++                    var row = document.getElementById(lastCombat.combatKey);
++                    if (row) {
++                        row.querySelector('#RDPS').textContent = addComma(parseFloat(lastCombat.Encounter.encdps).toFixed(0));
++                        row.querySelector('#RHPS').textContent = addComma(parseFloat(lastCombat.Encounter.enchps).toFixed(0));
++                        row.querySelector('.narrowCell1').textContent = lastCombat.duration;
++                    }
+                 } else {
+                     historyAddRow()
+                 }
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000..ef4da30
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1 @@
++{"name":"mopimopi-build-resources","version":"0.0.0","private":true,"devDependencies":{"@fontsource/montserrat":"5.3.0","@fontsource/roboto":"5.3.0","@fontsource/roboto-condensed":"5.3.0"}}
+\ No newline at end of file

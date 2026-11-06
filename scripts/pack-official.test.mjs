@@ -19,7 +19,7 @@ test('packs and verifies every official plugin with one temporary signer', async
     await writeFile(key, JSON.stringify(privateJwk), { mode: 0o600 })
     execFileSync(process.execPath, [path.join(root, 'scripts/pack-official.mjs'), key, fingerprint], { stdio: 'pipe' })
     const packages = (await readdir(output)).filter((file) => file.endsWith('.mojito'))
-    assert.equal(packages.length, 5)
+    assert.equal(packages.length, 14)
     const sums = await readFile(path.join(output, 'SHA256SUMS'), 'utf8')
     for (const file of packages) {
       const digest = createHash('sha256')
@@ -27,7 +27,7 @@ test('packs and verifies every official plugin with one temporary signer', async
         .digest('hex')
       assert(sums.includes(`${digest}  ${file}`))
     }
-    assert.equal((await readdir(output)).filter((file) => file.endsWith('-source.tar.gz')).length, 3)
+    assert.equal((await readdir(output)).filter((file) => file.endsWith('-source.tar.gz')).length, 12)
   } finally {
     await rm(output, { recursive: true, force: true })
     await rm(temporary, { recursive: true, force: true })

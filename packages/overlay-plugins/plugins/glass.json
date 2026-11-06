@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "OverlayGlass",
+  "name": "Glass",
+  "description": "需要先安装并启用战斗统计，再允许服务通信。",
+  "version": "0.1.0",
+  "apiVersion": "^1.1.0",
+  "entry": {
+    "kind": "worker",
+    "path": "entry.mjs"
+  },
+  "capabilities": {
+    "required": [
+      "ui.register",
+      "ui.overlayplugin",
+      "services.consume",
+      "session.read",
+      "game.read",
+      "events.read",
+      "data.read"
+    ],
+    "optional": []
+  },
+  "networkOrigins": [],
+  "services": {
+    "consumes": [
+      {
+        "name": "combat.statistics.overlay",
+        "versionRange": "^1.0.0",
+        "optional": false
+      }
+    ]
+  }
+}

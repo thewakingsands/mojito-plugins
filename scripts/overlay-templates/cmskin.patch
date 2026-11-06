@@ -1,0 +1,304 @@
+diff --git a/src/components/List/index.js b/src/components/List/index.js
+index f898a50..bcaaae8 100644
+--- a/src/components/List/index.js
++++ b/src/components/List/index.js
+@@ -142,7 +142,7 @@ const ListView = ({ tab, chart, item, firstItem, hasDps, avps, isBattle, ...$ })
+         graphScale={$.graphScale}
+         firstItem={firstTabData[tab]}
+         data={chart}
+-        name={item.name}
++        name={item.overlayKey}
+         tab={tab}
+         color={tabData[tab].color}
+         size={$.uiMini ? 20 : 32}
+@@ -150,10 +150,10 @@ const ListView = ({ tab, chart, item, firstItem, hasDps, avps, isBattle, ...$ })
+     </div>
+   );
+ 
+-  if (!tabData[tab].number || isNaN(tabData[tab].number) || tabData[tab].number === 0) return null;
++
+ 
+   return (
+-    <Link to={path.join('/detail', item.name)} className={listClass}>
++    <Link to={path.join('/detail', encodeURIComponent(item.overlayKey))} className={listClass}>
+       <div className={classnames.bind(style)('left', { leftWithoutGraph: $.graphHide })}>
+         <Avatar
+           deaths={item.healing.deaths}
+diff --git a/src/components/Progress/index.js b/src/components/Progress/index.js
+index ac77e93..758c14a 100644
+--- a/src/components/Progress/index.js
++++ b/src/components/Progress/index.js
+@@ -48,7 +48,7 @@ export default ({ title, number, progress, overProgress, color, arrow, level, ..
+       {Title}
+       <div className={NumberClass}>
+         {Arrow}
+-        {parseFloat(number).toLocaleString()}
++        {Number.isFinite(parseFloat(number)) ? parseFloat(number).toLocaleString() : '—'}
+       </div>
+       <div className={style.progress}>{Progress}</div>
+     </div>
+diff --git a/src/index.ejs b/src/index.ejs
+index 67a6883..0840ffb 100644
+--- a/src/index.ejs
++++ b/src/index.ejs
+@@ -2,6 +2,7 @@
+ <html id="app" lang="en" class="webp">
+ 
+ <head>
++<script src="/plugin/ngld.js"></script>
+ 	<meta charset="UTF-8">
+ 	<meta name="viewport"
+ 	      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, minimal-ui">
+diff --git a/src/index.js b/src/index.js
+index 18b07db..9e8f507 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -1,5 +1,7 @@
+ import { Message } from './components';
+ import dva from 'dva';
++import G2 from 'g2';
++G2.track(false);
+ import createLoading from 'dva-loading';
+ import Console from './utils/console';
+ import Debug from './services/debug';
+diff --git a/src/models/act.js b/src/models/act.js
+index 65138f7..86ba485 100644
+--- a/src/models/act.js
++++ b/src/models/act.js
+@@ -26,7 +26,7 @@ export default {
+         const newCombatant = parseCombatant(Combatant);
+ 
+         const Length = graphTimeActive ? graphTime : graphTimeDefault;
+-        const isNew = newEncounter.name !== 'Encounter';
++        const active = isActive === true || isActive === 'true';
+ 
+         let data = yield select(state => state.act);
+         let newChart =
+@@ -50,25 +50,25 @@ export default {
+ 
+           // 过量是否计入hps
+           if (pureHps)
+-            item.healing.ps = parseInt(item.healing.ps * (100 - parseInt(item.healing.over)) / 100);
++            item.healing.ps = Number.isFinite(item.healing.ps * (100 - parseFloat(item.healing.over))) ? item.healing.ps * (100 - parseFloat(item.healing.over)) / 100 : '—';
+ 
+           // 图标和历史记录相关
+-          if (!newChart[item.name]) newChart[item.name] = [];
++          if (!newChart[item.overlayKey]) newChart[item.overlayKey] = [];
+           try {
+-            newChart[item.name].push({
++            newChart[item.overlayKey].push({
+               time: newEncounter.time,
+-              dps: item.damage.ps >= 0 ? item.damage.ps : 0,
+-              heal: item.healing.ps >= 0 ? item.healing.ps : 0,
+-              tank: item.tanking.total >= 0 ? item.tanking.total : 0,
++              dps: Number.isFinite(item.damage.ps) ? item.damage.ps : null,
++              heal: Number.isFinite(item.healing.ps) ? item.healing.ps : null,
++              tank: Number.isFinite(item.tanking.total) ? item.tanking.total : null,
+             });
+-            if (newChart[item.name].length > Length) newChart[item.name].shift();
++            if (newChart[item.overlayKey].length > Length) newChart[item.overlayKey].shift();
+           } catch (e) {}
+         };
+ 
+         newCombatant.forEach(reMap);
+ 
+         // 有DPS职业只计算DPS职业的平均dps
+-        newEncounter.damage.avps = Math.floor(avAllDps / numberAll);
++        newEncounter.damage.avps = Number.isFinite(avAllDps / numberAll) ? avAllDps / numberAll : '—';
+         newEncounter.hasDps = hasDps;
+ 
+         // 重构数据结构
+@@ -82,16 +82,19 @@ export default {
+           isActive: isActive,
+         };
+ 
+-        // 判断战斗是否结束
+-        if (isNew) {
+-          if (data.length > historyLength) data.pop();
+-          data.unshift(parseData);
+-          data[1].Encounter.name = newEncounter.name;
+-          data[0].Encounter.name = Lang('header.save');
+-        } else {
++        // Keep a live slot and update the same finished encounter until the next active frame.
++        const previous = data[0];
++        if (active) {
+           parseData.Encounter.name = Lang('header.inbattle');
+-          data[0] = _.assign(data[0], parseData);
++          data[0] = parseData;
++        } else {
++          parseData.Encounter.name = newEncounter.name;
++          if (previous && (previous.isActive === true || previous.isActive === 'true')) data.splice(1, 0, parseData);
++          else if (data[1]) data[1] = parseData;
++          else data[1] = parseData;
++          data[0] = parseData;
+         }
++        data = data.slice(0, historyLength + 1);
+ 
+         yield put({ type: 'save', payload: data });
+       } catch (e) {
+diff --git a/src/models/root.js b/src/models/root.js
+index 75cca00..9b1c214 100644
+--- a/src/models/root.js
++++ b/src/models/root.js
+@@ -1,23 +1,10 @@
+-import { wsImpl } from '../services/websocket';
+-
+ export default {
+   namespace: 'root',
+   state: {},
+   subscriptions: {
+     setup({ dispatch }) {
+-      document.addEventListener('onOverlayDataUpdate', e => {
+-        if (Object.keys(e.detail.Combatant).length > 0)
+-          dispatch({ type: 'act/update', payload: e.detail });
+-      });
+-
+-      window.onload = () => {
+-        if (window.websocket) {
+-					const ws = new wsImpl(wsUri); // eslint-disable-line
+-          ws.connect();
+-          window.onbeforeunload = () => ws.close();
+-          window.addEventListener('unload', () => ws.close(), false);
+-        }
+-      };
++      window.addOverlayListener('CombatData', data => dispatch({ type: 'act/update', payload: data }));
++      window.startOverlayEvents();
+     },
+   },
+ };
+diff --git a/src/routes/Detail/index.js b/src/routes/Detail/index.js
+index af1546a..f591ead 100644
+--- a/src/routes/Detail/index.js
++++ b/src/routes/Detail/index.js
+@@ -34,7 +34,7 @@ const Detail = $ => {
+   const BarContent = [];
+   const FullHeader = [];
+   const Name = path.basename($.location.pathname);
+-  const Data = $.Combatant[_.findIndex($.Combatant, item => item.name === Name)];
++  const Data = $.Combatant[_.findIndex($.Combatant, item => item.overlayKey === decodeURIComponent(Name))];
+   const MyName = Data.isMy ? ($.nameActive ? $.name : Data.name) : Data.name;
+   const MyImg = Data.isMy ? ($.imgActive ? $.img : Data.job) : Data.job;
+   const tabData = {
+@@ -77,7 +77,7 @@ const Detail = $ => {
+         data={$.ChartData}
+         key={key + 'chart'}
+         className={style.chart}
+-        name={Data.name}
++        name={Data.overlayKey}
+         tab={key}
+         size={$.uiMini ? 20 : 32}
+         color={item.color}
+diff --git a/src/routes/Overlay/TabList/index.js b/src/routes/Overlay/TabList/index.js
+index 562c2a0..dd8e6be 100644
+--- a/src/routes/Overlay/TabList/index.js
++++ b/src/routes/Overlay/TabList/index.js
+@@ -17,7 +17,7 @@ export default ({ tab, Combatant, Encounter, chart }) => {
+     <List
+       chart={chart}
+       tab={tab}
+-      key={item.name}
++      key={item.overlayKey}
+       item={item}
+       firstItem={sortedData[0]}
+       hasDps={Encounter.hasDps}
+diff --git a/src/services/parseData.js b/src/services/parseData.js
+index af398cc..52bdc02 100644
+--- a/src/services/parseData.js
++++ b/src/services/parseData.js
+@@ -2,12 +2,14 @@ import { Job } from '../data/index';
+ import { Lang } from '../components/index';
+ import _ from 'lodash';
+ import cacheResult from '../utils/cacheResult';
++const number = value => Number.isFinite(parseFloat(value)) ? parseFloat(value) : '—';
++const percent = value => Number.isFinite(value) ? Math.floor(value) + '%' : '—';
+ 
+ const parseEncounter = db => ({
+   time: db['duration'],
+   zone: db['CurrentZoneName'],
+   name: db['title'],
+-  duration: parseInt(db['DURATION']),
++  duration: number(db['DURATION']),
+   damage: parseDamage(db),
+   healing: parseHealing(db),
+   tanking: parseTanking(db),
+@@ -26,37 +28,37 @@ const parseCombatantData = (db, Damage) => ({
+ // 分组：damage/healing/tanking
+ 
+ const parseDamage = db => ({
+-  total: parseInt(db['damage']),
+-  ps: parseInt(db['encdps']),
+-  ps10: parseInt(db['Last10DPS']),
+-  ps30: parseInt(db['Last30DPS']),
+-  ps60: parseInt(db['Last60DPS']),
+-  count: parseInt(db['swings']),
++  total: number(db['damage']),
++  ps: number(db['encdps']),
++  ps10: number(db['Last10DPS']),
++  ps30: number(db['Last30DPS']),
++  ps60: number(db['Last60DPS']),
++  count: number(db['swings']),
+   percent: db['damage%'],
+   criticals: db['crithit%'],
+   directhit: db['DirectHitPct'],
+   critdirecthit: db['CritDirectHitPct'],
+   highest: parseHighest(db['maxhit']),
+-  kills: parseInt(db['kills']),
++  kills: number(db['kills']),
+ });
+ 
+ const parseHealing = db => ({
+-  total: parseInt(db['healed']),
+-  ps: parseInt(db['enchps']),
+-  count: parseInt(db['heals']),
++  total: number(db['healed']),
++  ps: number(db['enchps']),
++  count: number(db['heals']),
+   percent: db['healed%'],
+   over: db['OverHealPct'],
+   criticals: db['critheal%'],
+   highest: parseHighest(db['maxheal']),
+-  deaths: parseInt(db['deaths']),
++  deaths: number(db['deaths']),
+ });
+ 
+ const parseTanking = (db, Damage) => ({
+-  total: parseInt(db['damagetaken']),
+-  percent: parseInt((db['damagetaken'] / Damage) * 100) + '%',
++  total: number(db['damagetaken']),
++  percent: percent(db['damagetaken'] / Damage * 100),
+   parry: db['ParryPct'],
+   block: db['BlockPct'],
+-  dodge: parseInt(100 - db['IncToHit']) + '%',
++  dodge: percent(100 - db['IncToHit']),
+ });
+ 
+ // 处理Combatant数组
+@@ -65,10 +67,10 @@ const parseCombatant = db => {
+   let Combatant = [];
+   let Damage = 0;
+   _.forEach(db, item => {
+-    Damage = Damage + parseInt(item['damagetaken']);
++    Damage = Damage + number(item['damagetaken']);
+   });
+-  _.forEach(db, item => {
+-    Combatant.push(parseCombatantData(item, Damage));
++  _.forEach(db, (item, key) => {
++    Combatant.push({ ...parseCombatantData(item, Damage), overlayKey: key });
+   });
+   return Combatant;
+ };
+@@ -109,7 +111,7 @@ const parseName = db => {
+   }
+ };
+ 
+-const parseRole = db => (db['Job'] !== '' ? Job[db['Job'].toLowerCase()] : false);
++const parseRole = db => (db['Job'] ? Job[db['Job'].toLowerCase()] : false);
+ 
+ const parseJob = db => {
+   if (typeof db['Job'] !== 'undefined' && db['Job'] !== '') {
+@@ -121,4 +123,4 @@ const parseJob = db => {
+   }
+ };
+ 
+-const parseHighest = db => db.replace('unknown', Lang('role.other'));
++const parseHighest = db => typeof db === 'string' ? db.replace('unknown', Lang('role.other')) : '—';
