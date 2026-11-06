@@ -20,3 +20,7 @@ For remote protocol checks a harness can define `__OVERLAY_FIXTURE_SOURCES__` to
 to host-managed profiles. Package pages and popups are restricted to declared documents
 and own resources; the host supplies its sandboxed compatibility preload. Remote profiles
 keep their existing HTTP(S) networking and permission restrictions.
+
+Acceptance drivers can call `fixtureState(state)` from the control view to publish a
+synthetic `OverlayState`. The fixture validates it with the SDK before publication;
+this permits precise final-frame revisions without changing statistics calculations.
