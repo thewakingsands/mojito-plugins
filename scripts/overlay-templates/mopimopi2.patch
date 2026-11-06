@@ -47,7 +47,41 @@
  
      //console.log(lastDPS.isActive)
      //console.log(onStopFlag)
-@@ -83,7 +86,14 @@
+@@ -29,22 +32,19 @@
+         onStopFlag = true;
+     }
+     else {
+-        if (!onStopFlag)
+-            return;
+-        else {
+-            if (view != 'settings') {
+-                if (!firstCombat) {
+-                    $('[name=notice], [name=history]').fadeOut(0)
+-                    $('[name=main]').fadeIn(0)
+-                    view = 'main'
+-                    firstCombat = true
+-                }
+-                saveLog()
+-                update(lastDPS, lastHPS)
+-                hiddenTable()
++        if (!currentEncounterKey) return;
++        saveLog();
++        if (view != 'settings') {
++            if (!firstCombat) {
++                $('[name=notice], [name=history]').fadeOut(0)
++                $('[name=main]').fadeIn(0)
++                view = 'main'
++                firstCombat = true
+             }
+-            onStopFlag = false;
++            update(lastDPS, lastHPS)
++            hiddenTable()
+         }
++        onStopFlag = false;
+     }
+ }
+ 
+@@ -83,7 +83,14 @@
          $('div[name=main' + _ + ']').html('<div id="HPSHeader' + _ + '"><div id="HPSoldHeader' + _ + '"></div></div><div id="HPSBody' + _ + '"><div id="HPSoldBody' + _ + '"></div></div><div id="DPSHeader' + _ + '"><div id="DPSoldHeader' + _ + '"></div></div><div id="DPSBody' + _ + '"><div id="DPSoldBody' + _ + '"></div></div>')
          
      if (lastDPS.Combatant["YOU"] == undefined && lastDPS.Combatant["YOU"] == null) {        
@@ -63,7 +97,7 @@
      } else {
          var rd = "Total DPS " + addComma(lastDPS.Encounter.ENCDPS) + "　"
          var rh = "Total HPS " + addComma(lastHPS.Encounter.ENCHPS) + "　"
-@@ -135,7 +145,7 @@
+@@ -135,7 +142,7 @@
      ui()
  }
  function onRaidCombatDataUpdate(flag, last) {
@@ -72,7 +106,7 @@
          var row = $('<div class="rRow"></div>'),
              set = 1,
              newBody = $('<div id="' + flag + 'Body' + _ + '"></div>')
-@@ -178,7 +188,7 @@
+@@ -178,7 +185,7 @@
      return '<table id="' + userName + '" class="rCell"><tr><td rowspan="2" class="rIdx" style="background:' + graphColor(a.Class, a.role, userName) + '"></td><td class="rIcon">' + addData('Class', a.Class, a) + '</td><td class="rName">' + addData('name', a.name, a) + '</td></tr><tr><td colspan="2" class="rData">' + addData('enc' + flag.toLowerCase(), a['enc' + flag.toLowerCase()], a) + '</td></tr></table>'
  }
  function onCombatDataUpdate(flag, last) {
@@ -81,7 +115,7 @@
          var Height = 0;
          var tableHeader = document.getElementById(flag + "Header" + _);
          var oldHeader = document.getElementById(flag + "oldHeader" + _);
-@@ -325,6 +335,14 @@
+@@ -325,6 +332,14 @@
          return name.split('(')[0] + '(YOU)';
  }
  function addData(colName, a, p) {
@@ -96,7 +130,7 @@
      switch (colName) {
          case 'Class':
              if (a != undefined)
-@@ -444,7 +462,7 @@
+@@ -444,7 +459,7 @@
      }
  }
  function addComma(num, dd, ds) {
@@ -105,7 +139,7 @@
      else {
          if (dd == null) dd = 1
          if (ds == null) ds = 0            
-@@ -476,7 +494,7 @@
+@@ -476,7 +491,7 @@
          var shield = Math.min(100, parseInt((p.mergedDamageShield / p.mergedHealed) * 100))
      }
      var width = graphAnimate(userWidth, 'bar', flag, userName, p.Class, p.role)
@@ -114,7 +148,7 @@
          width: width + '%',
      })
      if (init.q.pets == 1) {
-@@ -506,7 +524,7 @@
+@@ -506,7 +521,7 @@
      } else
          var bg = graphColor(job, role, userName)
      if (barSize[userName + bar + flag] == undefined) {
@@ -123,7 +157,7 @@
              width: 0 + '%',
              background: bg,
              opacity: parseFloat(init.Range[bar] / 100)
-@@ -515,20 +533,20 @@
+@@ -515,20 +530,20 @@
      } else {
          if (isNaN(width))
              barSize[userName + bar + flag] = 0;
@@ -147,3 +181,59 @@
              width: width + '%',
              background: bg,
              opacity: parseFloat(init.Range[bar] / 100)
+@@ -572,16 +587,27 @@
+         return;
+     else {
+         if (String(lastDPS.isActive) == "false") {
+-            encounterArray.unshift({
++            var snapshot = {
+                 lastDPS: lastDPS,
+                 lastHPS: lastHPS,
+                 combatKey: lastDPS.combatKey
+-            });
+-            if (encounterArray.length >= 2) {
+-                if (encounterArray[1].combatKey == lastDPS.combatKey)
+-                    encounterArray.shift()
+-                else historyAddRow()
+-            } else historyAddRow()
++            };
++            var index = encounterArray.findIndex(function (item) { return item.combatKey === snapshot.combatKey; });
++            if (index === -1) {
++                encounterArray.unshift(snapshot);
++                historyAddRow();
++            } else {
++                // Replace the stored snapshot, retaining its original key and row count.
++                encounterArray[index] = snapshot;
++                var row = document.getElementById(snapshot.combatKey);
++                if (row) {
++                    row.rows[0].cells[2].innerHTML = lastDPS.Encounter.duration;
++                    row.rows[0].cells[3].innerHTML = addComma(lastDPS.Encounter.ENCDPS);
++                    row.rows[0].cells[4].innerHTML = addComma(lastHPS.Encounter.ENCHPS);
++                    row.rows[0].cells[5].innerHTML = lastDPS.persons.YOU ? addComma(lastDPS.persons.YOU.ENCDPS) : 'No Data';
++                    row.rows[0].cells[6].innerHTML = lastHPS.persons.YOU ? addComma(lastHPS.persons.YOU.ENCHPS) : 'No Data';
++                }
++            }
+         }
+         barSize.length = 0; 
+     }
+--- a/js/ui.js
++++ b/js/ui.js
+@@ -817,6 +817,7 @@
+             break
+         case 'Back':
+             if (direction == 'main') {
++                var leavingSettings = view === 'settings';
+                 view = 'main'
+                 sVal.old = 0;
+                 sVal.pre = 0
+@@ -833,8 +834,8 @@
+                 localStorage.setItem('Mopi2_HAERU', JSON.stringify(init))
+                 $('.previewArea, .tabArea, .scrollArea').html('')
+                 if (lastCombat != null) {
+-                    //오버레이가 계속 갱신되므로 해당부분 제거
+-                    //update(lastDPS, lastHPS)
++                    // A final revision may have arrived while the settings page was open.
++                    if (leavingSettings) update(lastDPS, lastHPS);
+                     hiddenTable()
+                 } else {
+                     initOverlay()

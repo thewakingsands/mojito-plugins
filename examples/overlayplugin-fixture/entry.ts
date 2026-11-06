@@ -1,5 +1,10 @@
 import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
-import { type OverlayCompatibility, type OverlayState, overlayProducer } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
+import {
+  type OverlayCompatibility,
+  type OverlayState,
+  overlayProducer,
+  overlayState,
+} from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { provideOverlayService } from '../../packages/combat-statistics/src/overlay-service.js'
 
 // Entirely synthetic input: the same state can be sent to ACT and Mojito by the acceptance harness.
@@ -238,8 +243,11 @@ export async function activate(context: PluginContext) {
   await context.views.flush()
   await context.views.onCommand('fixture', (input) =>
     enqueue(async () => {
-      const command = input as { scenario: string; encounterId?: string; active?: boolean }
-      current = scenario(command.scenario, command.encounterId, command.active)
+      const command = input as { scenario: string; encounterId?: string; active?: boolean; state?: unknown }
+      current =
+        command.state === undefined
+          ? scenario(command.scenario, command.encounterId, command.active)
+          : overlayState(command.state)
       await publish()
       await context.views.flush()
       return { encounterId: current.encounterId }
