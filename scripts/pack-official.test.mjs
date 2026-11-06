@@ -19,7 +19,18 @@ test('packs and verifies every official plugin with one temporary signer', async
     await writeFile(key, JSON.stringify(privateJwk), { mode: 0o600 })
     execFileSync(process.execPath, [path.join(root, 'scripts/pack-official.mjs'), key, fingerprint], { stdio: 'pipe' })
     const packages = (await readdir(output)).filter((file) => file.endsWith('.mojito'))
-    assert.equal(packages.length, 5)
+    assert.equal(packages.length, 6)
+    assert(packages.includes('MojitoSkillDisplay-0.1.0.mojito'))
+    const display = JSON.parse(
+      execFileSync(
+        path.join(root, `target/release/mojito-package${process.platform === 'win32' ? '.exe' : ''}`),
+        ['read', path.join(output, 'MojitoSkillDisplay-0.1.0.mojito'), 'plugin.json'],
+        { encoding: 'utf8' },
+      ),
+    )
+    assert.equal(display.id, 'MojitoSkillDisplay')
+    assert.deepEqual(display.capabilities.required, ['session.read', 'events.read', 'data.read', 'ui.register'])
+    assert.deepEqual(display.networkOrigins, [])
     const sums = await readFile(path.join(output, 'SHA256SUMS'), 'utf8')
     for (const file of packages) {
       const digest = createHash('sha256')

@@ -1,0 +1,13 @@
+{
+  "name": "@ffcafe/mojito-plugin-skill-display",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ffcafe/mojito-plugin-sdk": "workspace:*"
+  }
+}
