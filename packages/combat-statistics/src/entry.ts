@@ -19,7 +19,7 @@ import { type ChangedEncounter, Encounters } from './encounters.js'
 import { GameDataCache } from './game-cache.js'
 import { Identities, isCharacterEntity, value } from './identity.js'
 import { jobIcon } from './jobs.js'
-import { CombatLog, LISTED_VISITS } from './log/index.js'
+import { CombatLog, PAGE_SIZE, type VisitEntry } from './log/index.js'
 import { type ReplayObservers, replay } from './log/replay.js'
 import { type Summary, settings, sourceKey } from './model.js'
 import { provideOverlayService } from './overlay-service.js'
@@ -34,6 +34,7 @@ import {
   type VisitsState,
   type VisitView,
 } from './view-model.js'
+import { DEFAULT_QUERY, matchVisit, parseQuery, type VisitQuery } from './visit-filter.js'
 
 /** Recomputed visits kept in memory */
 const REPLAYS = 3
@@ -118,6 +119,14 @@ export async function activate(ctx: PluginContext) {
   let following = true,
     pinned: Selection | null = null,
     lastVisits: string | null = null
+  // The visit list the page shows; not kept in the settings, so every activation starts on the newest visits.
+  let query: VisitQuery = DEFAULT_QUERY,
+    page = 0,
+    reading = false,
+    /** Changes whenever the query or page does, so a running fillPage leaves the rest to the next one */
+    fillRun = 0,
+    /** Counts visit publications, so one that awaited names does not overwrite a newer one */
+    visitsRun = 0
   const replays = new Map<string, Map<string, Summary>>()
   const visitStatus = new Map<string, { loading: true } | { loading: false; error: string }>()
   /** The review data of the last fight the page asked for; a failure is not kept, so asking again retries */
@@ -353,10 +362,11 @@ export async function activate(ctx: PluginContext) {
         )
     if (displayTick && !projected.changed) return
     const current = projected.summary
-    // The visit list only changes at fight and visit boundaries, which never come from a display tick.
-    const visits = displayTick ? listedVisits() : await publishVisits()
+    const visits = fightVisits()
     const activeFightId = encounters.active?.id ?? null
     const selection = resolveSelection(visits, activeFightId, following, pinned)
+    // The visit list only changes at fight and visit boundaries, which never come from a display tick.
+    if (!displayTick) await publishVisits(visits, selection)
     const shown = selectedSummary(selection, current)
     const selected = displaySummary(shown.summary, encounters.config.mergePets)
     const state: StatisticsState = {
@@ -398,12 +408,8 @@ export async function activate(ctx: PluginContext) {
       }
     }
   }
-  /** The newest visits with a fight; the current visit is listed once its first fight starts. */
-  const listedVisits = () =>
-    log
-      .list()
-      .filter((entry) => entry.fights.length > 0)
-      .slice(0, LISTED_VISITS)
+  /** The visits with a fight, newest first; the current visit is listed once its first fight starts. */
+  const fightVisits = () => log.list().filter((entry) => entry.fights.length > 0)
   /** The name a visit is listed by: the duty held in its territory, otherwise the territory's place name. */
   async function visitName(territoryType: number, logged: string | null) {
     const language = session?.dataLanguage
@@ -414,31 +420,83 @@ export async function activate(ctx: PluginContext) {
     if (!logged) await gameCache.name('territoryType', territoryType)
     return logged ?? gameCache.cached('territoryType', territoryType)
   }
-  /** Publishes the newest visits of the log when they changed and returns them. */
-  async function publishVisits() {
-    const visits: VisitView[] = []
-    for (const entry of listedVisits()) {
-      const status = visitStatus.get(entry.id)
-      const error = status?.loading === false ? status.error : entry.integrity === 'failed' ? entry.error : null
-      visits.push({
-        id: entry.id,
-        territoryType: entry.territoryType,
-        zoneName: await visitName(entry.territoryType, entry.zoneName),
-        enteredAt: entry.enteredAt,
-        leftAt: entry.leftAt,
-        current: entry.current,
-        status: status?.loading ? 'loading' : error !== null ? 'failed' : 'ok',
-        error,
-        fights: entry.fights,
-      })
+  async function visitView(entry: VisitEntry, name?: string | null): Promise<VisitView> {
+    const status = visitStatus.get(entry.id)
+    const error = status?.loading === false ? status.error : entry.integrity === 'failed' ? entry.error : null
+    return {
+      id: entry.id,
+      territoryType: entry.territoryType,
+      zoneName: name === undefined ? await visitName(entry.territoryType, entry.zoneName) : name,
+      enteredAt: entry.enteredAt,
+      leftAt: entry.leftAt,
+      current: entry.current,
+      status: status?.loading ? 'loading' : error !== null ? 'failed' : 'ok',
+      error,
+      fights: entry.fights,
     }
-    const state: VisitsState = { visits }
+  }
+  /** The visits that match the query, with the names they are listed by */
+  async function matchingVisits(all: VisitEntry[]) {
+    const selfActorId = session?.character?.actorId ?? null
+    const matched: { entry: VisitEntry; name: string | null | undefined }[] = []
+    for (const entry of all) {
+      // Only a duty query needs the name of every visit; the others are named when shown.
+      const name = query.duty ? await visitName(entry.territoryType, entry.zoneName) : undefined
+      if (matchVisit(entry, name ?? null, query, selfActorId)) matched.push({ entry, name })
+    }
+    return matched
+  }
+  /** Publishes the page of visits when it changed. */
+  async function publishVisits(
+    all = fightVisits(),
+    selection = resolveSelection(all, encounters.active?.id ?? null, following, pinned),
+  ) {
+    const run = ++visitsRun
+    const matched = await matchingVisits(all)
+    const visits: VisitView[] = []
+    for (const { entry, name } of matched.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE))
+      visits.push(await visitView(entry, name))
+    const selectedEntry = selection && all.find((entry) => entry.id === selection.visitId)
+    const state: VisitsState = {
+      visits,
+      query,
+      page,
+      hasPrevious: page > 0,
+      hasNext: matched.length > (page + 1) * PAGE_SIZE,
+      reading,
+      selected: selectedEntry ? await visitView(selectedEntry) : null,
+    }
+    if (run !== visitsRun || stopped) return
     const serialized = JSON.stringify(state)
     if (serialized !== lastVisits) {
       lastVisits = serialized
       ctx.views.set('visits', state as unknown as Value)
     }
-    return visits
+  }
+  /**
+   * Reads older log files until the page and the first visit of the next one are found or the log is read through,
+   * publishing after each file. It runs outside the queue, so the statistics do not wait for the files.
+   */
+  async function fillPage() {
+    const run = ++fillRun
+    try {
+      while (run === fillRun && !stopped) {
+        if ((await matchingVisits(fightVisits())).length > (page + 1) * PAGE_SIZE) break
+        if (run !== fillRun) return
+        reading = true
+        await publishVisits()
+        const more = await log.readOlder()
+        if (run !== fillRun) return
+        await publishVisits()
+        if (!more) break
+      }
+    } catch (error) {
+      ctx.log.warn('读取更早的日志失败', { error: String(error) })
+    }
+    if (run !== fillRun || stopped) return
+    reading = false
+    await publishVisits()
+    await ctx.views.flush()
   }
   /**
    * The summary of the selected fight: from memory while this activation still holds the fight, otherwise recomputed
@@ -1260,6 +1318,18 @@ export async function activate(ctx: PluginContext) {
           visitStatus.clear()
           following = true
           pinned = null
+          page = 0
+          fillRun++
+          reading = false
+        } else if (request.kind === 'visits') {
+          const next = parseQuery(request.query)
+          if (!next || typeof request.page !== 'number' || !Number.isInteger(request.page) || request.page < 0)
+            throw new Error('无效命令')
+          query = next
+          page = request.page
+          await publishNow(false)
+          void fillPage()
+          return null
         } else if (
           request.kind === 'select' &&
           typeof request.visitId === 'string' &&
@@ -1300,8 +1370,11 @@ export async function activate(ctx: PluginContext) {
     await ctx.ui.registerFeature({ id: 'settings', name: '战斗统计', entry: 'settings.html', placement: 'settings' }),
   )
   await enqueue(() => publishNow())
+  // open reads the first page only; the next older files tell whether there is a second one.
+  void fillPage()
   return async () => {
     stopped = true
+    fillRun++
     if (logTimer !== null) clearInterval(logTimer)
     if (retryTimer !== null) clearInterval(retryTimer)
     if (displayTimer !== null) clearInterval(displayTimer)

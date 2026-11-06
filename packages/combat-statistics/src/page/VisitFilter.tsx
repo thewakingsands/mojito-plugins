@@ -1,0 +1,162 @@
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { DEFAULT_QUERY, JOB_GROUPS, type VisitQuery } from '../visit-filter.js'
+import { useBridge } from './bridge.js'
+import { JobIcon } from './icons.js'
+
+const JOB_NAMES = new Map(JOB_GROUPS.flatMap((group) => group.jobs.map((job) => [job.id, job.name] as const)))
+
+/** The conditions in effect, shown beside the title while the panel is closed. */
+export function querySummary(query: VisitQuery) {
+  const parts: string[] = []
+  if (query.duty) parts.push(`副本：${query.duty}`)
+  if (query.character) parts.push(`角色：${query.character}`)
+  if (query.jobs.length) {
+    const names = query.jobs.map((job) => JOB_NAMES.get(job) ?? String(job))
+    parts.push(query.selfOnly ? `自己：${names.join('/')}` : `队伍：${names.join('+')}`)
+  }
+  return parts.join(' · ') || '未筛选'
+}
+
+/** Without the game's icon, the first character of the name stands in for it. */
+const Job = ({ id }: { id: number }) => <JobIcon job={id} abbreviation={JOB_NAMES.get(id)?.slice(0, 1)} />
+
+/** The filter and search panel; changes take effect on 搜索 or Enter only. */
+export function VisitFilter({ query }: { query: VisitQuery }) {
+  const { command } = useBridge()
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(query)
+  const [applied, setApplied] = useState(query)
+  const [picking, setPicking] = useState(false)
+  const picker = useRef<HTMLDivElement>(null)
+  // Every publication carries a new object, so only a different query replaces what is being typed.
+  if (JSON.stringify(applied) !== JSON.stringify(query)) {
+    setApplied(query)
+    setDraft(query)
+  }
+  useEffect(() => {
+    if (!picking) return
+    const close = (event: PointerEvent) => {
+      if (!picker.current?.contains(event.target as Node)) setPicking(false)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [picking])
+  const apply = (next: VisitQuery) => {
+    setDraft(next)
+    setPicking(false)
+    void command({ kind: 'visits', query: next, page: 0 })
+  }
+  const onEnter = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') apply(draft)
+  }
+  const toggleJob = (id: number) =>
+    setDraft((current) => ({
+      ...current,
+      jobs: current.jobs.includes(id) ? current.jobs.filter((job) => job !== id) : [...current.jobs, id],
+    }))
+  return (
+    <section className="visit-filter">
+      <button type="button" className="visit-filter-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="visit-filter-arrow" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+        <span>筛选和搜索</span>
+        {!open && <span className="visit-filter-summary ellipsis">{querySummary(query)}</span>}
+      </button>
+      {open && (
+        <div className="visit-filter-body">
+          <input
+            type="text"
+            placeholder="副本名"
+            aria-label="副本名"
+            value={draft.duty}
+            onChange={(event) => setDraft({ ...draft, duty: event.target.value })}
+            onKeyDown={onEnter}
+          />
+          <input
+            type="text"
+            placeholder="角色名"
+            aria-label="角色名"
+            value={draft.character}
+            onChange={(event) => setDraft({ ...draft, character: event.target.value })}
+            onKeyDown={onEnter}
+          />
+          <div className="visit-filter-row">
+            <div className="job-picker" ref={picker}>
+              <button
+                type="button"
+                className={`job-picker-button${draft.jobs.length ? ' on' : ''}`}
+                aria-haspopup="dialog"
+                aria-expanded={picking}
+                onClick={() => setPicking(!picking)}
+              >
+                {draft.jobs.length ? (
+                  <>
+                    <span>职业：</span>
+                    <span className="job-picker-icons">
+                      {draft.jobs.map((job) => (
+                        <Job key={job} id={job} />
+                      ))}
+                    </span>
+                  </>
+                ) : (
+                  '职业：全部'
+                )}
+              </button>
+              {picking && (
+                <div className="job-picker-popover" role="dialog" aria-label="选择职业">
+                  {JOB_GROUPS.map((group) => (
+                    <div key={group.label}>
+                      <h3>{group.label}</h3>
+                      <div className="job-picker-grid">
+                        {group.jobs.map((job) => {
+                          const selected = draft.jobs.includes(job.id)
+                          return (
+                            <button
+                              key={job.id}
+                              type="button"
+                              className={selected ? 'selected' : undefined}
+                              aria-pressed={selected}
+                              onClick={() => toggleJob(job.id)}
+                            >
+                              <span aria-hidden="true">
+                                <Job id={job.id} />
+                              </span>
+                              {job.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="job-picker-foot">
+                    <span>{draft.selfOnly ? '自己的职业是所选之一' : '所选职业全部在队伍里'}</span>
+                    <button type="button" className="small" onClick={() => setDraft({ ...draft, jobs: [] })}>
+                      清空
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <label className="visit-filter-self">
+              <input
+                type="checkbox"
+                checked={draft.selfOnly}
+                onChange={(event) => setDraft({ ...draft, selfOnly: event.target.checked })}
+              />
+              仅自己
+            </label>
+          </div>
+          <div className="visit-filter-actions">
+            <button type="button" onClick={() => apply(DEFAULT_QUERY)}>
+              重置
+            </button>
+            <button type="button" data-variant="primary" onClick={() => apply(draft)}>
+              搜索
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}

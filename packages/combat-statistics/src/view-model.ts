@@ -1,5 +1,6 @@
 import type { FightEntry } from './log/types.js'
 import type { Settings, Summary } from './model.js'
+import type { VisitQuery } from './visit-filter.js'
 
 /** The fight shown in the overview. */
 export interface Selection {
@@ -18,9 +19,22 @@ export interface VisitView {
   error: string | null
   fights: FightEntry[]
 }
-/** The `visits` view channel; it changes only when a visit or fight starts or ends, or a visit is read. */
+/**
+ * The `visits` view channel: one page of the visits with a fight that match the query, newest first. It changes when a
+ * visit or fight starts or ends, a visit or an older log file is read, or the query or page changes.
+ */
 export interface VisitsState {
   visits: VisitView[]
+  query: VisitQuery
+  /** From 0 */
+  page: number
+  hasPrevious: boolean
+  /** False as well while older files are read and it is not known yet */
+  hasNext: boolean
+  /** Older log files are being read to fill the page */
+  reading: boolean
+  /** The visit of the selected fight, wherever it is listed */
+  selected: VisitView | null
 }
 /** The `statistics` view channel; it is published every second while a fight runs. */
 export interface StatisticsState {
@@ -49,6 +63,7 @@ export type Command =
   | { kind: 'clear' }
   | { kind: 'icon'; key: string }
   | { kind: 'replay'; visitId: string; fightId: string }
+  | { kind: 'visits'; query: VisitQuery; page: number }
 
 /**
  * Positions of one actor, a sample per column index in time order. Times are review times: milliseconds from the

@@ -392,6 +392,115 @@ describe('log store opening a long log', () => {
     expect(visitDays(h)).toEqual([21])
     expect([...h.store.index.entries.values()][0].fights).toHaveLength(1)
   })
+  it('reads the files open left unread one at a time, newest first', async () => {
+    const memory = await history([20, 21, 22, 23])
+    const h = reopen(memory)
+    await h.store.open(1)
+    expect(h.reads).toEqual(['log/2026-10-23.parquet'])
+    expect(await h.store.readOlder()).toBe(true)
+    expect(await h.store.readOlder()).toBe(true)
+    expect(await h.store.readOlder()).toBe(false)
+    expect(await h.store.readOlder()).toBe(false)
+    expect(h.reads).toEqual([
+      'log/2026-10-23.parquet',
+      'log/2026-10-22.parquet',
+      'log/2026-10-21.parquet',
+      'log/2026-10-20.parquet',
+    ])
+    expect(visitDays(h)).toEqual([20, 21, 22, 23])
+  })
+  it('lists a visit that spans files once the older file with its start is read', async () => {
+    const memory = await history([20])
+    const writer = setup(88 * KiB, undefined, memory)
+    await writer.store.open()
+    vi.setSystemTime(at(21, 10))
+    writer.enter(at(21, 10), 21)
+    let t = at(21, 10)
+    const step = () => {
+      t += 1000
+      return t
+    }
+    for (let i = 0; i < 3; i++) {
+      writer.noise(step())
+      await writer.store.flush()
+    }
+    writer.recorder.fightStarted({ id: 'enc-21', at: step() })
+    for (let i = 0; i < 4; i++) {
+      writer.noise(step())
+      await writer.store.flush()
+    }
+    writer.recorder.fightEnded({ id: 'enc-21', reason: 'manual', at: step(), summary })
+    writer.recorder.stop(step())
+    await writer.store.flush()
+    vi.setSystemTime(at(22, 9))
+    const h = reopen(memory)
+    await h.store.open(0, 0)
+    expect(h.reads).toEqual(['log/2026-10-21-2.parquet'])
+    expect(visitDays(h)).toEqual([])
+    expect(await h.store.readOlder()).toBe(true)
+    expect(visitDays(h)).toEqual([21])
+    const fights = [...h.store.index.entries.values()][0].fights
+    expect(fights).toHaveLength(1)
+    expect(fights[0].endAt).not.toBeNull()
+  })
+  it('reads the records of a file read later, and evicts it oldest first', async () => {
+    const memory = await history([20, 21, 22, 23])
+    const h = reopen(memory)
+    await h.store.open(0, 0)
+    while (await h.store.readOlder());
+    const kinds: string[] = []
+    for await (const record of h.store.read('20261020-100000-20', false, true)) kinds.push(record.kind)
+    expect(kinds[0]).toBe('visitStart')
+    expect(kinds).toContain('fightEnd')
+    memory.failures.push(
+      () => ({ code: 'quota_exceeded' }),
+      () => ({ code: 'quota_exceeded' }),
+    )
+    h.enter(at(24, 10), 24)
+    await h.store.flush()
+    expect(h.names()).toEqual(['log/2026-10-22.parquet', 'log/2026-10-23.parquet', 'log/2026-10-24.parquet'])
+    expect(visitDays(h)).toEqual([22, 23, 24])
+  })
+  it('drops a file that a clear removed while it was read', async () => {
+    const memory = await history([20, 21])
+    const h = reopen(memory)
+    await h.store.open(0, 0)
+    let release = () => {}
+    const read = memory.storage.read
+    // The bytes are read at once, so only the end of the read waits.
+    memory.storage.read = (path) => {
+      const bytes = read(path)
+      return new Promise((resolve) => {
+        release = () => resolve(bytes)
+      })
+    }
+    const reading = h.store.readOlder()
+    await h.store.clear(null)
+    release()
+    expect(await reading).toBe(false)
+    expect(h.store.index.entries.size).toBe(0)
+    expect(h.names()).toEqual([])
+    // The file is not known either: its name is free again.
+    h.enter(at(20, 14), 120)
+    h.recorder.stop(at(20, 15))
+    await h.store.flush()
+    expect(h.names()).toEqual(['log/2026-10-20.parquet'])
+  })
+  it('skips an unrecognized file it reads later without overwriting it', async () => {
+    const memory = await history([21, 22])
+    const junk = new TextEncoder().encode('not parquet')
+    memory.files.set('log/2026-10-20.parquet', junk)
+    const h = reopen(memory)
+    await h.store.open(0, 0)
+    expect(await h.store.readOlder()).toBe(true)
+    expect(await h.store.readOlder()).toBe(false)
+    expect(visitDays(h)).toEqual([21, 22])
+    h.enter(at(20, 14), 120)
+    h.recorder.stop(at(20, 15))
+    await h.store.flush()
+    expect(h.files.get('log/2026-10-20.parquet')).toBe(junk)
+    expect(h.names()).toContain('log/2026-10-20-2.parquet')
+  })
   it('stops at the time budget, but still reads today and the last file', async () => {
     const memory = await history([20, 21, 22, 23])
     vi.setSystemTime(at(22, 9))

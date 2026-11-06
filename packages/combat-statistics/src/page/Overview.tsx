@@ -20,11 +20,12 @@ import {
 
 export function Overview(props: {
   statistics: StatisticsState
-  visits: VisitView[]
+  /** The visit of the selected fight */
+  visit: VisitView | undefined
   onCurrent: () => void
   onReview: (fight: Selection) => void
 }) {
-  const { statistics, visits } = props
+  const { statistics, visit } = props
   const { command } = useBridge()
   const banner = showBanner(statistics) && (
     <div className="banner" role="status">
@@ -48,7 +49,6 @@ export function Overview(props: {
         <p className="placeholder">还没有战斗记录。进入区域并开始战斗后，这里会显示记录。</p>
       </>
     )
-  const visit = visits.find((item) => item.id === selection.visitId)
   const fight = visit?.fights.find((item) => item.id === selection.fightId)
   const summary = statistics.selected
   let body: ReactNode

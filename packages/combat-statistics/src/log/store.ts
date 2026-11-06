@@ -23,8 +23,8 @@ const BUDGET_MARGIN = 1024 * 1024
 const OPEN_BUDGET_MS = 5000
 /** Below `storage.listItems`, past which the host refuses to list the directory and `open` would find no log at all. */
 const FILE_COUNT_MARGIN = 16
-/** How many visits with a fight the feature page lists, and so how many `open` looks for. */
-export const LISTED_VISITS = 100
+/** How many visits with a fight a page of the feature page lists, and so how many `open` looks for. */
+export const PAGE_SIZE = 100
 export const SPACE_FULL = '日志空间已满，这次进本之后的记录没有保存'
 export const INTEGRITY_FAILED = '日志校验失败'
 
@@ -59,7 +59,18 @@ type NoteCell = [visit: string, kind: string, t: number, cell: string]
 /** Builds the visit list from notes, both when opening files and while writing. */
 class VisitIndex {
   readonly entries = new Map<string, VisitEntry>()
+  /**
+   * Notes of visits whose start is in a file not read yet, by visit. Files are read from newest to oldest, so these
+   * come after every note of the older file that holds the start, and `settle` adds them once that file is done.
+   */
+  readonly pending = new Map<string, NoteCell[]>()
   note(visit: string, kind: string, t: number, cell: string) {
+    if (kind !== 'visitStart' && !this.entries.has(visit)) {
+      const notes = this.pending.get(visit)
+      if (notes) notes.push([visit, kind, t, cell])
+      else this.pending.set(visit, [[visit, kind, t, cell]])
+      return
+    }
     let note: Note
     try {
       note = parseNote(kind, cell)
@@ -120,6 +131,14 @@ class VisitIndex {
       })
     }
   }
+  /** Adds the pending notes of the visits whose start has been read. */
+  settle() {
+    for (const [visit, notes] of [...this.pending]) {
+      if (!this.entries.has(visit)) continue
+      this.pending.delete(visit)
+      for (const note of notes) this.note(...note)
+    }
+  }
   fail(entry: VisitEntry) {
     entry.integrity = 'failed'
     entry.error = INTEGRITY_FAILED
@@ -135,6 +154,8 @@ export class LogStore implements RecorderSink {
   private skipped = new Map<string, number>()
   /** Older files `open` left alone. Their size is unknown, so only `quota_exceeded` from the host accounts for them. */
   private unread = new Set<string>()
+  /** Changes on every clear, so a file read meanwhile is dropped. */
+  private clears = 0
   private resume: { name: string; parsed: ParsedFile; size: number } | null = null
   private file: Loaded | null = null
   private closed: Loaded[] = []
@@ -164,7 +185,7 @@ export class LogStore implements RecorderSink {
    * Reads the files from newest to oldest until `visits` visits with a fight are found or `budgetMs` has passed. The
    * files of today and the last file are always read, since writing continues in them.
    */
-  async open(visits = LISTED_VISITS, budgetMs = OPEN_BUDGET_MS) {
+  async open(visits = PAGE_SIZE, budgetMs = OPEN_BUDGET_MS) {
     // Listing is part of the budget: the host looks at every file of the directory, which takes seconds near the limit.
     const started = Date.now()
     let names: string[]
@@ -197,23 +218,13 @@ export class LogStore implements RecorderSink {
         continue
       }
       try {
-        if (!parsedName) throw new ParquetFormatError('文件名不是日志文件')
-        const parsed = parseFile(bytes, COLUMNS)
-        const groupVisits = this.groupVisits(parsed)
-        const notes: NoteCell[] = []
-        for (let group = 0; group < parsed.groups.length; group++) {
-          const [cells, kinds, times] = await decodeColumns(parsed, group, ['note', 'kind', 't'])
-          cells.forEach((cell, row) => {
-            if (cell === null) return
-            const visit = groupVisits[group]
-            const kind = String(kinds[row])
-            notes.push([visit, kind, times[row] as number, String(cell)])
-            // A visit can only be listed once its start is read, and that may be in an older file than its fights.
-            const seen = kind === 'visitStart' ? entered : kind === 'fightStart' ? fought : null
-            if (!seen || seen.has(visit)) return
-            seen.add(visit)
-            if (entered.has(visit) && fought.has(visit)) listed++
-          })
+        const { parsed, groupVisits, notes } = await this.decode(name, bytes)
+        for (const [visit, kind] of notes) {
+          // A visit can only be listed once its start is read, and that may be in an older file than its fights.
+          const seen = kind === 'visitStart' ? entered : kind === 'fightStart' ? fought : null
+          if (!seen || seen.has(visit)) continue
+          seen.add(visit)
+          if (entered.has(visit) && fought.has(visit)) listed++
         }
         decoded.push(notes)
         this.known.set(name, { size: bytes.length, visits: new Set(groupVisits) })
@@ -224,6 +235,54 @@ export class LogStore implements RecorderSink {
       }
     }
     for (const notes of decoded.reverse()) for (const note of notes) this.index.note(...note)
+    this.index.settle()
+  }
+  /**
+   * Reads the newest file `open` left unread into the visit list; the file then counts against the budget like the
+   * others. Returns whether older files are left.
+   */
+  async readOlder(): Promise<boolean> {
+    const name = [...this.unread].sort(compareNames).at(-1)
+    if (name === undefined) return false
+    const clears = this.clears
+    let bytes: Uint8Array
+    try {
+      bytes = await this.storage.read(name)
+    } catch (error) {
+      this.log?.warn('日志文件无法读取', { file: name, error: String(error) })
+      this.unread.delete(name)
+      return this.unread.size > 0
+    }
+    let decoded: Awaited<ReturnType<LogStore['decode']>>
+    try {
+      decoded = await this.decode(name, bytes)
+    } catch (error) {
+      if (clears === this.clears && this.unread.delete(name)) {
+        this.skipped.set(name, bytes.length)
+        this.log?.warn('跳过无法识别的日志文件', { file: name, error: String(error) })
+      }
+      return this.unread.size > 0
+    }
+    // No await from here on: eviction or a clear could otherwise remove the file between the check and the index.
+    if (clears !== this.clears || !this.unread.delete(name)) return this.unread.size > 0
+    this.known.set(name, { size: bytes.length, visits: new Set(decoded.groupVisits) })
+    for (const note of decoded.notes) this.index.note(...note)
+    this.index.settle()
+    return this.unread.size > 0
+  }
+  /** The notes of a file in written order; throws `ParquetFormatError` for a file that is not a log file. */
+  private async decode(name: string, bytes: Uint8Array) {
+    if (!fileName(name)) throw new ParquetFormatError('文件名不是日志文件')
+    const parsed = parseFile(bytes, COLUMNS)
+    const groupVisits = this.groupVisits(parsed)
+    const notes: NoteCell[] = []
+    for (let group = 0; group < parsed.groups.length; group++) {
+      const [cells, kinds, times] = await decodeColumns(parsed, group, ['note', 'kind', 't'])
+      cells.forEach((cell, row) => {
+        if (cell !== null) notes.push([groupVisits[group], String(kinds[row]), times[row] as number, String(cell)])
+      })
+    }
+    return { parsed, groupVisits, notes }
   }
   status() {
     return { error: this.error }
@@ -375,6 +434,7 @@ export class LogStore implements RecorderSink {
 
   /** Deletes every visit except `keep`, which may span several files. */
   async clear(keep: string | null) {
+    this.clears++
     const loaded = new Map([...this.closed, ...(this.file ? [this.file] : [])].map((file) => [file.name, file]))
     const names = new Set([...this.known.keys(), ...loaded.keys()])
     for (const name of [...names].sort(compareNames)) {
@@ -417,6 +477,7 @@ export class LogStore implements RecorderSink {
     }
     for (const name of [...this.unread]) await this.remove(name)
     for (const id of [...this.index.entries.keys()]) if (id !== keep) this.index.entries.delete(id)
+    this.index.pending.clear()
   }
 
   private create(date: string): Loaded {

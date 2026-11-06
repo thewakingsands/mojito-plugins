@@ -4,7 +4,7 @@ import { Recorder, type RecorderOptions } from './recorder.js'
 import { LogStore } from './store.js'
 import { LogIntegrityError, type LogRecord, type VisitEntry } from './types.js'
 
-export { LISTED_VISITS } from './store.js'
+export { PAGE_SIZE } from './store.js'
 export type { LogRecord, VisitEntry } from './types.js'
 export { LogIntegrityError } from './types.js'
 
@@ -24,6 +24,12 @@ export class CombatLog {
   async open() {
     await this.store.open()
     this.recorder.reserve(this.store.index.entries.keys())
+  }
+  /** Reads the next older file `open` left unread; returns whether more are left. */
+  async readOlder() {
+    const more = await this.store.readOlder()
+    this.recorder.reserve(this.store.index.entries.keys())
+    return more
   }
   /** Every visit in the log, newest first, including the one in progress. */
   list(): VisitEntry[] {

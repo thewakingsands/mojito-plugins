@@ -4,10 +4,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { GameEvent } from './combat-events.js'
 import { activate, PUBLISH_MS } from './entry.js'
 import { castSpace, combat, effect, meta, sample } from './fixtures.js'
+import { Recorder } from './log/recorder.js'
 import { localDate } from './log/schema.js'
-import { fileRows } from './log/storage.test-helper.js'
+import { fileRows, memoryStorage } from './log/storage.test-helper.js'
+import { LogStore } from './log/store.js'
 import type { Summary } from './model.js'
 import { type Command, ENTRY_FIELDS, type ReplayResult, type StatisticsState, type VisitsState } from './view-model.js'
+import { DEFAULT_QUERY } from './visit-filter.js'
 
 const batch = <T>(items: T[]): Batch<T> => ({
   subscriptionId: 'test',
@@ -939,11 +942,150 @@ it('publishes the newest 100 visits with a fight, and visits without one take no
       >,
     ])
   }
+  const state = () => h.snapshots.get('visits') as unknown as VisitsState
+  const command = (input: Command) => h.commands.get('statistics')!(input as unknown as Value)
   expect(visits()).toHaveLength(100)
   expect(visits()[0].territoryType).toBe(600)
   expect(visits().at(-1)!.territoryType).toBe(501)
+  expect(state()).toMatchObject({ page: 0, hasPrevious: false, hasNext: true })
+  await command({ kind: 'visits', query: DEFAULT_QUERY, page: 1 })
+  expect(visits().map((visit) => visit.territoryType)).toEqual([500])
+  expect(state()).toMatchObject({ page: 1, hasPrevious: true, hasNext: false })
+  // The visit of the selected fight stays known on another page.
+  const oldest = visits()[0]
+  await command({ kind: 'select', visitId: oldest.id, fightId: oldest.fights[0].id })
+  await command({ kind: 'visits', query: DEFAULT_QUERY, page: 0 })
+  expect(visits()[0].territoryType).toBe(600)
+  expect(state().selected?.id).toBe(oldest.id)
   await h.dispose()
 }, 120_000)
+it('has no other page with fewer than 100 visits', async () => {
+  const h = await setup()
+  await h.events([sample(effect(1), 1000)])
+  expect(h.snapshots.get('visits')).toMatchObject({ page: 0, hasPrevious: false, hasNext: false, reading: false })
+  await h.dispose()
+})
+it('publishes the visits of a duty search with its query, and all of them again without one', async () => {
+  const h = await setup()
+  const visits = () => (h.snapshots.get('visits') as unknown as VisitsState).visits
+  const command = (input: Command) => h.commands.get('statistics')!(input as unknown as Value)
+  for (const [territoryType, at] of [
+    [1001, 2000],
+    [339, 3000],
+  ]) {
+    h.setNow(at)
+    await h.zone([
+      { meta: meta(at), value: { territoryType: h.field(territoryType), mapId: h.field(1) } } as unknown as Sample<
+        GameTopics['zone']
+      >,
+    ])
+    await h.events([sample(effect(at), at + 100)])
+    const state = h.snapshots.get('statistics') as unknown as StatisticsState
+    await h.serviceRequest('endEncounter', { encounterId: state.current!.id })
+  }
+  expect(visits().map((visit) => visit.territoryType)).toEqual([339, 1001])
+  const query = { ...DEFAULT_QUERY, duty: '海德林' }
+  await command({ kind: 'visits', query, page: 0 })
+  expect(visits().map((visit) => visit.territoryType)).toEqual([1001])
+  expect((h.snapshots.get('visits') as unknown as VisitsState).query).toEqual(query)
+  await command({ kind: 'visits', query: DEFAULT_QUERY, page: 0 })
+  expect(visits().map((visit) => visit.territoryType)).toEqual([339, 1001])
+  await h.dispose()
+})
+it('refuses a visits command with an invalid query and keeps the published list', async () => {
+  const h = await setup()
+  await h.events([sample(effect(1), 1000)])
+  const before = h.snapshots.get('visits')
+  const command = h.commands.get('statistics')!
+  await expect(command({ kind: 'visits', query: { ...DEFAULT_QUERY, jobs: 'x' }, page: 0 })).rejects.toThrow('无效命令')
+  await expect(command({ kind: 'visits', query: { ...DEFAULT_QUERY }, page: -1 })).rejects.toThrow('无效命令')
+  await expect(command({ kind: 'visits', query: { ...DEFAULT_QUERY }, page: 0.5 })).rejects.toThrow('无效命令')
+  expect(h.snapshots.get('visits')).toBe(before)
+  await h.dispose()
+})
+/**
+ * A log written before the activation: one visit on October 19 with a member named Alice, one on the 20th and 100 on
+ * the 21st, each with a fight. Opening it reads the 21st only.
+ */
+async function storedLog() {
+  const memory = memoryStorage()
+  const at = (day: number, minute: number) => new Date(2026, 9, day, 10, minute).getTime()
+  const field = <T>(value: T) => ({ state: 'ok', value, observedAt: 0, from: 'packet', timeBase: 'packet-unix' })
+  let name = '同名'
+  const store = new LogStore(memory.storage, { values: {} } as never, 'test')
+  const recorder = new Recorder({
+    sink: store,
+    actors: () =>
+      new Map([[1, { key: 'source:1:1', id: 1, name, worldId: 1, job: 19, kind: 'member' as const, ownerKey: null }]]),
+    names: { zone: () => '区域', job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  recorder.source({
+    state: 'replay',
+    sessionId: 's',
+    characterGeneration: 1,
+    clock: { generation: 1 },
+    character: { actorId: 1 },
+    dataLanguage: 'chs',
+  } as unknown as SessionSnapshot)
+  const carry = {
+    encounters: {
+      localActorId: 1,
+      inCombat: null,
+      combatValue: null,
+      packetSeq: null,
+      combatSeq: null,
+      combatAt: null,
+    },
+    generations: [],
+  }
+  const visit = async (day: number, minute: number, territoryType: number) => {
+    const t = at(day, minute)
+    vi.setSystemTime(t)
+    recorder.zone({ territoryType: field(territoryType), mapId: field(1) } as never, t, carry)
+    recorder.identities('entities', [], [], new Set([1]), 'party', t)
+    recorder.fightStarted({ id: `enc-${day}-${minute}`, at: t + 1000 })
+    recorder.fightEnded({
+      id: `enc-${day}-${minute}`,
+      reason: 'manual',
+      at: t + 2000,
+      summary: { durationMs: 1, rows: [] } as unknown as Summary,
+    })
+    recorder.stop(t + 3000)
+    await store.flush()
+  }
+  name = 'Alice'
+  await visit(19, 0, 900)
+  name = '同名'
+  await visit(20, 0, 901)
+  for (let index = 0; index < 100; index++) await visit(21, index, 500 + index)
+  vi.setSystemTime(new Date(2026, 9, 22, 9).getTime())
+  return memory.files
+}
+it('reads older log files for a search until the page is full, and tells the page meanwhile', async () => {
+  const files = await storedLog()
+  const h = await setup(false, false, [], 'unavailable', files)
+  const state = () => h.snapshots.get('visits') as unknown as VisitsState
+  const until = async (done: () => boolean) => {
+    for (let i = 0; i < 100 && !done(); i++) await vi.advanceTimersByTimeAsync(10)
+    expect(done()).toBe(true)
+  }
+  // The file of the 20th tells that there is a second page.
+  await until(() => state().hasNext && !state().reading)
+  expect(h.reads).not.toContain('log/2026-10-19.parquet')
+  const published = h.frames.length
+  await h.commands.get('statistics')!({ kind: 'visits', query: { ...DEFAULT_QUERY, character: 'alice' }, page: 0 })
+  await until(() => !state().reading && state().visits.length > 0)
+  const frames = h.frames
+    .slice(published)
+    .filter((frame) => frame.channel === 'visits')
+    .map((frame) => frame.value as unknown as VisitsState)
+  expect(frames.some((frame) => frame.reading)).toBe(true)
+  expect(state().visits.map((visit) => visit.territoryType)).toEqual([900])
+  expect(state()).toMatchObject({ hasNext: false, reading: false })
+  await h.dispose()
+}, 60_000)
 it('publishes several batches of events within the interval once, with all of their statistics', async () => {
   const h = await setup()
   await h.events([sample(effect(1), 1000)])

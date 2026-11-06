@@ -1,18 +1,35 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FightEntry } from '../log/types.js'
 import type { Selection, StatisticsState, VisitsState, VisitView } from '../view-model.js'
+import { DEFAULT_QUERY, filtering } from '../visit-filter.js'
 import { useBridge, useChannel } from './bridge.js'
 import { fightFacts, ResultLabel } from './fight.js'
 import { duration, entered, fightCounts, zoneName } from './format.js'
 import { Overview } from './Overview.js'
 import { ReplayView } from './replay/ReplayView.js'
 import { expandedAfter, toggleVisit } from './state.js'
+import { VisitFilter } from './VisitFilter.js'
 
 const key = (selection: Selection | null) => (selection ? `${selection.visitId}/${selection.fightId}` : '')
 
 export function App() {
+  const { command } = useBridge()
   const statistics = useChannel<StatisticsState>('statistics')
-  const visits = useChannel<VisitsState>('visits')?.visits ?? []
+  const visitsState = useChannel<VisitsState>('visits')
+  const visits = visitsState?.visits ?? []
+  const query = visitsState?.query ?? DEFAULT_QUERY
+  const list = useRef<HTMLElement>(null)
+  // The visit of the selected fight may be on another page.
+  const findVisit = (id: string | undefined): VisitView | undefined => {
+    const selected = visitsState?.selected
+    return visits.find((visit) => visit.id === id) ?? (selected && selected.id === id ? selected : undefined)
+  }
+  const turn = (page: number) => {
+    void command({ kind: 'visits', query, page })
+    list.current?.scrollTo({ top: 0 })
+  }
+  const title = filtering(query) ? '搜索结果' : '最近进本'
+  const paging = visitsState && (visitsState.page > 0 || visitsState.hasNext)
   const [expanded, setExpanded] = useState<string | null>(null)
   // The overview stays mounted under the review, so its expanded visit and table rows are there on return.
   const [review, setReview] = useState<Selection | null>(null)
@@ -32,7 +49,7 @@ export function App() {
           visitId={review.visitId}
           fightId={review.fightId}
           statistics={statistics}
-          visit={visits.find((visit) => visit.id === review.visitId)}
+          visit={findVisit(review.visitId)}
           onBack={() => setReview(null)}
         />
       )}
@@ -42,23 +59,40 @@ export function App() {
             {status}
           </p>
         )}
-        <nav className="visits" aria-label="最近进本">
-          <h2>最近进本</h2>
-          {visits.map((visit) => (
-            <VisitItem
-              key={visit.id}
-              visit={visit}
-              statistics={statistics}
-              expanded={expanded === visit.id}
-              onToggle={() => setExpanded((current) => toggleVisit(current, visit.id))}
-            />
-          ))}
-        </nav>
+        <div className="visits">
+          <VisitFilter query={query} />
+          {visitsState?.reading && <p className="visits-reading">正在读取更早的日志</p>}
+          <nav className="visit-list" aria-label={title} ref={list}>
+            <h2>{title}</h2>
+            {visits.map((visit) => (
+              <VisitItem
+                key={visit.id}
+                visit={visit}
+                statistics={statistics}
+                expanded={expanded === visit.id}
+                onToggle={() => setExpanded((current) => toggleVisit(current, visit.id))}
+              />
+            ))}
+            {!visits.length && !visitsState?.reading && filtering(query) && (
+              <p className="placeholder visits-empty">没有符合条件的进本</p>
+            )}
+            {paging && (
+              <div className="pager">
+                <button type="button" disabled={!visitsState.hasPrevious} onClick={() => turn(visitsState.page - 1)}>
+                  上一页
+                </button>
+                <button type="button" disabled={!visitsState.hasNext} onClick={() => turn(visitsState.page + 1)}>
+                  下一页
+                </button>
+              </div>
+            )}
+          </nav>
+        </div>
         <main className="overview">
           {statistics && (
             <Overview
               statistics={statistics}
-              visits={visits}
+              visit={findVisit(statistics.selection?.visitId)}
               onCurrent={() => setExpanded(visits.find((visit) => visit.current)?.id ?? expanded)}
               onReview={setReview}
             />
