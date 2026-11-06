@@ -1,0 +1,132 @@
+diff --git a/public/index.html b/public/index.html
+index 9b4525d..94bff4f 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -1,11 +1,12 @@
+ <!DOCTYPE html>
+ <html lang="en">
+   <head>
++<script src="/plugin/ngld.js"></script>
+     <meta charset="utf-8">
+     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+     <meta name="viewport" content="width=device-width,initial-scale=1.0">
+     <title><%= htmlWebpackPlugin.options.title %></title>
+-    <script type="text/javascript" src="https://overlays.ffcafe.cn/assets/overlayplugin/common.min.js"></script>
++    
+   </head>
+   <body>
+     <noscript>
+diff --git a/src/lib/combatData.js b/src/lib/combatData.js
+index be1e4bc..82b4d79 100644
+--- a/src/lib/combatData.js
++++ b/src/lib/combatData.js
+@@ -23,14 +23,12 @@ export function getCombatDataModel() {
+ }
+ 
+ export function parseCombatData(combatDataIn) {
+-  if (combatDataIn.Encounter.DURATION === "0") return;
+-  if (combatDataIn.Encounter.damage === "0") return;
+   let combatData = getCombatDataModel();
+   let encounter = combatDataIn.Encounter;
+   combatData.encounter.duration = encounter.duration;
+   combatData.encounter.dps = processFloat(encounter.encdps).formatted;
+   combatData.encounter.damage = processInteger(encounter.damage).formatted;
+-  combatData.encounter.deaths = encounter.deaths;
++  combatData.encounter.deaths = encounter.deaths ?? "—";
+ 
+   let newCombatants = [];
+   for (let i = 0; i < Object.values(combatDataIn.Combatant).length; i++) {
+@@ -38,7 +36,7 @@ export function parseCombatData(combatDataIn) {
+     let dps = processFloat(combatant.encdps);
+     let newCombatant = {
+       name: combatant.name,
+-      job: combatant.Job.toUpperCase(),
++      job: (combatant.Job || "").toUpperCase(),
+       _dps: dps.sanitized,
+       dps: dps.formatted,
+       hps: processFloat(combatant.enchps).formatted,
+@@ -97,7 +95,7 @@ export function parseCombatData(combatDataIn) {
+     newCombatants[0].percent = 100;
+     for (let i = 1; i < newCombatants.length; i++) {
+       newCombatants[i].percent =
+-        Math.round((newCombatants[i]._dps / newCombatants[0]._dps) * 100) + "%";
++        (Number.isFinite(newCombatants[i]._dps / newCombatants[0]._dps) ? Math.round((newCombatants[i]._dps / newCombatants[0]._dps) * 100) + "%" : "0%");
+     }
+     newCombatants[0].percent += "%";
+   }
+diff --git a/src/lib/locale.js b/src/lib/locale.js
+index 818f28e..16bc67d 100644
+--- a/src/lib/locale.js
++++ b/src/lib/locale.js
+@@ -6,7 +6,9 @@ export function setLocale(context) {
+   let language = languages[store.state.settings.languageId];
+   if (language.id === 0) {
+     getLanguageId().then(languageId => {
+-      let pluginLanguage = languages[languageId];
++      const locale = { 'zh-CN': 'cn', zh: 'cn', ko: 'kr' }[languageId] || languageId;
++      let pluginLanguage = Object.values(languages).find(item => item.locale === locale);
++      if (!pluginLanguage) return;
+       context.$root.$i18n.locale = pluginLanguage.locale;
+     });
+   } else {
+diff --git a/src/lib/numbers.js b/src/lib/numbers.js
+index 9280b62..a701796 100644
+--- a/src/lib/numbers.js
++++ b/src/lib/numbers.js
+@@ -1,17 +1,17 @@
+ import store from "../store";
+ 
+ export function processFloat(number) {
+-  if (!number) return;
++  if (number == null || number === "") return { sanitized: NaN, formatted: "—" };
+   let result = {};
+-  result.sanitized = parseFloat(number.replace(",", "."));
++  result.sanitized = parseFloat(String(number).replace(",", "."));
+   result.formatted = processNumber(result.sanitized, true);
+   return result;
+ }
+ 
+ export function processInteger(number) {
+-  if (!number) return;
++  if (number == null || number === "") return { sanitized: NaN, formatted: "—" };
+   let result = {};
+-  result.sanitized = parseInt(number.replace(/[,.]/g, ""));
++  result.sanitized = parseInt(String(number).replace(/[,.]/g, ""));
+   result.formatted = processNumber(result.sanitized, false);
+   return result;
+ }
+@@ -68,7 +68,7 @@ function abbreviateNumber(number) {
+ }
+ 
+ function updateDecimalSeparator(number, sep) {
+-  return number.replace(".", sep);
++  return String(number).replace(".", sep);
+ }
+ 
+ function addDigitSeparators(number, sep) {
+diff --git a/src/lib/overlay.js b/src/lib/overlay.js
+index 9569a19..ab193d3 100644
+--- a/src/lib/overlay.js
++++ b/src/lib/overlay.js
+@@ -35,7 +35,7 @@ export async function addPrimaryPlayerListener(context) {
+ 
+ export async function getLanguageId() {
+   let language = await callOverlayHandler({ call: "getLanguage" });
+-  return language.languageId;
++  return language.language;
+ }
+ 
+ export async function startOverlay() {
+diff --git a/vue.config.js b/vue.config.js
+index 426a3aa..c63bf57 100644
+--- a/vue.config.js
++++ b/vue.config.js
+@@ -1,6 +1,7 @@
+ module.exports = {
++  productionSourceMap: false,
+   transpileDependencies: ["vuetify"],
+-  publicPath: process.env.NODE_ENV === "production" ? "./" : "/",
++  publicPath: process.env.NODE_ENV === "production" ? "/plugin/" : "/",
+   css: {
+     loaderOptions: {
+       scss: {

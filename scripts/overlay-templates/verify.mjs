@@ -32,10 +32,42 @@ function developmentFile(file) {
   return /\.(?:test|spec)\.[cm]?js$|\.d\.[cm]?ts$|\.map$/.test(file)
 }
 
+const documents = {
+  amethyst: ['popup.html'],
+  glass: ['settings.html'],
+  faceroll: ['faceroll_config.js', 'faceroll_parse.js'],
+}
 export async function verifyTemplate(directory, name) {
+  const metadata = JSON.parse(await readFile(path.join(directory, 'SOURCE.json'), 'utf8'))
+  assert.equal(metadata.name, name, 'Template source identity mismatch')
+  assert.match(metadata.revision, /^[a-f0-9]{40}$/, 'Missing pinned source revision')
+  assert(metadata.version && metadata.source.endsWith(`/tree/${metadata.revision}`), 'Invalid source metadata')
+  const files = await filesIn(directory)
+  const migrated = !['kagerou', 'skyline', 'mopimopi2'].includes(name)
+  if (migrated)
+    assert(
+      files.some((file) => /^(LICENSE(?:\.md)?|COPYING)$/.test(path.basename(file))),
+      'Missing upstream license',
+    )
+  assert(files.length + 2 <= 4096, 'Template exceeds package file limit')
+  for (const relative of documents[name] ?? []) await requireFile(path.join(directory, relative))
+  for (const html of migrated ? files.filter((file) => file.endsWith('.html')) : []) {
+    const markup = await readFile(html, 'utf8')
+    for (const match of markup.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)=["']([^"']+)["']/gi)) {
+      const reference = match[1].split(/[?#]/)[0]
+      if (!reference || reference.startsWith('data:')) continue
+      assert(!/^(?:https?:)?\/\//.test(reference), `Remote runtime resource: ${reference}`)
+      const target = reference.startsWith('/plugin/')
+        ? path.join(directory, reference.slice(8))
+        : path.resolve(path.dirname(html), reference)
+      const relative = path.relative(directory, target)
+      assert(!relative.startsWith('..') && !path.isAbsolute(relative), `Resource outside template: ${reference}`)
+      await requireFile(target)
+    }
+  }
   for (const file of ['SOURCE.json', 'SOURCE.txt', name === 'kagerou' ? 'overlay/index.html' : 'index.html'])
     await requireFile(path.join(directory, file))
-  for (const file of await filesIn(directory)) {
+  for (const file of files) {
     assert(!developmentFile(file), `Development file in plugin: ${file}`)
     const bytes = await readFile(file)
     assert(
