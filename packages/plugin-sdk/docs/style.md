@@ -85,19 +85,23 @@
 
 - `body`：底色、文字颜色、字体和 `--mojito-space-page` 内边距。不想要内边距时自己覆盖。
 - 标题、段落、链接、`small`、分隔线、`code`/`kbd`、焦点框、选中文字、滚动条。
-- `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。边缘的亮线和暗线、按下时下沉只给没有 `class` 或带 `data-variant` 的按钮；插件用自己的类画的按钮（标签页、列表行等）不会多出这些效果。
+- `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。所有按钮都有这层质感；插件自己画的按钮（列表行、时间轴上的标记等）不需要时，在自己的样式里写 `box-shadow: none`，按下时不想移动就写 `transform: none`。
 - `input`、`select`、`textarea`：30px 高，悬停时边框加深，焦点时是强调色边框加一圈浅色光圈；`select` 用宿主的上下箭头。
 - 复选框和单选框：选中时是青柠色；`<input type="checkbox" role="switch">` 是开关，用于立即生效的设置。滑块、`progress`、`meter` 用宿主的颜色。
-- `label`、`fieldset`、`legend`；`details` 的展开标记换成宿主的箭头，不改变布局。
+- `label`、`fieldset`、`legend`；`details`/`summary` 是宿主“高级”那样的折叠区，箭头随展开旋转。`<span class="mojito-chevron">` 放在带 `aria-expanded` 的按钮里，也会跟着旋转。
 - `code`、`pre`、`kbd`（键帽）、`mark`、`blockquote`、列表、`dialog`。
 - `table`：表头、行高 36px、悬停、等宽数字。
-- 六个类：
+- 类：
   - `.mojito-panel`：带边框的容器，12px 圆角。
   - `.mojito-field`：一行设置，左边标签和说明，右边控件；相邻的自动加分隔线。
-  - `.mojito-chip`：状态和职能标签，`data-tone="ok|warn|danger|tank|healer|dps"`。
+  - `.mojito-chip`：状态和职能标签，`data-tone="ok|warn|danger|tank|healer|dps"`。状态标签带记号（○ 中性、● 正常、△ 注意、× 失败），文字不要再写 ✓、✕ 之类的符号；职能标签没有记号。
   - `.mojito-secondary`：说明文字。
   - `.mojito-callout`：一段提示，`data-tone="warn|danger"`。
   - `.mojito-segmented`：几个选项并排，里面是带 `aria-pressed` 的按钮，或包着单选框的 `label`；选中的一项是青柠色。
+  - `.mojito-tabs`：同一页面的几个视图，里面是带 `aria-selected="true"` 或 `aria-current="page"` 的按钮或链接。
+  - `.mojito-panel > header`：面板的标题行，最后一个子元素靠右（放操作按钮）。
+  - `.mojito-empty`：没有内容时的一行说明，居中、浅色。
+  - `.mojito-facts`：`<dl>` 里每组 `<div><dt>…</dt><dd>…</dd></div>`，标签在上、值在下，按宽度自动分列。
 
 一个设置页：
 
@@ -154,7 +158,7 @@ OverlayPlugin 兼容模板是第三方页面，宿主不给它们注入变量。
 保证（版本 1 内不会删除或改名）：
 
 - `--mojito-*` 变量的名字和用途，`--mojito-contract`。
-- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的六个类名，`data-variant`、`data-size`、`data-tone`、`data-icon` 属性和 `role="switch"`。
+- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的类名（`.mojito-panel`、`.mojito-field`、`.mojito-chip`、`.mojito-secondary`、`.mojito-callout`、`.mojito-segmented`、`.mojito-tabs`、`.mojito-empty`、`.mojito-facts`、`.mojito-chevron`），`data-variant`、`data-size`、`data-tone`、`data-icon` 属性和 `role="switch"`。
 - 字体地址 `/host/fonts/`。
 
 不保证：
