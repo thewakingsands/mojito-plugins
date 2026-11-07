@@ -94,7 +94,7 @@
 - 类：
   - `.mojito-panel`：带边框的容器，12px 圆角。
   - `.mojito-field`：一行设置，左边标签和说明，右边控件；相邻的自动加分隔线。
-  - `.mojito-chip`：状态和职能标签，`data-tone="ok|warn|danger|tank|healer|dps"`。状态标签带记号（○ 中性、● 正常、△ 注意、× 失败），文字不要再写 ✓、✕ 之类的符号；职能标签没有记号。
+  - `.mojito-chip`：状态和职能标签，`data-tone="ok|warn|danger|tank|healer|dps"`。状态标签带记号（○ 中性、● 正常、△ 注意、× 失败），也可以用 `data-mark="check|cross|dash|dot|ring|triangle|none"` 换成别的记号，例如击杀用对勾；文字不要再写 ✓、✕ 之类的符号。职能标签没有记号。
   - `.mojito-secondary`：说明文字。
   - `.mojito-callout`：一段提示，`data-tone="warn|danger"`。
   - `.mojito-segmented`：几个选项并排，里面是带 `aria-pressed` 的按钮，或包着单选框的 `label`；选中的一项是青柠色。

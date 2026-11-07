@@ -37,7 +37,14 @@ export const RESULT_LABELS: Record<ResultTag, string> = {
   ended: '结束',
   running: '进行中',
 }
-/** The tone of mojito-base.css's status chip, which draws the mark beside the word */
+/** The mark mojito-base.css draws beside the word: a check for a kill, a cross for a wipe */
+export const RESULT_MARKS: Record<ResultTag, 'check' | 'cross' | 'dash' | 'dot'> = {
+  kill: 'check',
+  wipe: 'cross',
+  ended: 'dash',
+  running: 'dot',
+}
+/** The tone of mojito-base.css's status chip */
 export const RESULT_TONES: Record<ResultTag, 'ok' | 'danger' | undefined> = {
   kill: 'ok',
   wipe: 'danger',

@@ -310,6 +310,17 @@ body {
   font-weight: 600;
   line-height: 24px;
 }
+/* The fight at a glance: a quiet strip of facts between the title and the tables */
+.fight-facts {
+  margin-bottom: var(--mojito-space-group);
+  padding: 12px 16px;
+  border-radius: var(--mojito-radius-control);
+  background: var(--mojito-bg-subtle);
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+}
+.fight-facts dd {
+  font-size: var(--mojito-text-base);
+}
 .subtitle {
   font-size: 12px;
   line-height: 18px;
@@ -329,7 +340,7 @@ body {
   width: 68px;
 }
 .stats col.count {
-  width: 48px;
+  width: 64px;
 }
 .stats th,
 .stats td {
@@ -395,6 +406,22 @@ body {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+/* Each member's share of the table's highest value as a bar in the role's colour behind the name, so the ranking
+   reads at a glance */
+.stats tr.actor .name {
+  padding-bottom: 6px;
+  background:
+    linear-gradient(90deg, var(--bar) calc(var(--share, 0) * 100%), transparent 0) left bottom / 100% 3px no-repeat;
+}
+.stats tr.actor.tank {
+  --bar: var(--mojito-tank-bg);
+}
+.stats tr.actor.healer {
+  --bar: var(--mojito-healer-bg);
+}
+.stats tr.actor.dps {
+  --bar: var(--mojito-dps-bg);
 }
 .icon {
   flex: none;

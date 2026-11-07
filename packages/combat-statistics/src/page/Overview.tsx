@@ -1,4 +1,5 @@
-import { Fragment, type ReactNode, useState } from 'react'
+import { type CSSProperties, Fragment, type ReactNode, useState } from 'react'
+import { roleOf } from '../jobs.js'
 import type { RowSummary, Summary } from '../model.js'
 import type { Selection, StatisticsState, VisitView } from '../view-model.js'
 import { useBridge } from './bridge.js'
@@ -68,12 +69,16 @@ export function Overview(props: {
         ? '战斗结束后可以回顾'
         : null
   const mainEnemy = summary?.outcome.mainEnemy ?? fight?.mainEnemy
-  const subtitle = [
-    visit && zoneName(visit),
-    summary && entered(summary.startAt, Date.now()),
-    facts && duration(facts.durationMs),
-    facts?.result === 'wipe' && mainEnemy?.hpPercent != null && `敌人剩余 ${percent(mainEnemy.hpPercent)}`,
-  ].filter(Boolean)
+  const subtitle = [visit && zoneName(visit), summary && entered(summary.startAt, Date.now())].filter(Boolean)
+  // The fight at a glance, label over value, above the tables
+  const team = summary && !statistics.loading && !statistics.loadError ? teamFacts(summary) : null
+  const glance = facts && [
+    ['时长', duration(facts.durationMs)],
+    team && ['团队 DPS', team.dps],
+    team?.rdps && ['团队 rDPS', team.rdps],
+    ['死亡', String(facts.deaths)],
+    facts.result === 'wipe' && mainEnemy?.hpPercent != null && ['敌人剩余', percent(mainEnemy.hpPercent)],
+  ]
   return (
     <>
       {banner}
@@ -99,6 +104,18 @@ export function Overview(props: {
           </button>
         </div>
       </header>
+      {glance && (
+        <dl className="mojito-facts fight-facts">
+          {glance
+            .filter((fact): fact is string[] => !!fact)
+            .map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd className="number">{value}</dd>
+              </div>
+            ))}
+        </dl>
+      )}
       {body}
     </>
   )
@@ -113,6 +130,8 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
   const [healOpen, setHealOpen] = useState<ReadonlySet<string>>(new Set())
   const rows = damageRows(summary)
   const healers = healerRows(summary)
+  const damageTop = Math.max(0, ...rows.map((row) => row.metrics.encDps?.value ?? 0))
+  const healTop = Math.max(0, ...healers.map((row) => row.metrics.encHps?.value ?? 0))
   return (
     <>
       <section className="mojito-panel table-panel">
@@ -145,6 +164,7 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
                 row={row}
                 names={names}
                 cells={damageCells(row, summary)}
+                share={damageTop > 0 ? (row.metrics.encDps?.value ?? 0) / damageTop : 0}
                 skills={damageSkills(row, summary)}
                 open={damageOpen.has(row.actor.key)}
                 onToggle={() => setDamageOpen((keys) => toggle(keys, row.actor.key))}
@@ -185,6 +205,7 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
                   row={row}
                   names={names}
                   cells={healerCells(row)}
+                  share={healTop > 0 ? (row.metrics.encHps?.value ?? 0) / healTop : 0}
                   skills={healSkills(row, summary)}
                   open={healOpen.has(row.actor.key)}
                   onToggle={() => setHealOpen((keys) => toggle(keys, row.actor.key))}
@@ -203,15 +224,19 @@ function ActorRows(props: {
   names: Record<string, string>
   cells: Cell[]
   skills: SkillLine[]
+  /** The row's value against the table's highest, drawn as a bar behind the name */
+  share: number
   open: boolean
   onToggle: () => void
 }) {
   const { row, names, open } = props
+  const role = roleOf(row.actor.job) ?? 'dps'
   const name = row.actor.name ?? `角色 ${row.actor.id}`
   return (
     <Fragment>
       <tr
-        className="actor"
+        className={`actor ${role}`}
+        style={{ '--share': props.share } as CSSProperties}
         tabIndex={0}
         aria-expanded={open}
         onClick={props.onToggle}
@@ -246,6 +271,12 @@ function ActorRows(props: {
         })}
     </Fragment>
   )
+}
+
+/** Team DPS and rDPS as the total row sums them; rDPS is left out when a member lacks it */
+function teamFacts(summary: Summary) {
+  const cells = totalCells(damageRows(summary), summary)
+  return { dps: cells[0].text, rdps: cells[1].text !== '—' ? cells[1].text : null }
 }
 
 const Cells = ({ cells }: { cells: Cell[] }) =>
