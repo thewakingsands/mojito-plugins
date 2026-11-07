@@ -496,11 +496,11 @@ it('gives the parts of a split hit to the statuses of the players who gave them'
   ledger.direct(effect(2, 5000, 1), 2000)
   const rows = ledger.summary(1000, 3000, false, 2000)
   const [a, b] = [1, 2].map((id) => rows.find((row) => row.actor.id === id)!)
-  expect(b.skills['action:10'].contribution).toBe(9300)
+  expect(b.skills['action:10'].contribution).toBe(9400)
   expect(a.skills['status:786']).toMatchObject({ damage: 0, healing: 0, hits: 0, contribution: 600 })
   expect(a.skills['action:10'].contribution).toBe(5000)
-  // What the players kept and gave is their damage without the unattributed part
-  expect(a.contribution! + b.contribution!).toBe(15000 - 100)
+  // What the players kept and gave is their damage
+  expect(a.contribution! + b.contribution!).toBe(15000)
   for (const row of rows) {
     expect(row.contribution).toBe(Object.values(row.skills).reduce((sum, skill) => sum + skill.contribution!, 0))
     // Over the duration of encDps
@@ -525,7 +525,6 @@ it('takes the split of a pet hit from the pet, which merges into its owner', () 
       attackerId: 1,
       actorId: 3,
       amount: 1000,
-      unattributed: 0,
       contributions: [{ statusId: 786, sourceId: 2, amount: 50 }],
     }),
     1000,
@@ -541,7 +540,7 @@ it('takes the parts of providers outside the scope from the attacker, and counts
   const ledger = new Ledger(actors())
   ledger.direct(effect(1, 10000, 2), 1000)
   ledger.attributeHit(1, attribution({ contributions: [{ statusId: 786, sourceId: 10, amount: 600 }] }), 1000)
-  expect(ledger.rows.get('source:1:2')!.contribution).toBe(9300)
+  expect(ledger.rows.get('source:1:2')!.contribution).toBe(9400)
   expect(ledger.rows.has('source:1:10')).toBe(false)
   expect(ledger.diagnostics.outOfScopeContribution).toBe(600)
 })

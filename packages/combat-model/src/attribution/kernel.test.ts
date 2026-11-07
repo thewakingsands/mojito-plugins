@@ -83,20 +83,49 @@ describe('attribute', () => {
   it('leaves everything with the attacker for its own modifiers', () => {
     const own = [OWN, { ...LITANY, sourceId: ATTACKER, owner: 'self' as const }]
     for (const outcome of [hit({ critical: true }), hit({ forcedCritical: true }), { type: 'expected' as const }]) {
-      expect(attribute(input(own, outcome))).toEqual({ retained: 10000, contributions: [], unattributed: 0 })
+      expect(attribute(input(own, outcome))).toEqual({ retained: 10000, contributions: [] })
     }
   })
 
-  it('gives the part of a source that is not a player to nobody', () => {
+  it('leaves the part of a source that is not a player with the attacker when no player gave anything', () => {
     const result = attribute(input([{ ...DIVINATION, sourceId: ENEMY, owner: 'other' }], hit()))
-    expect(result.contributions).toEqual([])
-    expect(result.unattributed).toBeCloseTo(10000 * (1 - 1 / 1.06), 9)
-    expect(result.retained).toBeCloseTo(10000 / 1.06, 9)
+    expect(result).toEqual({ retained: 10000, contributions: [] })
+  })
+
+  it('shares the part of a source that is not a player in proportion to the others', () => {
+    const enemy: AttributionEffect = { ...DIVINATION, sourceId: ENEMY, owner: 'other', value: 1.1 }
+    const result = attribute(input([enemy, { ...DIVINATION, value: 1.05 }], hit()))
+    expect(result.retained).toBeCloseTo(9501.3626, 3)
+    expect(result.contributions.map((item) => item.sourceId)).toEqual([ASTROLOGIAN])
+    expect(result.contributions[0].amount).toBeCloseTo(498.6374, 3)
+    expect(Math.abs(result.retained + result.contributions[0].amount - 10000)).toBeLessThanOrEqual(1e-9)
+  })
+
+  it.each([
+    ['a critical hit', hit({ critical: true })],
+    ['a forced critical hit', hit({ forcedCritical: true })],
+    ['a tick', { type: 'expected' } as const],
+  ])('shares a critical rate of a source that is not a player for %s', (_, outcome) => {
+    const enemy: AttributionEffect = { ...LITANY, sourceId: ENEMY, owner: 'other' }
+    const result = attribute(input([enemy, LITANY], outcome))
+    const total = result.retained + result.contributions.reduce((a, b) => a + b.amount, 0)
+    expect(Math.abs(total - 10000)).toBeLessThanOrEqual(1e-9)
+    expect(result.contributions.map((item) => item.sourceId)).toEqual([DRAGOON])
+    expect(result.contributions[0].amount).toBeGreaterThanOrEqual(0)
+  })
+
+  it('leaves a damage down of a source that is not a player out of the split', () => {
+    const down: AttributionEffect = { ...DIVINATION, sourceId: ENEMY, owner: 'other', value: 0.8 }
+    expectAmounts(parts(input([down, DIVINATION], hit())), parts(input([DIVINATION], hit())))
+    const result = attribute(input([down, DIVINATION], hit()))
+    expect(result.retained + result.contributions.reduce((a, b) => a + b.amount, 0)).toBeCloseTo(10000, 9)
+    expect(result.retained).toBeGreaterThanOrEqual(0)
+    for (const item of result.contributions) expect(item.amount).toBeGreaterThanOrEqual(0)
   })
 
   it('leaves a multiplier of 1 or less out of the split', () => {
     const weakness = { ...DIVINATION, value: 0.75 }
-    expect(attribute(input([weakness], hit()))).toEqual({ retained: 10000, contributions: [], unattributed: 0 })
+    expect(attribute(input([weakness], hit()))).toEqual({ retained: 10000, contributions: [] })
     expectAmounts(parts(input([weakness, DIVINATION], hit())), parts(input([DIVINATION], hit())))
   })
 
@@ -180,10 +209,9 @@ describe('attribute', () => {
         rates: { critical, direct: random() * 0.6, criticalMultiplier: 1.35 + critical },
         outcome,
       })
-      const total = result.retained + result.unattributed + result.contributions.reduce((a, b) => a + b.amount, 0)
+      const total = result.retained + result.contributions.reduce((a, b) => a + b.amount, 0)
       expect(Math.abs(total - amount)).toBeLessThanOrEqual(amount * 1e-9)
       expect(result.retained).toBeGreaterThanOrEqual(0)
-      expect(result.unattributed).toBeGreaterThanOrEqual(0)
       for (const item of result.contributions) expect(item.amount).toBeGreaterThanOrEqual(0)
     }
   })

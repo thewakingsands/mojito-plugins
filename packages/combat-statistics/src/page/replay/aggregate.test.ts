@@ -76,7 +76,7 @@ it('sums the whole fight of every member as the summary does, rDPS included', as
   const healer = summary.rows.find((row) => row.actor.key === keyOf(2))!
   const [taken] = takenByActor(data, whole)
   expect(taken).toMatchObject({ total: summary.rows.find((row) => row.actor.key === keyOf(1))!.totals.taken })
-  expect(healer.contribution).toBe(9300)
+  expect(healer.contribution).toBe(9400)
 })
 
 const damage = replayData({

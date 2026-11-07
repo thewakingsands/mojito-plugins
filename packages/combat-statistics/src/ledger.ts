@@ -285,19 +285,13 @@ export class Ledger {
       return false
     }
     const [hit] = this.lastHits.hits.splice(index, 1)
-    return this.attribute(hit.actorId, `action:${hit.actionId}`, data.unattributed, data.contributions, at)
+    return this.attribute(hit.actorId, `action:${hit.actionId}`, data.contributions, at)
   }
   /**
    * Gives the parts of the damage of the actor's skill to the statuses of the players who gave them, and takes them
-   * and the unattributed part from the skill. A delta of a closed window comes the same way, with parts below zero.
+   * from the skill. A delta of a closed window comes the same way, with parts below zero.
    */
-  attribute(
-    actorId: number | null,
-    skillKey: string,
-    unattributed: number,
-    contributions: readonly AttributionPart[],
-    at: number,
-  ): boolean {
+  attribute(actorId: number | null, skillKey: string, contributions: readonly AttributionPart[], at: number): boolean {
     const actor = this.actors.get(actorId ?? -1)
     const row = inScope(actor) ? this.rows.get(actor.key) : undefined
     const skill = row?.skills[skillKey]
@@ -305,7 +299,7 @@ export class Ledger {
       this.diagnostics.unmatchedAttributions++
       return false
     }
-    const given = unattributed + contributions.reduce((sum, part) => sum + part.amount, 0)
+    const given = contributions.reduce((sum, part) => sum + part.amount, 0)
     skill.contribution = plus(skill.contribution, -given)
     row.contribution = plus(row.contribution, -given)
     this.observer?.({

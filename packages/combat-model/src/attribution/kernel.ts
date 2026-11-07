@@ -2,7 +2,8 @@ import type { DamageContribution } from '../events.js'
 
 /**
  * Whose modifier it is, from the attacker: the attacker, or another player whose modifier is not a raid buff; another
- * player, for a raid buff of theirs; or a source that is not a player
+ * player, for a raid buff of theirs; or a source that is not a player. The part of other goes to the attacker and the
+ * players in proportion to what they have of the damage.
  */
 export type EffectOwner = 'self' | 'player' | 'other'
 
@@ -32,7 +33,6 @@ export interface AttributionInput {
 export interface AttributionResult {
   retained: number
   contributions: DamageContribution[]
-  unattributed: number
 }
 
 const DIRECT_MULTIPLIER = 1.25
@@ -125,7 +125,10 @@ function logShares(amount: number, factors: readonly Factor[]): number[] {
   return logs.map((log) => (bonus * log) / total)
 }
 
-/** Splits a damage among the attacker and the modifiers of the others, as design.md describes */
+/**
+ * Splits a damage among the attacker and the modifiers of the other players, as design.md describes; retained and the
+ * contributions add up to amount
+ */
 export function attribute(input: AttributionInput): AttributionResult {
   const { amount, effects, rates, outcome } = input
   const multipliers: Factor[] = effects
@@ -168,11 +171,11 @@ export function attribute(input: AttributionInput): AttributionResult {
   }
 
   const contributions = new Map<string, DamageContribution>()
-  let unattributed = 0
+  let other = 0
   for (const [effect, part] of parts) {
     if (part === 0) continue
     if (effect.owner === 'other') {
-      unattributed += part
+      other += part
       continue
     }
     const key = `${effect.sourceId}:${effect.statusId}`
@@ -181,9 +184,10 @@ export function attribute(input: AttributionInput): AttributionResult {
     else contributions.set(key, { statusId: effect.statusId, sourceId: effect.sourceId, amount: part })
   }
   const sorted = [...contributions.values()].sort((a, b) => a.sourceId - b.sourceId || a.statusId - b.statusId)
-  return {
-    retained: amount - sum(sorted.map((item) => item.amount)) - unattributed,
-    contributions: sorted,
-    unattributed,
+  // The bonus of all modifiers is below amount, so the scale is finite and at least 1
+  if (other > 0) {
+    const scale = amount / (amount - other)
+    for (const item of sorted) item.amount *= scale
   }
+  return { retained: amount - sum(sorted.map((item) => item.amount)), contributions: sorted }
 }

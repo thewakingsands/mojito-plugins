@@ -480,7 +480,6 @@ const delta = (patch: Partial<AttributionDelta>): AttributionDelta => ({
   tickId: null,
   actorId: 2,
   origin: { type: 'action', actionId: 10 },
-  unattributed: 0,
   contributions: [{ statusId: 786, sourceId: 1, amount: 100 }],
   ...patch,
 })
@@ -518,7 +517,6 @@ it('adjusts the encounter that took the damage of a split, and revises an ended 
           attackerId: 1,
           actorId: 1,
           amount: 50,
-          unattributed: 0,
           contributions: [{ statusId: 786, sourceId: 2, amount: 5 }],
         }),
         3200,
@@ -529,7 +527,7 @@ it('adjusts the encounter that took the damage of a split, and revises an ended 
   const first = encounters.completed[0]
   expect(contributions(encounters.snapshot(first))).toEqual({
     1: { 'status:786': 600, 'status:1': 45 },
-    2: { 'action:10': 9300, 'status:786': 5 },
+    2: { 'action:10': 9400, 'status:786': 5 },
   })
   expect(contributions(encounters.snapshot())).toEqual({ 1: { 'action:10': 100 } })
 
@@ -551,7 +549,7 @@ it('adjusts the encounter that took the damage of a split, and revises an ended 
   expect(revisions).toEqual([true])
   expect(contributions(encounters.snapshot(first))).toEqual({
     1: { 'status:786': 700, 'status:1': 45 },
-    2: { 'action:10': 9200, 'status:786': 5 },
+    2: { 'action:10': 9300, 'status:786': 5 },
   })
   expect(encounters.snapshot(first)?.diagnostics.unmatchedAttributions).toBe(0)
 })

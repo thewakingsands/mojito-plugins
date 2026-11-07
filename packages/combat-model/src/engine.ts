@@ -189,7 +189,6 @@ function toOutput(result: Result): CombatOutput {
           targetId: outputId(result.target),
           amount: result.amount,
           retained: result.retained,
-          unattributed: result.unattributed,
           contributions: partsOf(result.contributions),
         },
       }
@@ -205,7 +204,6 @@ function toOutput(result: Result): CombatOutput {
               record.origin.type === 'action'
                 ? { type: 'action', actionId: record.origin.action }
                 : { type: 'tick', statusId: record.origin.statusId },
-            unattributed: record.unattributed,
             contributions: partsOf(record.contributions),
           })),
         },

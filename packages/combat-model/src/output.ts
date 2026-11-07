@@ -70,10 +70,8 @@ export interface DamageAttribution {
   actorId: number | null
   targetId: number | null
   amount: number
-  /** amount without the contributions and the unattributed part */
+  /** amount without the contributions */
   retained: number
-  /** The part the modifiers of sources that are not players gave */
-  unattributed: number
   /** Sorted by sourceId, then statusId; never the attacker */
   contributions: AttributionPart[]
 }
@@ -86,7 +84,6 @@ export interface AttributionDelta {
   tickId: number | null
   actorId: number | null
   origin: { type: 'action'; actionId: number } | { type: 'tick'; statusId: number }
-  unattributed: number
   /** amount is the change; a part only one of the two splits has is included */
   contributions: AttributionPart[]
 }

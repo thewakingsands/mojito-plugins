@@ -121,12 +121,10 @@ export interface DamageAttributionEvent extends BaseEvent {
   target: number
   origin: { type: 'action'; action: number; sequence: number } | { type: 'tick'; tickId: number; statusId: number }
   amount: number
-  /** amount without the contributions and the unattributed part */
+  /** amount without the contributions */
   retained: number
   /** One for each status and source that is another player; sorted by sourceId, then statusId */
   contributions: DamageContribution[]
-  /** The part the modifiers of sources that are not players gave */
-  unattributed: number
 }
 
 export interface DamageContribution {
@@ -151,7 +149,6 @@ export interface AttributionDelta {
   attacker: number
   actor: number
   origin: { type: 'action'; action: number } | { type: 'tick'; statusId: number }
-  unattributed: number
   /**
    * The change of each status and source; a part only the realtime split had is its realtime amount negated, a part
    * only the split after the window has is its amount. Sorted by sourceId, then statusId.

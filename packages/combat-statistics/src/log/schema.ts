@@ -371,7 +371,6 @@ function eventRows(event: LogEvent): Row[] {
           target: data.targetId,
           amount: data.amount,
           retained: data.retained,
-          unknown: data.unattributed,
         },
         ...partRows(data.contributions),
       ]
@@ -386,7 +385,6 @@ function eventRows(event: LogEvent): Row[] {
             ...originCells(record.origin),
             param: record.tickId,
             actor: record.actorId,
-            unknown: record.unattributed,
           },
           ...partRows(record.contributions),
         ]),
@@ -656,7 +654,6 @@ export class Assembler {
             text(row, 'tag') === 'action'
               ? { type: 'action', actionId: num(row, 'action')! }
               : { type: 'tick', statusId: num(row, 'status')! },
-          unattributed: num(row, 'unknown')!,
           contributions: [],
         })
         return true
@@ -795,7 +792,6 @@ export class Assembler {
               targetId: num(row, 'target'),
               amount: num(row, 'amount')!,
               retained: num(row, 'retained')!,
-              unattributed: num(row, 'unknown')!,
               contributions: [],
             },
           }),

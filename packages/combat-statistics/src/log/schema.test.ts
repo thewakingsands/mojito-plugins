@@ -307,7 +307,6 @@ describe('rows', () => {
           targetId: 9,
           amount: 10000,
           retained: 9123.456789,
-          unattributed: 0.25,
           contributions: [
             { statusId: 786, sourceId: 2, amount: 500.125 },
             { statusId: 1878, sourceId: 4, amount: 376.168211 },
@@ -325,7 +324,6 @@ describe('rows', () => {
           targetId: null,
           amount: 300,
           retained: 300,
-          unattributed: 0,
           contributions: [],
         },
       }),
@@ -340,7 +338,6 @@ describe('rows', () => {
                 tickId: null,
                 actorId: 3,
                 origin: { type: 'action', actionId: 10 },
-                unattributed: -0.125,
                 contributions: [{ statusId: 786, sourceId: 2, amount: -12.5 }],
               },
               {
@@ -348,7 +345,6 @@ describe('rows', () => {
                 tickId: 8,
                 actorId: 1,
                 origin: { type: 'tick', statusId: 1228 },
-                unattributed: 0,
                 contributions: [
                   { statusId: 786, sourceId: 2, amount: 4 },
                   { statusId: 1878, sourceId: null, amount: 1.5 },
@@ -361,6 +357,64 @@ describe('rows', () => {
       ),
     ]
     expect(roundTrip(records)).toEqual(records)
+  })
+  describe('attributed and delta rows', () => {
+    const attributed = event({
+      type: 'damageAttributed',
+      packet,
+      data: {
+        estimatorGeneration: 2,
+        id: 41,
+        origin: { type: 'action', actionId: 10, sequence: 42 },
+        attackerId: 1,
+        actorId: 1,
+        targetId: 9,
+        amount: 10000,
+        retained: 9400,
+        contributions: [{ statusId: 786, sourceId: 2, amount: 600 }],
+      },
+    })
+    const revision = event(
+      {
+        type: 'attributionRevision',
+        data: {
+          estimatorGeneration: 2,
+          records: [
+            {
+              id: 41,
+              tickId: null,
+              actorId: 1,
+              origin: { type: 'action', actionId: 10 },
+              contributions: [{ statusId: 786, sourceId: 2, amount: -12.5 }],
+            },
+          ],
+        },
+      },
+      2000,
+    )
+
+    it('writes no unknown', () => {
+      const rows = [attributed, revision].flatMap((record) => rowsFor(record))
+      const split = rows.filter((row) => row.kind === 'attributed' || row.kind === 'delta')
+      expect(split).toHaveLength(2)
+      for (const row of split) expect(row.unknown ?? null).toBeNull()
+    })
+
+    it('ignores the unknown of an older log', () => {
+      const old: Record<string, number> = { attributed: 0.25, delta: -0.125 }
+      const assembler = new Assembler()
+      assembler.push({ kind: 'source', visit: 'v', t: 1, data: JSON.stringify(source) })
+      const rows = [attributed, revision].flatMap((record) =>
+        rowsFor(record).map((row) => ({
+          ...row,
+          ...(typeof row.kind === 'string' && row.kind in old ? { unknown: old[row.kind] } : {}),
+          visit: 'v',
+          t: record.sample.meta.observedAt,
+        })),
+      )
+      const read = [...rows.flatMap((row) => assembler.push(row)), ...assembler.flush()]
+      expect(read).toEqual([attributed, revision])
+    })
   })
   it('reads back potency samples with and without factors, and without the flags as neither critical nor direct', () => {
     const records: LogRecord[] = [

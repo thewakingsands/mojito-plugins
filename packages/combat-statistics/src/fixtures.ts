@@ -102,8 +102,7 @@ export const attribution = (patch: Partial<DamageAttribution> = {}): DamageAttri
   actorId: 2,
   targetId: 9,
   amount: 10000,
-  retained: 9300,
-  unattributed: 100,
+  retained: 9400,
   contributions: [{ statusId: 786, sourceId: 1, amount: 600 }],
   ...patch,
 })

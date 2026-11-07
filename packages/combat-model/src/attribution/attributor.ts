@@ -21,9 +21,9 @@ type Origin = DamageAttributionEvent['origin']
 type Rates = { critical: number; direct: number; criticalMultiplier: number }
 
 /** What a split gave to others; closeWindow sends the change from the realtime one */
-type Given = Pick<AttributionResult, 'contributions' | 'unattributed'>
+type Given = Pick<AttributionResult, 'contributions'>
 
-const NOTHING: Given = { contributions: [], unattributed: 0 }
+const NOTHING: Given = { contributions: [] }
 
 /** A change smaller than this is the rounding of the same split */
 const EPSILON = 1e-9
@@ -53,8 +53,9 @@ interface ShareSplit extends Given {
 }
 
 /**
- * Splits the damage of the players among them and the modifiers of others: the hits as they come, the shares of the
- * ticks as the estimator gives them, and the whole window again when it closes.
+ * Splits the damage of the players among them and the modifiers of other players: the hits as they come, the shares
+ * of the ticks as the estimator gives them, and the whole window again when it closes. The part of the modifiers of
+ * sources that are not players goes to the attacker and the players in proportion.
  */
 export class DamageAttributor {
   /** The hits and the ticks of their own status in the window */
@@ -133,8 +134,7 @@ export class DamageAttributor {
       if (event.statusId !== 0) this.records.push(record)
       const split = this.splitRealtime(record, share.rates)
       output.push(split)
-      const { contributions, unattributed } = split
-      splits.push({ attacker, actor: share.sourceId, statusId: share.statusId, contributions, unattributed })
+      splits.push({ attacker, actor: share.sourceId, statusId: share.statusId, contributions: split.contributions })
     }
     if (event.statusId === 0) this.shareSplits.set(event.tickId, splits)
     return output
@@ -166,8 +166,8 @@ export class DamageAttributor {
       for (const share of tick.shares) {
         const attacker = this.playerOf(share.sourceId)
         if (attacker === null || share.rates === null) continue
-        const { contributions, unattributed } = this.resplit(this.shareRecord(tick, share, attacker), share.rates)
-        const split = { attacker, actor: share.sourceId, statusId: share.statusId, contributions, unattributed }
+        const { contributions } = this.resplit(this.shareRecord(tick, share, attacker), share.rates)
+        const split = { attacker, actor: share.sourceId, statusId: share.statusId, contributions }
         after.set(shareKey(split), split)
       }
       for (const key of new Set([...before.keys(), ...after.keys()])) {
@@ -210,7 +210,8 @@ export class DamageAttributor {
 
   /**
    * The modifiers, with their sources taken to the players they stand for. Another player has a share only of a raid
-   * buff of theirs; their other modifiers count as those of the attacker.
+   * buff of theirs; their other modifiers count as those of the attacker. The share of a modifier of a source that is
+   * not a player is split among the attacker and the players in proportion.
    */
   private effectsOf(modifiers: readonly SnapshotModifier[], attacker: number): AttributionEffect[] {
     const { raidBuffStatuses } = this.estimator.defs
@@ -246,7 +247,7 @@ export class DamageAttributor {
   private splitRealtime(record: DamageRecord, rates: Rates): DamageAttributionEvent {
     const result = this.resplit(record, rates)
     record.id = ++this.lastId
-    record.realtime = { contributions: result.contributions, unattributed: result.unattributed }
+    record.realtime = { contributions: result.contributions }
     return {
       eventType: 'DamageAttributionEvent',
       eventTime: record.eventTime,
@@ -258,7 +259,6 @@ export class DamageAttributor {
       amount: record.amount,
       retained: result.retained,
       contributions: result.contributions,
-      unattributed: result.unattributed,
     }
   }
 }
@@ -281,7 +281,5 @@ function deltaOf(before: Given, after: Given): Given | null {
   const contributions = [...parts.values()]
     .filter((part) => Math.abs(part.amount) >= EPSILON)
     .sort((a, b) => a.sourceId - b.sourceId || a.statusId - b.statusId)
-  const unattributed = after.unattributed - before.unattributed
-  if (contributions.length === 0 && Math.abs(unattributed) < EPSILON) return null
-  return { contributions, unattributed: Math.abs(unattributed) < EPSILON ? 0 : unattributed }
+  return contributions.length === 0 ? null : { contributions }
 }

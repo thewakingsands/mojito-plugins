@@ -130,7 +130,6 @@ async function hour(withSplits: boolean) {
           ...data,
           attackerId: data.actorId,
           retained: data.amount - contributions.reduce((sum, part) => sum + part.amount, 0),
-          unattributed: 0,
           contributions,
         },
       },
@@ -145,7 +144,6 @@ async function hour(withSplits: boolean) {
           data.origin.type === 'action'
             ? { type: 'action', actionId: data.origin.actionId }
             : { type: 'tick', statusId: data.origin.statusId },
-        unattributed: 0,
         contributions: contributions.map((part) => ({ ...part, amount: part.amount * (splitRandom() - 0.5) * 0.1 })),
       })
   }

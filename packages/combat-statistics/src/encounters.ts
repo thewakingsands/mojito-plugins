@@ -312,13 +312,7 @@ export class Encounters {
       const adjusted =
         origin.type === 'action'
           ? encounter.ledger.attributeHit(seq, data, at)
-          : encounter.ledger.attribute(
-              data.actorId,
-              `status:${origin.statusId}`,
-              data.unattributed,
-              data.contributions,
-              at,
-            )
+          : encounter.ledger.attribute(data.actorId, `status:${origin.statusId}`, data.contributions, at)
       if (!adjusted) return
       remember(encounter.attributed, data.estimatorGeneration, data.id)
       this.notify(encounter, encounter.closedAt !== null)
@@ -338,8 +332,7 @@ export class Encounters {
       if (!encounter || encounter.source !== source) continue
       const skill =
         record.origin.type === 'action' ? `action:${record.origin.actionId}` : `status:${record.origin.statusId}`
-      if (encounter.ledger.attribute(record.actorId, skill, record.unattributed, record.contributions, at))
-        touched.add(encounter)
+      if (encounter.ledger.attribute(record.actorId, skill, record.contributions, at)) touched.add(encounter)
     }
     for (const encounter of touched) this.notify(encounter, true)
   }

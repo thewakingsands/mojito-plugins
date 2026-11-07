@@ -73,7 +73,6 @@ describe('DamageAttributor', () => {
       target: ENEMY,
       origin: { type: 'action', action: HAKAZE, sequence: 1 },
       amount: 10000,
-      unattributed: 0,
     })
     expect(split.contributions).toEqual([
       { statusId: DIVINATION, sourceId: ASTROLOGIAN, amount: expect.closeTo(10000 * DIVINATION_SHARE, 9) },
@@ -115,8 +114,18 @@ describe('DamageAttributor', () => {
     harness.effect(SAMURAI, HAKAZE, [{ target: ENEMY, entities: [damage(10000)] }])
     const split = harness.lastSplit()
     expect(split.contributions.map((item) => [item.sourceId, item.statusId])).toEqual([[ASTROLOGIAN, DIVINATION]])
-    expect(split.unattributed).toBe(0)
+    expect(split.contributions[0].amount + split.retained).toBeCloseTo(10000, 9)
     expect(split.contributions[0].amount).toBeLessThan(10000 * DIVINATION_SHARE)
+  })
+
+  it('leaves a modifier of a source that is not a player with the attacker when no player gave anything', () => {
+    const harness = new AttributionHarness()
+    harness.gain(SAMURAI, DIVINATION, ENEMY)
+    harness.effect(SAMURAI, HAKAZE, [{ target: ENEMY, entities: [damage(10000)] }])
+    const split = harness.lastSplit()
+    expect(split.contributions).toEqual([])
+    expect(split.retained).toBe(10000)
+    expect(split).not.toHaveProperty('unattributed')
   })
 
   it('counts the statuses other players put on the owner for a pet', () => {
@@ -234,7 +243,6 @@ describe('DamageAttributor', () => {
         attacker: ASTROLOGIAN,
         actor: ASTROLOGIAN,
         origin: { type: 'action', action: FALL_MALEFIC },
-        unattributed: 0,
       })
       expect(record.contributions).toEqual([{ statusId: BATTLE_LITANY, sourceId: SAMURAI, amount: expect.any(Number) }])
       expect(record.contributions[0].amount).toBeGreaterThan(0)
