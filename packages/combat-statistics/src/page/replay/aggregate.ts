@@ -42,9 +42,10 @@ export function rowOf(actors: readonly ReplayActor[], index: number, mergePets: 
   const actor = actors[index]
   return mergePets && actor.kind === 'pet' && actor.owner !== null ? actor.owner : index
 }
-/** Whether the actor is a chosen member or one of their pets */
+/** Whether the actor is a chosen member or one of their pets; the limit break row is always there */
 function chosenActor(actors: readonly ReplayActor[], chosen: ReadonlySet<number>, index: number) {
   const actor = actors[index]
+  if (actor.kind === 'limitBreak') return true
   return chosen.has(actor.kind === 'pet' && actor.owner !== null ? actor.owner : index)
 }
 

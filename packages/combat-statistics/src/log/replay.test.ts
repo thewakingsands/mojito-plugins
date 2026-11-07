@@ -576,6 +576,58 @@ it('replays heals on the caster and reflected damage into the same summary', asy
   const [replayed] = await replay(records)
   expect(displaySummary(replayed, true)).toEqual(live)
 })
+it('replays a limit break and the split an older host gave it into the same summary', async () => {
+  const h = await plugin()
+  await h.zone(1263)
+  await h.party([
+    { id: 1, ownParty: true },
+    { id: 5, ownParty: true },
+  ])
+  await h.entities()
+  const braver = effect(2, 50_000, 1)
+  braver.data.actionId = 200
+  await h.events([
+    sample(effect(1, 100), T + 1000),
+    sample(braver, T + 1500),
+    sample(
+      {
+        type: 'damageAttributed',
+        packet: braver.packet,
+        data: attribution({
+          origin: { type: 'action', actionId: 200, sequence: 42 },
+          attackerId: 1,
+          actorId: 1,
+          amount: 50_000,
+          contributions: [{ statusId: 786, sourceId: 5, amount: 3000 }],
+        }),
+      },
+      T + 1500,
+    ),
+  ])
+  h.at(T + 2000)
+  await h.serviceRequest('endEncounter', { encounterId: h.current() })
+  const live = (h.snapshot('statistics') as StatisticsState).selected!
+  await h.dispose()
+  const lb = live.rows.find((row) => row.actor.kind === 'limitBreak')!
+  expect(lb.totals.damage).toBe(50_000)
+  expect(Object.keys(lb.skills)).toEqual([`action:200@${live.rows.find((row) => row.actor.id === 1)!.actor.key}`])
+  expect(live.rows.find((row) => row.actor.id === 1)?.totals.damage).toBe(100)
+  expect(live.rows.find((row) => row.actor.id === 5)).toBeUndefined()
+
+  const log = new CombatLog(h.memory.storage, { values: {} } as unknown as Limits, {
+    createdBy: 'test',
+    actors: () => new Map(),
+    names: { zone: () => null, job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  await log.open()
+  const records: LogRecord[] = []
+  for await (const record of log.read(log.list()[0].id)) records.push(record)
+  const [replayed] = await replay(records)
+  expect(displaySummary(replayed, true)).toEqual(live)
+})
+
 it('recomputes the visits of an earlier activation from the log when their fights are selected', async () => {
   const first = await plugin()
   await first.zone(1263)

@@ -2,7 +2,16 @@ import { expect, it } from 'vitest'
 import { Encounters } from '../encounters.js'
 import { actors, effect, sample, tick } from '../fixtures.js'
 import { metric, REFLECT_SKILL, type RowSummary, type Summary } from '../model.js'
-import { damageCells, damageRows, damageSkills, healerCells, healerRows, healSkills, totalCells } from './tables.js'
+import {
+  damageCells,
+  damageRows,
+  damageSkills,
+  healerCells,
+  healerRows,
+  healSkills,
+  skillLabel,
+  totalCells,
+} from './tables.js'
 
 /** A fight of the fixture actors: 1 (PLD) hits twice, 2 (WHM) hits and heals, the pet of 1 hits, a DoT ticks. */
 function fight(): Summary {
@@ -98,4 +107,44 @@ it('lists only healers, with HPS and overheal of the actor and of each healing s
   ])
   expect(texts(healerCells({ ...healer, totals: { ...healer.totals, healing: 0 } }))[1]).toBe('—')
   expect(healerRows({ ...summary, rows: summary.rows.filter((item) => item.actor.id !== 2) })).toEqual([])
+})
+
+/** The fight of the fixture actors with a Braver of 1 that deals the most damage, and a Healing Wind of 2 if asked */
+function limitBreakFight(heal: boolean): Summary {
+  const encounters = new Encounters(
+    () => 'battle',
+    () => {},
+  )
+  encounters.updateActors(actors())
+  encounters.localActorId = 1
+  encounters.accept(sample(effect(1, 1000), 1000), 1000)
+  const braver = effect(2, 3_000_000)
+  braver.data.actionId = 200
+  encounters.accept(sample(braver, 2000), 2000)
+  encounters.accept(sample(effect(3, 300, 2), 2500), 2500)
+  if (heal) {
+    const wind = effect(4, 5000, 2, 1, 4)
+    wind.data.actionId = 206
+    encounters.accept(sample(wind, 2600), 2600)
+  }
+  encounters.end('battle', 4000)
+  return encounters.snapshot(encounters.completed[0], false)!
+}
+it('lists the limit break row with the members, without the rates it has no data for', () => {
+  const summary = limitBreakFight(false)
+  const [first] = damageRows(summary)
+  expect(first.actor.kind).toBe('limitBreak')
+  const cells = damageCells(first, summary)
+  expect(texts(cells)).toEqual(['2.0M', '2.0M', '—', '—', '—', '—', '—'])
+  expect(cells[2].title).toBe('极限技没有这项数据')
+  const [skill] = damageSkills(first, summary)
+  expect(skill.key).toBe('action:200@source:1:1')
+  expect(texts(skill.cells).slice(2, 5)).toEqual(['—', '—', '—'])
+  expect(skillLabel(first, skill.key, { [skill.key]: '勇猛烈斩' })).toBe('勇猛烈斩 · 同名')
+  expect(skillLabel(first, 'action:200@source:1:7', {})).toBe('技能 200 · 角色 7')
+  expect(skillLabel(row(summary, 1), 'action:10', { 'action:10': '先锋剑' })).toBe('先锋剑')
+})
+it('lists the limit break row with the healers only when it healed', () => {
+  expect(healerRows(limitBreakFight(false)).some((item) => item.actor.kind === 'limitBreak')).toBe(false)
+  expect(healerRows(limitBreakFight(true)).map((item) => item.actor.kind)).toEqual(['limitBreak', 'member'])
 })

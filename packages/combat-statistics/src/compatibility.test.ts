@@ -27,6 +27,26 @@ it('formats the numeric aliases consumed by original templates without turning u
   expect(next.inCombat).toBeNull()
 })
 
+it('names the limit break row as ACT does', () => {
+  const encounters = new Encounters(
+    () => 'limit-break',
+    () => {},
+  )
+  encounters.updateActors(actors())
+  encounters.accept(sample(effect(1, 100), 1000), 1000)
+  const braver = effect(2, 5000)
+  braver.data.actionId = 200
+  encounters.accept(sample(braver, 2000), 2000)
+  const state = compatibility(encounters.snapshot(), { id: 1, name: 'Example' }, null, 'cn', null)
+  expect(state.combatData?.Combatant['Limit Break']).toMatchObject({
+    name: 'Limit Break',
+    Job: 'Limit Break',
+    damage: '5000',
+  })
+  expect(state.combatData?.Combatant.YOU.damage).toBe('100')
+  expect(state.combatData?.Encounter.damage).toBe('5100')
+})
+
 it('resolves Chinese names while preserving unavailable-name fallbacks', () => {
   const encounters = new Encounters(
     () => 'names',

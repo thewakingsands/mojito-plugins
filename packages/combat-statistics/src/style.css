@@ -451,6 +451,10 @@ body {
   background: var(--mojito-dps-bg);
   color: var(--mojito-dps-fg);
 }
+.limit-break {
+  background: var(--mojito-bg-muted);
+  color: var(--mojito-fg-secondary);
+}
 .settings-page {
   display: flex;
   flex-direction: column;

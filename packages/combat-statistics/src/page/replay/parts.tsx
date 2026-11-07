@@ -1,10 +1,11 @@
 import type { Role } from '../../jobs.js'
 import type { ReplayActor, ReplayData } from '../../view-model.js'
-import { JobIcon } from '../icons.js'
+import { JobIcon, LimitBreakIcon } from '../icons.js'
 
 export const ROLE_CLASS: Record<Role, string> = { tank: 'role-tank', healer: 'role-healer', dps: 'role-dps' }
 
-export const actorName = (actor: ReplayActor | undefined) => actor?.name ?? `角色 ${actor?.index ?? '?'}`
+export const actorName = (actor: ReplayActor | undefined) =>
+  actor?.kind === 'limitBreak' ? '极限技' : (actor?.name ?? `角色 ${actor?.index ?? '?'}`)
 export const actionName = (data: ReplayData, actionId: number | null, name?: string | null) => {
   if (actionId === null) return '未知技能'
   return name ?? data.actions.find((action) => action.actionId === actionId)?.name ?? `技能 #${actionId}`
@@ -29,5 +30,6 @@ export function Diamond({ main, size = 14 }: { main: boolean; size?: number }) {
 /** A job icon, or the diamond of an enemy */
 export function ActorIcon({ actor, names }: { actor: ReplayActor; names: Record<string, string> }) {
   if (actor.kind === 'enemy') return <Diamond main={actor.main} size={16} />
+  if (actor.kind === 'limitBreak') return <LimitBreakIcon />
   return <JobIcon job={actor.job} abbreviation={names[`job:${actor.job}`]} />
 }

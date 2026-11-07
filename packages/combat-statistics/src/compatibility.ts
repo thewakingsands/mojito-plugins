@@ -1,6 +1,7 @@
 import { formatMetric, type OverlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import type { Summary } from './model.js'
 
+const LIMIT_BREAK = 'Limit Break'
 const duration = (seconds: number) =>
   `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 export function compatibility(
@@ -52,12 +53,18 @@ export function compatibility(
   for (const row of summary.rows) {
     const actorSeconds = (row.lastAt - row.firstAt) / 1000
     const label = row.actor.name ?? `Actor ${row.actor.id}`
-    const self = row.actor.id === player?.id
-    // Templates display `name`, while the key has to stay unique across same-named actors from different worlds.
-    const key = self ? 'YOU' : `${label}@${row.actor.worldId ?? '?'} [${row.actor.id.toString(16)}]`
+    const limitBreak = row.actor.kind === 'limitBreak'
+    const self = !limitBreak && row.actor.id === player?.id
+    // Templates display `name`, while the key has to stay unique across same-named actors from different worlds. The
+    // limit break row is named as ACT names it in every language, which the templates look for.
+    const key = limitBreak
+      ? LIMIT_BREAK
+      : self
+        ? 'YOU'
+        : `${label}@${row.actor.worldId ?? '?'} [${row.actor.id.toString(16)}]`
     const fields: Record<string, string> = {
-      name: self ? 'YOU' : label,
-      Job: row.actor.kind === 'pet' ? 'pet' : jobName(row.actor.job),
+      name: limitBreak ? LIMIT_BREAK : self ? 'YOU' : label,
+      Job: limitBreak ? LIMIT_BREAK : row.actor.kind === 'pet' ? 'pet' : jobName(row.actor.job),
       damage: String(row.totals.damage),
       healed: String(row.totals.healing),
       damagetaken: String(row.totals.taken),

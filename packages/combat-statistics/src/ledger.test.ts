@@ -1,8 +1,9 @@
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import { expect, it } from 'vitest'
 import type { GameEvent } from './combat-events.js'
 import { actors, attribution, effect, npcParty, sample, tick } from './fixtures.js'
 import { Ledger, type LedgerEntry, overhealMetrics } from './ledger.js'
-import { REFLECT_SKILL } from './model.js'
+import { LIMIT_BREAK_ACTOR, REFLECT_SKILL } from './model.js'
 
 it('counts AoE effects separately, preserves expanded values, and keeps names out of identity', () => {
   const ledger = new Ledger(actors())
@@ -647,4 +648,66 @@ it('counts the damage taken of a revised summed tick on a member once', () => {
 
 it('does not take a summed tick on a member without shares as hostile', () => {
   expect(new Ledger(actors()).periodicHostile(memberTick)).toBe(false)
+})
+
+const BRAVER = 200
+/** Healing Wind, the healer limit break of level 1 */
+const HEALING_WIND = 206
+const limitBreak = (seq: number, value: number, source = 1, actionId = BRAVER) => {
+  const event = effect(seq, value, source)
+  event.data.actionId = actionId
+  return event
+}
+const limitBreakRow = (ledger: Ledger) =>
+  ledger.summary(0, 10000, false).find((item) => item.actor.kind === 'limitBreak')
+it('books a limit break of a member on the limit break row, with who used it', () => {
+  expect(periodicDefs.limitBreaks.has(BRAVER)).toBe(true)
+  const ledger = new Ledger(actors())
+  ledger.direct(effect(1, 100), 1000)
+  ledger.direct(limitBreak(2, 50000), 2000)
+  const member = row(ledger, 1)
+  expect(member.totals).toMatchObject({ damage: 100, hits: 1, swings: 1 })
+  expect(member.skills[`action:${BRAVER}`]).toBeUndefined()
+  expect(member.maxHit?.amount).toBe(100)
+  const lb = limitBreakRow(ledger)!
+  expect(lb.actor).toEqual(LIMIT_BREAK_ACTOR)
+  expect(lb.totals).toMatchObject({ damage: 50000, hits: 1, swings: 1 })
+  expect(lb.skills[`action:${BRAVER}@source:1:1`]).toMatchObject({ damage: 50000, hits: 1 })
+  expect(lb.targets['source:1:9'].damage).toBe(50000)
+  expect(lb.maxHit).toEqual({ actionId: BRAVER, actorKey: 'source:1:1', amount: 50000 })
+  expect(lb.casters).toEqual({ 'source:1:1': { name: '同名', job: 19 } })
+  expect(lb.metrics.contributionDps.value).toBe(lb.metrics.encDps.value)
+})
+it('keeps the limit breaks of two members apart on the limit break row', () => {
+  const ledger = new Ledger(actors())
+  ledger.direct(limitBreak(1, 30000, 1), 1000)
+  ledger.direct(limitBreak(2, 40000, 2), 2000)
+  const lb = limitBreakRow(ledger)!
+  expect(Object.keys(lb.skills).sort()).toEqual([`action:${BRAVER}@source:1:1`, `action:${BRAVER}@source:1:2`])
+  expect(lb.totals.damage).toBe(70000)
+  expect(Object.keys(lb.casters ?? {})).toHaveLength(2)
+})
+it('books the healing of a limit break on the limit break row, and leaves the healing taken with the target', () => {
+  expect(periodicDefs.limitBreaks.has(HEALING_WIND)).toBe(true)
+  const ledger = new Ledger(actors())
+  ledger.direct(heal(1, 8000, 5, 2, 1, HEALING_WIND), 1000)
+  ledger.settleHeal(5, 1, hp(6000), 10000, 10000, 1000)
+  const lb = limitBreakRow(ledger)!
+  expect(lb.totals).toMatchObject({ healing: 8000, overhealed: 4000 })
+  expect(lb.skills[`action:${HEALING_WIND}@source:1:2`]).toMatchObject({ healing: 8000, overhealed: 4000 })
+  expect(lb.maxHeal).toEqual({ actionId: HEALING_WIND, actorKey: 'source:1:2', amount: 8000 })
+  expect(row(ledger, 1).totals.healingTaken).toBe(8000)
+  expect(row(ledger, 2)).toBeUndefined()
+})
+it('leaves a limit break of a player outside the scope as it was', () => {
+  const ledger = new Ledger(actors())
+  ledger.direct(limitBreak(1, 30000, 10), 1000)
+  expect(limitBreakRow(ledger)).toBeUndefined()
+  expect(ledger.diagnostics.outOfScopeDamage).toBe(30000)
+})
+it('ends the settlement time with a limit break that lands last', () => {
+  const ledger = new Ledger(actors())
+  ledger.direct(effect(1, 100), 1000)
+  ledger.direct(limitBreak(2, 50000), 3000)
+  expect(ledger.settlement()).toMatchObject({ first: 1000, last: 3000 })
 })

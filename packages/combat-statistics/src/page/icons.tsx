@@ -90,6 +90,9 @@ export function JobIcon({ job, abbreviation }: { job: number | null; abbreviatio
   return <span className={`icon job-tag ${ROLE_CLASS[role]}`}>{abbreviation}</span>
 }
 
+/** Stands for the limit break row where a member has the icon of their job */
+export const LimitBreakIcon = () => <span className="icon job-tag limit-break">LB</span>
+
 /** The game's skill icon; without it the space stays empty so the names line up. */
 export function SkillIcon({ skill }: { skill: string }) {
   const url = useIcon(skill)

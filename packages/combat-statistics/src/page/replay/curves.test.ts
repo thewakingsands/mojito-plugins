@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { dpsCurves } from './curves.js'
-import { enemy, member, pet, replayData } from './data.test-helper.js'
+import { enemy, limitBreak, member, pet, replayData } from './data.test-helper.js'
 
 /** Members 0 and 1, pet 2 of member 0, enemy 3; a fight of ten seconds */
 const data = replayData({
@@ -41,4 +41,18 @@ it('has a curve for each chosen member only', () => {
   expect([...dpsCurves(data, new Set([1]), true).keys()]).toEqual([1])
   expect(dpsCurves(data, new Set([1]), true).get(1)![3]).toBe(1000)
   expect(dpsCurves(data, new Set(), true).size).toBe(0)
+})
+
+it('draws no curve for the limit break row', () => {
+  const withLimitBreak = replayData({
+    fight: { visitId: 'v', fightId: 'f', durationMs: 10_000 },
+    actors: [member(0, 19), limitBreak(1)],
+    entries: [
+      { t: 0, actor: 0, other: -1, skill: 'action:9', field: 'damage', amount: 500 },
+      { t: 0, actor: 1, other: -1, skill: 'action:200@actor:0', field: 'damage', amount: 50_000 },
+    ],
+  })
+  const curves = dpsCurves(withLimitBreak, new Set([0, 1]), false)
+  expect([...curves.keys()]).toEqual([0])
+  expect(curves.get(0)![0]).toBe(100)
 })

@@ -26,7 +26,7 @@ export const zoneName = (visit: { zoneName: string | null; territoryType: number
   visit.zoneName ?? `区域 ${visit.territoryType}`
 export const skillName = (key: string, names: Record<string, string>) => {
   if (key === REFLECT_SKILL) return '反伤'
-  const match = /^(?:action|status):(\d+)$/.exec(key)
+  const match = /^(?:action|status):(\d+)(?:@.+)?$/.exec(key)
   return names[key] ?? (match ? `技能 ${match[1]}` : key)
 }
 

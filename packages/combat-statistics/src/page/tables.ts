@@ -1,6 +1,7 @@
 import { roleOf } from '../jobs.js'
 import { type Metric, REFLECT_SKILL, type RowSummary, type Summary } from '../model.js'
-import { amount, percent } from './format.js'
+import { skillCaster } from '../view-model.js'
+import { amount, percent, skillName } from './format.js'
 
 /** One table cell; title explains a value that is not available. */
 export interface Cell {
@@ -23,6 +24,18 @@ const rdps = (input: Metric | undefined, summary: Summary): Cell =>
     : dash(input?.reason ?? summary.contributionUnavailable ?? '没有可用输入')
 const order = (input: Metric | undefined) => input?.value ?? -Infinity
 const seconds = (summary: Summary) => (summary.durationMs ?? summary.endAt - summary.startAt) / 1000
+const isLimitBreak = (row: RowSummary) => row.actor.kind === 'limitBreak'
+const NO_LIMIT_BREAK_DATA = '极限技没有这项数据'
+
+/** The name of a caster of a limit break, from their actor key when the name is not known */
+export const casterName = (key: string, name: string | null | undefined) => name ?? `角色 ${key.split(':').at(-1)}`
+
+/** The name of a skill of the row; on the limit break row it names who used it as well */
+export function skillLabel(row: RowSummary, key: string, names: Record<string, string>): string {
+  const caster = isLimitBreak(row) ? skillCaster(key) : null
+  if (caster === null) return skillName(key, names)
+  return `${skillName(key, names)} · ${casterName(caster, row.casters?.[caster]?.name)}`
+}
 
 /** The damage table lists every row, highest DPS first. */
 export const damageRows = (summary: Summary) =>
@@ -30,6 +43,10 @@ export const damageRows = (summary: Summary) =>
 
 /** DPS, rDPS, critical, direct-hit and critical direct-hit rates, damage taken, deaths */
 export function damageCells(row: RowSummary, summary: Summary): Cell[] {
+  if (isLimitBreak(row)) {
+    const none = dash(NO_LIMIT_BREAK_DATA)
+    return [value(row.metrics.encDps, amount), rdps(row.metrics.contributionDps, summary), none, none, none, none, none]
+  }
   return [
     value(row.metrics.encDps, amount),
     rdps(row.metrics.contributionDps, summary),
@@ -69,6 +86,7 @@ export function damageSkills(row: RowSummary, summary: Summary): SkillLine[] {
     .sort((a, b) => b[1].damage - a[1].damage)
     .map(([key, skill]) => {
       const rate = (part: number) => {
+        if (isLimitBreak(row)) return dash(NO_LIMIT_BREAK_DATA)
         if (key.startsWith('status:')) return dash('持续伤害没有暴击和直击标记')
         if (key === REFLECT_SKILL) return dash('反伤没有暴击和直击标记')
         const result = ratio(part, skill.directHits ?? 0)
@@ -89,10 +107,10 @@ export function damageSkills(row: RowSummary, summary: Summary): SkillLine[] {
     })
 }
 
-/** Healers only, highest HPS first; a row of unknown job is left out. */
+/** Healers only, and the limit break row when it healed, highest HPS first; a row of unknown job is left out. */
 export const healerRows = (summary: Summary) =>
   summary.rows
-    .filter((row) => roleOf(row.actor.job) === 'healer')
+    .filter((row) => roleOf(row.actor.job) === 'healer' || (isLimitBreak(row) && row.totals.healing > 0))
     .sort((a, b) => order(b.metrics.encHps) - order(a.metrics.encHps))
 
 const overheal = (overhealed: Metric | undefined, healing: number): Cell => {

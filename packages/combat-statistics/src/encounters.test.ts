@@ -586,6 +586,18 @@ it('ignores the deltas of history that was cleared', () => {
   encounters.accept(sample(revised([delta({})]), 3000), 3000)
   expect(changed).toHaveLength(before)
 })
+it('drops the splits of a limit break that older logs have', () => {
+  const { encounters } = setup()
+  const braver = effect(1, 10000, 2)
+  braver.data.actionId = 200
+  encounters.accept(sample(braver, 1000), 1000)
+  encounters.accept(sample(attributed(1, { origin: { type: 'action', actionId: 200, sequence: 42 } }), 1000), 1000)
+  const before = contributions(encounters.snapshot())
+  expect(before).toEqual({ 0: { 'action:200@source:1:2': 10000 } })
+  encounters.accept(sample(revised([delta({ origin: { type: 'action', actionId: 200 } })]), 1100), 1100)
+  expect(contributions(encounters.snapshot())).toEqual(before)
+  expect(encounters.snapshot()?.diagnostics.unmatchedAttributions).toBe(0)
+})
 it('shares a summary until the encounters change', () => {
   const { encounters } = setup()
   encounters.accept(sample(effect(1), 1000), 1000)

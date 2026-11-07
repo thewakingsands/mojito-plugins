@@ -5,7 +5,7 @@ import { roleOf } from '../jobs.js'
 import type { LedgerEntry } from '../ledger.js'
 import type { ReplayObservers } from '../log/replay.js'
 import type { LogRecord } from '../log/types.js'
-import type { Actor } from '../model.js'
+import { type Actor, LIMIT_BREAK_ACTOR } from '../model.js'
 import {
   ENTRY_FIELDS,
   HIT_CRITICAL,
@@ -16,6 +16,7 @@ import {
   type ReplayData,
   type ReplayEvent,
   type StatusNote,
+  skillId,
 } from '../view-model.js'
 import { bossEvents } from './bosses.js'
 import { penaltyStatuses } from './catalog.js'
@@ -379,7 +380,8 @@ export class ReplayBuilder implements Required<ReplayObservers> {
   }
 
   ledger(fightId: string, entry: LedgerEntry) {
-    if (fightId !== this.fightId || (entry.actor.kind !== 'member' && entry.actor.kind !== 'pet')) return
+    if (fightId !== this.fightId) return
+    if (entry.actor.kind !== 'member' && entry.actor.kind !== 'pet' && entry.actor.kind !== 'limitBreak') return
     if (!this.known.has(entry.actor.key)) this.known.set(entry.actor.key, entry.actor)
     const t = this.time(entry.t)
     const hit = entry.hit
@@ -422,8 +424,11 @@ export class ReplayBuilder implements Required<ReplayObservers> {
       })
   }
 
-  /** @param mainEnemyKey The main enemy of the fight's Summary */
-  finish(mainEnemyKey: string | null): PartialReplay {
+  /**
+   * @param mainEnemyKey The main enemy of the fight's Summary
+   * @param casters Who used the limit breaks of the fight, as the limit break row of its Summary has them
+   */
+  finish(mainEnemyKey: string | null, casters: Record<string, string | null>): PartialReplay {
     for (const [actor, open] of this.open) for (const key of [...open.keys()]) this.close(actor, key, this.durationMs)
 
     const actors: ReplayActor[] = []
@@ -431,7 +436,7 @@ export class ReplayBuilder implements Required<ReplayObservers> {
     const add = (key: ActorKey, kind: ReplayActor['kind']) => {
       if (index.has(key)) return
       const actor = this.known.get(key)
-      const samples = kind === 'pet' ? [] : (this.tracks.get(key) ?? [])
+      const samples = kind === 'pet' || kind === 'limitBreak' ? [] : (this.tracks.get(key) ?? [])
       index.set(key, actors.length)
       actors.push({
         index: actors.length,
@@ -463,6 +468,7 @@ export class ReplayBuilder implements Required<ReplayObservers> {
         actors[index.get(entry.actor)!].owner = index.get(actor.ownerKey)!
       }
     }
+    if (this.known.has(LIMIT_BREAK_ACTOR.key)) add(LIMIT_BREAK_ACTOR.key, 'limitBreak')
     for (const key of this.engaged) if (this.known.get(key)?.kind === 'enemy') add(key, 'enemy')
     const at = (key: ActorKey | null) => (key === null ? null : (index.get(key) ?? null))
     const name = (key: ActorKey | null) => (key === null ? null : (this.known.get(key)?.name ?? null))
@@ -491,9 +497,9 @@ export class ReplayBuilder implements Required<ReplayObservers> {
         skillIndex.set(key, found)
         skills.push(key)
         // Auto-attacks and enemy Actions are never recorded as uses, so the tables would have no name for them
-        const match = /^(action|status):(\d+)$/.exec(key)
-        if (match?.[1] === 'action') action(Number(match[2]))
-        else if (match) statusIds.add(Number(match[2]))
+        const id = skillId(key)
+        if (id?.kind === 'action') action(id.id)
+        else if (id) statusIds.add(id.id)
       }
       return found
     }
@@ -644,6 +650,7 @@ export class ReplayBuilder implements Required<ReplayObservers> {
       },
       entries: typedEntries,
       skills,
+      casters,
       statuses,
       events,
       potency,

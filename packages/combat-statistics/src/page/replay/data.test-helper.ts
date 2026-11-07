@@ -33,6 +33,17 @@ export const pet = (index: number, owner: number): ReplayActor => ({
   role: null,
   track: track(),
 })
+export const limitBreak = (index: number): ReplayActor => ({
+  index,
+  key: 'limit-break',
+  name: null,
+  kind: 'limitBreak',
+  owner: null,
+  main: false,
+  job: null,
+  role: null,
+  track: track(),
+})
 export const enemy = (index: number, main = false, samples?: Track): ReplayActor => ({
   index,
   key: `actor:${index}`,
@@ -69,6 +80,7 @@ export function replayData(
     statusInfo: [],
     events: [],
     potency: [],
+    casters: {},
     ...rest,
     skills,
     entries: {

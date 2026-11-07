@@ -54,6 +54,14 @@ const MODEL_ONLY = new Set<string>([
  * The events of the main subscription only the log takes, for the fight review; the model reads the casts and the
  * status lists too, so they come in the order of the other events
  */
+/** Who used the limit breaks of a fight, by actor key, for the review */
+const limitBreakCasters = (summary: Summary | undefined): Record<string, string | null> =>
+  Object.fromEntries(
+    Object.entries(summary?.rows.find((row) => row.actor.kind === 'limitBreak')?.casters ?? {}).map(([key, caster]) => [
+      key,
+      caster.name,
+    ]),
+  )
 const LOG_ONLY = new Set<string>(['statusesReplaced', 'castStarted', 'castCancelled', 'potencySample'])
 
 export async function activate(ctx: PluginContext) {
@@ -566,7 +574,11 @@ export async function activate(ctx: PluginContext) {
       visitStatus.delete(visitId)
       if (builder) {
         const summary = summaries.find((item) => item.id === fightId)
-        prepared = { visitId, fightId, partial: builder.finish(summary?.outcome.mainEnemy?.key ?? null) }
+        prepared = {
+          visitId,
+          fightId,
+          partial: builder.finish(summary?.outcome.mainEnemy?.key ?? null, limitBreakCasters(summary)),
+        }
       }
     } catch (error) {
       visitStatus.set(visitId, { loading: false, error: error instanceof Error ? error.message : String(error) })
@@ -648,7 +660,7 @@ export async function activate(ctx: PluginContext) {
         const builder = new ReplayBuilder(fightId, { visitId, startAt: fight.startAt, endAt: fight.endAt })
         const { summaries } = await replayVisit(visitId, builder)
         const summary = summaries.find((item) => item.id === fightId)
-        partial = builder.finish(summary?.outcome.mainEnemy?.key ?? null)
+        partial = builder.finish(summary?.outcome.mainEnemy?.key ?? null, limitBreakCasters(summary))
       }
       const replayMs = Date.now() - started
       const game = await gameData(partial.actionIds, partial.statusIds)

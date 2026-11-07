@@ -111,7 +111,7 @@ export interface ReplayActor {
   index: number
   key: string
   name: string | null
-  kind: 'member' | 'pet' | 'enemy'
+  kind: 'member' | 'pet' | 'enemy' | 'limitBreak'
   /** The owner of a pet */
   owner: number | null
   /** Whether it is the main enemy */
@@ -219,6 +219,8 @@ export interface ReplayData {
   entries: Entries
   /** The skill keys the entries refer to, as in Row.skills */
   skills: string[]
+  /** Actor key → name of who used the limit breaks, as in Row.casters of the limit break row */
+  casters: Record<string, string | null>
   statuses: ReplayStatus[]
   statusInfo: ReplayStatusInfo[]
   /** In time order */
@@ -228,8 +230,17 @@ export interface ReplayData {
 }
 export type ReplayResult = { ok: true; data: ReplayData } | { ok: false; reason: string }
 
-/** The Action or Status a skill key names: `action:<Action ID>` or `status:<Status ID>` */
+/**
+ * The Action or Status a skill key names: `action:<Action ID>` or `status:<Status ID>`, and on the limit break row
+ * `action:<Action ID>@<caster actor key>`
+ */
 export function skillId(key: string): { kind: 'action' | 'status'; id: number } | null {
-  const match = /^(action|status):(\d+)$/.exec(key)
+  const match = /^(action|status):(\d+)(?:@.+)?$/.exec(key)
   return match ? { kind: match[1] as 'action' | 'status', id: Number(match[2]) } : null
+}
+
+/** The actor key of who used the limit break of a skill key of the limit break row; null for other keys */
+export function skillCaster(key: string): string | null {
+  const at = key.indexOf('@')
+  return at < 0 ? null : key.slice(at + 1)
 }

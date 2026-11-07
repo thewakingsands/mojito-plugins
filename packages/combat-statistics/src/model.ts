@@ -17,9 +17,21 @@ export interface Actor {
   name: string | null
   worldId: number | null
   job: number | null
-  kind: 'member' | 'pet' | 'enemy' | 'unknown'
+  kind: 'member' | 'pet' | 'enemy' | 'unknown' | 'limitBreak'
   ownerKey: string | null
 }
+/** The actor of the row the limit breaks of the members and pets go to; Ledger.actors does not have it */
+export const LIMIT_BREAK_ACTOR: Actor = {
+  key: 'limit-break',
+  id: 0,
+  name: null,
+  worldId: null,
+  job: null,
+  kind: 'limitBreak',
+  ownerKey: null,
+}
+/** The skill key of a limit break on the limit break row; each caster has their own */
+export const limitBreakSkill = (actionId: number, casterKey: string) => `action:${actionId}@${casterKey}`
 export type Scope = 'party' | 'alliance' | 'all'
 export interface Settings {
   mode: 'auto' | 'manual'
@@ -127,6 +139,11 @@ export interface Row {
   targets: Record<string, { damage: number; healing: number }>
   /** D − R − U + G of the actor; absent in summaries saved before rDPS */
   contribution?: number
+  /**
+   * Actor key → the name and job of who used a limit break, only on the limit break row. The caster may have no row
+   * of their own, so their name is kept here.
+   */
+  casters?: Record<string, { name: string | null; job: number | null }>
 }
 export interface RowSummary extends Omit<Row, 'skills'> {
   skills: Record<string, SkillAmounts & { overheal: Metric; contributionDps: Metric }>

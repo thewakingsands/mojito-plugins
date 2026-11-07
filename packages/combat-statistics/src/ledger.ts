@@ -1,8 +1,11 @@
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type { AttributionPart, DamageAttribution, GameEvent, PeriodicTick } from './combat-events.js'
 import type { Hp } from './hp-tracker.js'
 import {
   type Actor,
   amounts,
+  LIMIT_BREAK_ACTOR,
+  limitBreakSkill,
   type Metric,
   metric,
   REFLECT_SKILL,
@@ -59,6 +62,8 @@ type PendingHeal = { at: number; hp: Hp | null; items: { actor: Actor; skill: st
 const healTimeoutMs = 5000
 const inScope = (actor: Actor | undefined): actor is Actor & { kind: 'member' | 'pet' } =>
   actor?.kind === 'member' || actor?.kind === 'pet'
+/** The rows that the summary and the settlement time count: those in scope and the limit break row */
+const counted = (actor: Actor | undefined) => inScope(actor) || actor?.kind === 'limitBreak'
 const damageTypes = new Set([3, 5, 6])
 const attempts = new Set([1, 2, 3, 5, 6, 7])
 const ignoredTypes = new Set([0, 8, 10, 11, 12, 13, 14, 15, 20, 24, 25, 27, 28, 31, 33, 40, 52, 59, 61, 62, 73])
@@ -399,33 +404,50 @@ export class Ledger {
     event: GameEvent<'actionEffect'>,
     amount: number,
     at: number,
+    limitBreak: boolean,
     hpOf?: (actorId: number) => Hp | null,
   ) {
-    const skill = `action:${event.data.actionId}`
+    const actionSkill = `action:${event.data.actionId}`
     if (inScope(source)) {
-      this.time.add(source.key, at, event.packet.timestamp)
+      const healer = limitBreak ? LIMIT_BREAK_ACTOR : source
+      const skill = limitBreak ? limitBreakSkill(event.data.actionId, source.key) : actionSkill
+      this.time.add(healer.key, at, event.packet.timestamp)
       this.add(
-        { actor: source, field: 'healing', amount, estimated: false, target: receiver?.key ?? 'unknown', skill },
+        { actor: healer, field: 'healing', amount, estimated: false, target: receiver?.key ?? 'unknown', skill },
         at,
       )
-      if (receiverId === null) this.heal(source, skill, 0, amount, at)
+      if (receiverId === null) this.heal(healer, skill, 0, amount, at)
       else {
         const key = `${event.data.sequence}:${receiverId}`
         const entry = this.heals.get(key) ?? { at, hp: hpOf?.(receiverId) ?? null, items: [] }
-        entry.items.push({ actor: source, skill, amount })
+        entry.items.push({ actor: healer, skill, amount })
         this.heals.set(key, entry)
       }
-      const row = this.row(source, at)
+      const row = this.row(healer, at)
       if (!row.maxHeal || row.maxHeal.amount < amount)
         row.maxHeal = { actionId: event.data.actionId, actorKey: source.key, amount }
+      if (limitBreak) this.caster(source, at)
     }
     if (inScope(receiver)) {
       this.time.add(receiver.key, at, event.packet.timestamp)
       this.add(
-        { actor: receiver, field: 'healingTaken', amount, estimated: false, target: source?.key ?? 'unknown', skill },
+        {
+          actor: receiver,
+          field: 'healingTaken',
+          amount,
+          estimated: false,
+          target: source?.key ?? 'unknown',
+          skill: actionSkill,
+        },
         at,
       )
     }
+  }
+  /** Keeps the name and job of who used a limit break on the limit break row, the latest ones */
+  private caster(source: Actor, at: number) {
+    const row = this.row(LIMIT_BREAK_ACTOR, at)
+    row.casters ??= {}
+    row.casters[source.key] = { name: source.name, job: source.job }
   }
   /**
    * Reflected damage has no swing and no critical or direct-hit flags, so it stays out of the hit counts and maxHit.
@@ -463,6 +485,10 @@ export class Ledger {
     }
     const source = this.actors.get(event.data.sourceActorId ?? -1)
     this.lastHits = { seq: event.packet.seq, hits: [] }
+    // A limit break of a member or pet goes to the limit break row, with who used it in the skill key
+    const limitBreak = inScope(source) && periodicDefs.limitBreaks.has(event.data.actionId)
+    const booked = limitBreak ? LIMIT_BREAK_ACTOR : source
+    const skillKey = limitBreak ? limitBreakSkill(event.data.actionId, source.key) : `action:${event.data.actionId}`
     let hostile = false,
       accepted = false
     for (const target of event.data.targets) {
@@ -482,7 +508,7 @@ export class Ledger {
         if (selfHeal) {
           if (inScope(source)) {
             accepted = true
-            this.bookHeal(source, source, source.id, event, effect.rawValue, at, hpOf)
+            this.bookHeal(source, source, source.id, event, effect.rawValue, at, limitBreak, hpOf)
           }
           continue
         }
@@ -497,8 +523,9 @@ export class Ledger {
           hostile ||= outgoing || incoming
           accepted ||= outgoing || incoming
           if (trackedOutgoing) {
-            const row = this.row(source!, at)
-            this.time.add(source!.key, at, event.packet.timestamp)
+            const row = this.row(booked!, at)
+            this.time.add(booked!.key, at, event.packet.timestamp)
+            if (limitBreak) this.caster(source, at)
             row.totals.swings++
             if (effect.typeCode === 1) row.totals.misses++
             else if (effect.typeCode === 2 || effect.typeCode === 7) row.totals.immune++
@@ -509,25 +536,26 @@ export class Ledger {
               row.totals.critDirect += Number(effect.critical && effect.direct)
               this.add(
                 {
-                  actor: source!,
+                  actor: booked!,
                   field: 'damage',
                   amount: effect.rawValue,
                   estimated: false,
                   target: receiver!.key,
-                  skill: `action:${event.data.actionId}`,
+                  skill: skillKey,
                   hit: { critical: effect.critical, direct: effect.direct },
                 },
                 at,
                 1,
                 true,
               )
-              const skill = row.skills[`action:${event.data.actionId}`]
+              const skill = row.skills[skillKey]
               skill.hits++
               skill.directHits++
               skill.crit += Number(effect.critical)
               skill.direct += Number(effect.direct)
               skill.critDirect += Number(effect.critical && effect.direct)
-              if (outgoing)
+              // The host splits no limit break, see DamageAttributor
+              if (outgoing && !limitBreak)
                 this.lastHits.hits.push({
                   actorId: source!.id,
                   targetId: receiver!.id,
@@ -553,7 +581,7 @@ export class Ledger {
             )
         } else if (effect.typeCode === 4 && (inScope(source) || inScope(receiver))) {
           accepted = true
-          this.bookHeal(source, receiver, target.targetId, event, effect.rawValue, at, hpOf)
+          this.bookHeal(source, receiver, target.targetId, event, effect.rawValue, at, limitBreak, hpOf)
           if (!receiver || !source) this.diagnostics.unknownActors++
         } else if (!ignoredTypes.has(effect.typeCode)) {
           if (!source || !receiver) this.diagnostics.unknownActors++
@@ -710,7 +738,7 @@ export class Ledger {
     let result: TimeBounds | null = null
     const times = this.time.snapshot()
     for (const row of this.rows.values())
-      if (inScope(row.actor)) result = mergeTime(result, times.get(row.actor.key) ?? null)
+      if (counted(row.actor)) result = mergeTime(result, times.get(row.actor.key) ?? null)
     return result
   }
   summary(start: number, end: number, mergePets: boolean, durationMs = end - start): RowSummary[] {
@@ -718,7 +746,7 @@ export class Ledger {
     const times = this.time.snapshot()
     const groupTimes = new Map<string, TimeBounds | null>()
     for (const row of this.rows.values()) {
-      if (!inScope(row.actor)) continue
+      if (!counted(row.actor)) continue
       const key = mergePets && row.actor.ownerKey ? row.actor.ownerKey : row.actor.key
       let output = groups.get(key)
       if (!output) {

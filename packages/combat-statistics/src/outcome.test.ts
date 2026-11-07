@@ -47,6 +47,22 @@ it('picks the enemy that took the most damage and leaves a running fight without
   })
   expect(encounters.snapshot()!.title).toBe('目标')
 })
+it('counts the damage of the limit break row for the main enemy', () => {
+  const encounters = setup()
+  encounters.updateActors(
+    new Map([
+      ...actors(),
+      [8, { key: 'source:1:8', id: 8, name: '小怪', worldId: null, job: null, kind: 'enemy', ownerKey: null }],
+    ]),
+  )
+  encounters.accept(sample(effect(1, 100, 1, 8), 1000), 1000)
+  const braver = effect(2, 500, 1, 9)
+  braver.data.actionId = 200
+  encounters.accept(sample(braver, 1100), 1100)
+  const summary = encounters.snapshot()!
+  expect(summary.rows.find((row) => row.actor.kind === 'member')?.targets['source:1:9']).toBeUndefined()
+  expect(summary.outcome.mainEnemy?.key).toBe('source:1:9')
+})
 it('is a kill when the main enemy dies, even when the party died too', () => {
   const encounters = setup()
   encounters.accept(sample(effect(1), 1000), 1000)

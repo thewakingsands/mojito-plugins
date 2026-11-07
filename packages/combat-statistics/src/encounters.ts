@@ -1,3 +1,4 @@
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type { Sample } from '@ffcafe/mojito-plugin-sdk'
 import type { EndEncounterResult } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import type { GameEvent } from './combat-events.js'
@@ -301,6 +302,9 @@ export class Encounters {
     if (event.type === 'damageAttributed') {
       const { data } = event
       const { origin } = data
+      // Logs from before the host stopped splitting limit breaks have their splits; the ledger keeps the limit breaks
+      // apart, so they are dropped. Not remembered, so their revisions find nothing either.
+      if (origin.type === 'action' && periodicDefs.limitBreaks.has(origin.actionId)) return
       const seq = event.packet?.seq ?? -1
       const encounter =
         origin.type === 'action'

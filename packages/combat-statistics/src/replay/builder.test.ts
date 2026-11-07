@@ -9,7 +9,7 @@ import { cast, changed, died, event, hit, keyOf, positions, replaced, status, vi
 async function build(fight: LogRecord[]): Promise<PartialReplay> {
   const builder = new ReplayBuilder('f1', { visitId: 'v', startAt: 10_000, endAt: 30_000 })
   await replay(visit(fight), builder)
-  return builder.finish(keyOf(9))
+  return builder.finish(keyOf(9), {})
 }
 const actor = (data: PartialReplay, id: number) => data.actors.find((item) => item.key === keyOf(id))
 const indexOf = (data: PartialReplay, id: number) => actor(data, id)!.index
@@ -258,6 +258,28 @@ it('lists the Action or Status of every skill in the tables, used or not', async
   }
 })
 
+it('puts the limit breaks on an actor of their own, and keeps who used them', async () => {
+  const builder = new ReplayBuilder('f1', { visitId: 'v', startAt: 10_000, endAt: 30_000 })
+  const summaries = await replay(
+    visit([hit(10_000, 1, [9], 1000), hit(11_000, 1, [9], 50_000, { actionId: 200 })]),
+    builder,
+  )
+  const lb = summaries.find((item) => item.id === 'f1')!.rows.find((row) => row.actor.kind === 'limitBreak')!
+  const casters = Object.fromEntries(Object.entries(lb.casters ?? {}).map(([key, caster]) => [key, caster.name]))
+  const data = builder.finish(keyOf(9), casters)
+  const index = data.actors.findIndex((item) => item.kind === 'limitBreak')
+  expect(data.actors[index]).toMatchObject({ name: null, owner: null, role: null, job: null })
+  expect(data.actors[index].track.t).toHaveLength(0)
+  const booked = [...data.entries.actor.keys()].filter((i) => data.entries.actor[i] === index)
+  expect(booked.map((i) => [data.skills[data.entries.skill[i]], data.entries.amount[i]])).toEqual([
+    [`action:200@${keyOf(1)}`, 50_000],
+  ])
+  expect(data.actionIds).toContain(200)
+  expect(data.casters).toEqual({ [keyOf(1)]: '骑士' })
+  // The timeline keeps the use with the member who used it
+  expect([...data.uses.actor]).toEqual([indexOf(data, 1), indexOf(data, 1)])
+})
+
 it('marks the statuses of the raid buffs as the combat model does', async () => {
   const partial = await build([hit(10_000, 1, [9], 1000)])
   // Divination, and Damage Down
@@ -334,7 +356,7 @@ it('collects the potency samples of members in the fight, with the indices of th
     ]),
     builder,
   )
-  const data = complete(builder.finish(keyOf(9)), {
+  const data = complete(builder.finish(keyOf(9), {}), {
     action: () => null,
     status: (id) => `状态${id}`,
     gcd: () => null,
@@ -391,7 +413,7 @@ async function buildAround(before: LogRecord[], fight: LogRecord[], after: LogRe
   )
   const builder = new ReplayBuilder('f1', { visitId: 'v', startAt: 10_000, endAt: 30_000 })
   await replay(records, builder)
-  return builder.finish(keyOf(9))
+  return builder.finish(keyOf(9), {})
 }
 
 it('makes boss events from the targetable changes in the fight, without counting them as statistics', async () => {

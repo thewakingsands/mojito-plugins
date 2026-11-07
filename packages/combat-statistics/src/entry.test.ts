@@ -872,6 +872,8 @@ it('reads job icons and the icons of Action and Status rows once each', async ()
   expect(await icon('job:24')).toMatchObject({ mime: 'image/png', data: Uint8Array.of(62124 % 256) })
   expect(await icon('job:24')).toMatchObject({ mime: 'image/png' })
   expect(await icon('action:10')).toMatchObject({ data: Uint8Array.of(405 % 256) })
+  // A skill of the limit break row has the icon of its action
+  expect(await icon('action:10@source:1:1')).toMatchObject({ data: Uint8Array.of(405 % 256) })
   expect(await icon('status:7')).toBeNull()
   expect(await icon('job:25')).toBeNull()
   expect(await icon('job:25')).toBeNull()

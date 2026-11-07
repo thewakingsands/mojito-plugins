@@ -46,7 +46,7 @@ it.skipIf(!LOG)(
     const builder = new ReplayBuilder(fight.id, { visitId: 'v', startAt: fight.startAt, endAt: end.endAt })
     const summaries = await replay(visit, builder)
     const summary = summaries.find((item) => item.id === fight.id)
-    const data = builder.finish(summary?.outcome.mainEnemy?.key ?? null)
+    const data = builder.finish(summary?.outcome.mainEnemy?.key ?? null, {})
     expect(data.fight.durationMs).toBeGreaterThan(END_MS - 1000)
 
     const scene = buildMapScene(data)

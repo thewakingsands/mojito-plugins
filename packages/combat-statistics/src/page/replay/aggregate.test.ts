@@ -15,7 +15,7 @@ import {
   takenByActor,
   takenBySkill,
 } from './aggregate.js'
-import { enemy, member, pet, replayData } from './data.test-helper.js'
+import { enemy, limitBreak, member, pet, replayData } from './data.test-helper.js'
 
 const scope = (patch: Partial<Scope> = {}): Scope => ({
   chosen: new Set([0, 1]),
@@ -52,7 +52,7 @@ it('sums the whole fight of every member as the summary does, rDPS included', as
   ])
   const builder = new ReplayBuilder('f1', { visitId: 'v', startAt: 10_000, endAt: 30_000 })
   const summary = (await replay(records, builder)).find((item) => item.id === 'f1')!
-  const data = { ...builder.finish(keyOf(9)), actions: [], statusInfo: [] }
+  const data = { ...builder.finish(keyOf(9), {}), actions: [], statusInfo: [] }
   const members = data.actors.filter((actor) => actor.kind === 'member')
   const whole = scope({ chosen: new Set(members.map((actor) => actor.index)), lengthMs: summary.durationMs! })
   const total = (values: { total: number }[]) => values.reduce((sum, value) => sum + value.total, 0)
@@ -214,4 +214,21 @@ it('sums healing by member, by skill and by target', () => {
     { target: 0, total: 1300 },
     { target: 1, total: 500 },
   ])
+})
+
+it('lists the limit break row whichever members are chosen', () => {
+  const data = replayData({
+    actors: [...actors, limitBreak(4)],
+    entries: [
+      { t: 0, actor: 0, other: 3, skill: 'action:9', field: 'damage', amount: 1000 },
+      { t: 100, actor: 1, other: 3, skill: 'action:9', field: 'damage', amount: 2000 },
+      { t: 200, actor: 4, other: 3, skill: 'action:200@actor:0', field: 'damage', amount: 50_000, hit: HIT_DIRECT },
+    ],
+  })
+  const rows = damageRows(data, scope({ chosen: new Set([1]) }), false)
+  expect(rows.map((row) => [row.actor, row.total])).toEqual([
+    [4, 50_000],
+    [1, 2000],
+  ])
+  expect(rows[0].skills.map((skill) => skill.skill)).toEqual(['action:200@actor:0'])
 })

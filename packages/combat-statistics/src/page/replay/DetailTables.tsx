@@ -1,7 +1,8 @@
 import { Fragment, memo, type ReactNode } from 'react'
-import type { ReplayData } from '../../view-model.js'
+import { type ReplayData, skillCaster, skillId } from '../../view-model.js'
 import { amount, percent, skillName } from '../format.js'
-import { JobIcon, SkillIcon } from '../icons.js'
+import { SkillIcon } from '../icons.js'
+import { casterName } from '../tables.js'
 import {
   damageRows,
   healByActor,
@@ -25,16 +26,21 @@ function flip(set: ReadonlySet<number>, index: number) {
   if (!next.delete(index)) next.add(index)
   return next
 }
-/** A skill key as its name: an Action, or a Status for damage and healing over time */
+/**
+ * A skill key as its name: an Action, or a Status for damage and healing over time. A skill of the limit break row
+ * names who used it as well.
+ */
 function skillLabel(data: ReplayData, key: string) {
-  const match = /^(action|status):(\d+)$/.exec(key)
-  if (!match) return skillName(key, {})
-  const id = Number(match[2])
+  const skill = skillId(key)
+  if (!skill) return skillName(key, {})
   // A summed tick carries no status id and its source is unknown; it only shows up in damage taken.
-  if (match[1] === 'status' && id === 0) return '持续伤害'
-  if (match[1] === 'status') return statusName(data, id)
-  return data.actions.find((action) => action.actionId === id)?.name ?? `技能 #${id}`
+  if (skill.kind === 'status' && skill.id === 0) return '持续伤害'
+  if (skill.kind === 'status') return statusName(data, skill.id)
+  const name = data.actions.find((action) => action.actionId === skill.id)?.name ?? `技能 #${skill.id}`
+  const caster = skillCaster(key)
+  return caster === null ? name : `${name} · ${casterName(caster, data.casters[caster])}`
 }
+const NO_LIMIT_BREAK_RATE = '极限技没有这项数据'
 
 interface TableProps {
   data: ReplayData
@@ -158,33 +164,39 @@ export const DamageTable = memo(function DamageTable(props: TableProps & { rdps:
         <Head columns={['角色', 'DPS', 'rDPS', '总量', '暴击率', '直击率']} />
         <tbody>
           {rows.length === 0 && <Empty columns={6} />}
-          {rows.map((row) => (
-            <ActorRow
-              key={row.actor}
-              {...props}
-              actor={row.actor}
-              cells={
-                <>
-                  <td>{withShare(row.dps, row.dpsShare)}</td>
-                  {rdpsCell(row.rdps, row.rdpsShare)}
-                  <td>{amount(row.total)}</td>
-                  <td>{rate(row.critRate)}</td>
-                  <td>{rate(row.directRate)}</td>
-                </>
-              }
-            >
-              {row.skills.map((skill) => (
-                <tr key={skill.skill} className="skill">
-                  <SkillCell data={props.data} skill={skill.skill} suffix={skill.given ? '（给予队友）' : ''} />
-                  <td>{skill.given ? DASH : number(skill.dps)}</td>
-                  {props.rdps ? <td>{number(skill.rdps)}</td> : <td>{DASH}</td>}
-                  <td>{skill.given ? DASH : amount(skill.total)}</td>
-                  <td>{skill.given ? DASH : rate(skill.critRate)}</td>
-                  <td>{skill.given ? DASH : rate(skill.directRate)}</td>
-                </tr>
-              ))}
-            </ActorRow>
-          ))}
+          {rows.map((row) => {
+            const limitBreak = props.data.actors[row.actor].kind === 'limitBreak'
+            // A limit break counts no critical or direct hits
+            const rateCell = (value: number | null) =>
+              limitBreak ? <td title={NO_LIMIT_BREAK_RATE}>{DASH}</td> : <td>{rate(value)}</td>
+            return (
+              <ActorRow
+                key={row.actor}
+                {...props}
+                actor={row.actor}
+                cells={
+                  <>
+                    <td>{withShare(row.dps, row.dpsShare)}</td>
+                    {rdpsCell(row.rdps, row.rdpsShare)}
+                    <td>{amount(row.total)}</td>
+                    {rateCell(row.critRate)}
+                    {rateCell(row.directRate)}
+                  </>
+                }
+              >
+                {row.skills.map((skill) => (
+                  <tr key={skill.skill} className="skill">
+                    <SkillCell data={props.data} skill={skill.skill} suffix={skill.given ? '（给予队友）' : ''} />
+                    <td>{skill.given ? DASH : number(skill.dps)}</td>
+                    {props.rdps ? <td>{number(skill.rdps)}</td> : <td>{DASH}</td>}
+                    <td>{skill.given ? DASH : amount(skill.total)}</td>
+                    {skill.given ? <td>{DASH}</td> : rateCell(skill.critRate)}
+                    {skill.given ? <td>{DASH}</td> : rateCell(skill.directRate)}
+                  </tr>
+                ))}
+              </ActorRow>
+            )
+          })}
         </tbody>
       </table>
     </>
@@ -263,7 +275,7 @@ function Users({ data, actors, names }: { data: ReplayData; actors: number[]; na
     <span className="users">
       {actors.map((index) => (
         <span key={index} title={actorName(data.actors[index])}>
-          <JobIcon job={data.actors[index].job} abbreviation={names[`job:${data.actors[index].job}`]} />
+          <ActorIcon actor={data.actors[index]} names={names} />
         </span>
       ))}
     </span>

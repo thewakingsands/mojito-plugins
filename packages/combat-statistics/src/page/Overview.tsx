@@ -4,8 +4,8 @@ import type { RowSummary, Summary } from '../model.js'
 import type { Selection, StatisticsState, VisitView } from '../view-model.js'
 import { useBridge } from './bridge.js'
 import { fightFacts, ResultLabel } from './fight.js'
-import { duration, entered, percent, skillName, zoneName } from './format.js'
-import { JobIcon, SkillIcon } from './icons.js'
+import { duration, entered, percent, zoneName } from './format.js'
+import { JobIcon, LimitBreakIcon, SkillIcon } from './icons.js'
 import { showBanner, toggle } from './state.js'
 import {
   type Cell,
@@ -16,6 +16,7 @@ import {
   healerRows,
   healSkills,
   type SkillLine,
+  skillLabel,
   totalCells,
 } from './tables.js'
 
@@ -231,7 +232,8 @@ function ActorRows(props: {
 }) {
   const { row, names, open } = props
   const role = roleOf(row.actor.job) ?? 'dps'
-  const name = row.actor.name ?? `角色 ${row.actor.id}`
+  const limitBreak = row.actor.kind === 'limitBreak'
+  const name = limitBreak ? '极限技' : (row.actor.name ?? `角色 ${row.actor.id}`)
   return (
     <Fragment>
       <tr
@@ -248,7 +250,11 @@ function ActorRows(props: {
       >
         <td title={name}>
           <span className="name">
-            <JobIcon job={row.actor.job} abbreviation={names[`job:${row.actor.job}`]} />
+            {limitBreak ? (
+              <LimitBreakIcon />
+            ) : (
+              <JobIcon job={row.actor.job} abbreviation={names[`job:${row.actor.job}`]} />
+            )}
             <span className="ellipsis">{name}</span>
           </span>
         </td>
@@ -256,7 +262,7 @@ function ActorRows(props: {
       </tr>
       {open &&
         props.skills.map((skill) => {
-          const label = skillName(skill.key, names)
+          const label = skillLabel(row, skill.key, names)
           return (
             <tr key={skill.key} className="skill">
               <td title={label}>
