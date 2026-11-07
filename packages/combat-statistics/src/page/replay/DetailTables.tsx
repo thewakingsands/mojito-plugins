@@ -30,6 +30,8 @@ function skillLabel(data: ReplayData, key: string) {
   const match = /^(action|status):(\d+)$/.exec(key)
   if (!match) return skillName(key, {})
   const id = Number(match[2])
+  // A summed tick carries no status id and its source is unknown; it only shows up in damage taken.
+  if (match[1] === 'status' && id === 0) return '持续伤害'
   if (match[1] === 'status') return statusName(data, id)
   return data.actions.find((action) => action.actionId === id)?.name ?? `技能 #${id}`
 }

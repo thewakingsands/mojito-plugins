@@ -199,6 +199,21 @@ it('names reflected damage in the skills of a member', async () => {
   expect(screen.getByText('反伤')).toBeTruthy()
 })
 
+it('names a summed tick in the damage taken by skill', async () => {
+  await open(
+    replayData({
+      fight: { visitId: 'v', fightId: 'f', durationMs: 60_000 },
+      actors: [member(0, 21, '战士'), enemy(1, true)],
+      entries: [{ t: 1000, actor: 0, other: -1, skill: 'status:0', field: 'taken', amount: 800 }],
+    }),
+  )
+  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(tab('承伤'))
+  press(screen.getByRole('radio', { name: '按敌人技能' }))
+  expect(screen.getByText('持续伤害')).toBeTruthy()
+  expect(screen.queryByText('状态 #0')).toBeNull()
+})
+
 it('draws the members on the map at their positions as the time moves', async () => {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
