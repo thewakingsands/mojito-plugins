@@ -28,7 +28,7 @@ export function Overview(props: {
   const { statistics, visit } = props
   const { command } = useBridge()
   const banner = showBanner(statistics) && (
-    <div className="banner" role="status">
+    <div className="mojito-callout banner" role="status">
       <span>当前战斗进行中</span>
       <button
         type="button"
@@ -46,15 +46,19 @@ export function Overview(props: {
     return (
       <>
         {banner}
-        <p className="placeholder">还没有战斗记录。进入区域并开始战斗后，这里会显示记录。</p>
+        <p className="mojito-empty">还没有战斗记录。进入区域并开始战斗后，这里会显示记录。</p>
       </>
     )
   const fight = visit?.fights.find((item) => item.id === selection.fightId)
   const summary = statistics.selected
   let body: ReactNode
-  if (statistics.loading) body = <p className="placeholder">正在读取日志</p>
+  if (statistics.loading) body = <p className="mojito-empty">正在读取日志</p>
   else if (statistics.loadError)
-    body = <p className="placeholder error">无法读取这次进本的日志：{statistics.loadError}</p>
+    body = (
+      <p className="mojito-callout" data-tone="danger">
+        无法读取这次进本的日志：{statistics.loadError}
+      </p>
+    )
   else if (summary) body = <Tables summary={summary} names={statistics.names} />
   const facts = fight && fightFacts(fight, statistics)
   const blocked =
@@ -111,48 +115,55 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
   const healers = healerRows(summary)
   return (
     <>
-      <table className="stats damage">
-        <colgroup>
-          <col />
-          <col className="amount" />
-          <col className="amount" />
-          <col className="rate" />
-          <col className="rate" />
-          <col className="rate" />
-          <col className="amount" />
-          <col className="count" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>角色</th>
-            {DAMAGE_COLUMNS.map((name) => (
-              <th key={name}>{name}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <ActorRows
-              key={row.actor.key}
-              row={row}
-              names={names}
-              cells={damageCells(row, summary)}
-              skills={damageSkills(row, summary)}
-              open={damageOpen.has(row.actor.key)}
-              onToggle={() => setDamageOpen((keys) => toggle(keys, row.actor.key))}
-            />
-          ))}
-          {rows.length > 0 && (
-            <tr className="total">
-              <td />
-              <Cells cells={totalCells(rows, summary)} />
+      <section className="mojito-panel table-panel">
+        <header>
+          <h2>伤害</h2>
+        </header>
+        <table className="stats damage">
+          <colgroup>
+            <col />
+            <col className="amount" />
+            <col className="amount" />
+            <col className="rate" />
+            <col className="rate" />
+            <col className="rate" />
+            <col className="amount" />
+            <col className="count" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>角色</th>
+              {DAMAGE_COLUMNS.map((name) => (
+                <th key={name}>{name}</th>
+              ))}
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <ActorRows
+                key={row.actor.key}
+                row={row}
+                names={names}
+                cells={damageCells(row, summary)}
+                skills={damageSkills(row, summary)}
+                open={damageOpen.has(row.actor.key)}
+                onToggle={() => setDamageOpen((keys) => toggle(keys, row.actor.key))}
+              />
+            ))}
+            {rows.length > 0 && (
+              <tr className="total">
+                <td />
+                <Cells cells={totalCells(rows, summary)} />
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
       {healers.length > 0 && (
-        <>
-          <h2 className="table-title">治疗</h2>
+        <section className="mojito-panel table-panel">
+          <header>
+            <h2>治疗</h2>
+          </header>
           <table className="stats heal">
             <colgroup>
               <col />
@@ -181,7 +192,7 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
               ))}
             </tbody>
           </table>
-        </>
+        </section>
       )}
     </>
   )

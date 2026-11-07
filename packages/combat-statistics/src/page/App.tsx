@@ -55,7 +55,7 @@ export function App() {
       )}
       <div className="layout" hidden={review !== null}>
         {status && (
-          <p className="status" role="status">
+          <p className="mojito-callout status" data-tone="warn" role="status">
             {status}
           </p>
         )}
@@ -74,7 +74,7 @@ export function App() {
               />
             ))}
             {!visits.length && !visitsState?.reading && filtering(query) && (
-              <p className="placeholder visits-empty">没有符合条件的进本</p>
+              <p className="mojito-empty">没有符合条件的进本</p>
             )}
             {paging && (
               <div className="pager">
@@ -116,13 +116,21 @@ function VisitItem(props: {
       <button type="button" className={`visit-head${selected ? ' selected' : ''}`} onClick={props.onToggle}>
         <span className="visit-title">
           <span className="ellipsis">{zoneName(visit)}</span>
-          {visit.current && <span className="tag running">● 进行中</span>}
+          {visit.current && (
+            <span className="mojito-chip tag" data-tone="ok">
+              进行中
+            </span>
+          )}
         </span>
         <span className="visit-meta">
           {entered(visit.enteredAt, Date.now())} ·{' '}
           {fightCounts(visit.fights.map((fight) => fightFacts(fight, statistics)))}
         </span>
-        {visit.status === 'failed' && <span className="visit-error">⚠ 日志不可用</span>}
+        {visit.status === 'failed' && (
+          <span className="mojito-chip visit-error" data-tone="warn">
+            日志不可用
+          </span>
+        )}
       </button>
       {expanded && (
         <ul className="fights">

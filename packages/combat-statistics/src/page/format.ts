@@ -32,10 +32,17 @@ export const skillName = (key: string, names: Record<string, string>) => {
 
 export type ResultTag = FightResult | 'running'
 export const RESULT_LABELS: Record<ResultTag, string> = {
-  kill: '✓ 击杀',
-  wipe: '✕ 团灭',
-  ended: '– 结束',
-  running: '● 进行中',
+  kill: '击杀',
+  wipe: '团灭',
+  ended: '结束',
+  running: '进行中',
+}
+/** The tone of mojito-base.css's status chip, which draws the mark beside the word */
+export const RESULT_TONES: Record<ResultTag, 'ok' | 'danger' | undefined> = {
+  kill: 'ok',
+  wipe: 'danger',
+  ended: undefined,
+  running: 'ok',
 }
 /** 23 场 · 击杀 1 · 团灭 21; a result that did not happen is left out */
 export function fightCounts(fights: { result: FightResult | 'running' | null }[]): string {

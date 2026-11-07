@@ -26,13 +26,15 @@ function setup(query: VisitQuery = DEFAULT_QUERY) {
   return { ...result, sent, head, rerenderWith: (next: VisitQuery) => result.rerender(tree(next)) }
 }
 
-it('starts closed with the arrow before the title, and opens', () => {
+it('starts closed with the chevron before the title, and opens', () => {
   const h = setup()
   expect(h.head().getAttribute('aria-expanded')).toBe('false')
-  expect(h.head().textContent).toBe('▸筛选和搜索未筛选')
+  // The host's chevron, which turns with aria-expanded
+  expect(h.head().firstElementChild?.className).toBe('mojito-chevron')
+  expect(h.head().textContent).toBe('筛选和搜索未筛选')
   fireEvent.click(h.head())
   expect(h.head().getAttribute('aria-expanded')).toBe('true')
-  expect(h.head().textContent).toBe('▾筛选和搜索')
+  expect(h.head().textContent).toBe('筛选和搜索')
 })
 it('applies the conditions on 搜索 or Enter only', () => {
   const h = setup()

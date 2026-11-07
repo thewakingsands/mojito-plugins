@@ -45,12 +45,6 @@ body {
 }
 .status {
   margin-bottom: var(--mojito-space-group);
-  padding: 6px 12px;
-  border-radius: var(--mojito-radius-control);
-  font-size: var(--mojito-text-xs);
-  line-height: 18px;
-  background: var(--mojito-warn-bg);
-  color: var(--mojito-warn-fg);
 }
 .placeholder {
   padding: 24px 0;
@@ -122,11 +116,6 @@ body {
   width: 100%;
   border: 0;
   background: transparent;
-}
-.visit-filter-arrow {
-  flex: none;
-  width: 12px;
-  color: var(--mojito-fg-tertiary);
 }
 .visit-filter-summary {
   margin-left: auto;
@@ -272,13 +261,13 @@ body {
   width: 100%;
 }
 .visit-meta,
-.fight-meta,
-.visit-error {
+.fight-meta {
   font: 400 12px / 18px var(--mojito-font-sans);
   color: var(--mojito-fg-tertiary);
 }
 .visit-error {
-  color: var(--mojito-warn-fg);
+  align-self: flex-start;
+  margin-top: 2px;
 }
 .fights {
   margin: 0 0 8px;
@@ -292,39 +281,16 @@ body {
   background: var(--mojito-bg-subtle);
 }
 
-/* Results are a shape and a word, never a color alone. */
+/* Results are mojito-base.css status chips: a mark and a word, never a colour alone. */
 .tag {
   flex: none;
-  padding: 0 8px;
-  border-radius: 999px;
-  font: 500 12px / 20px var(--mojito-font-sans);
-  background: var(--mojito-bg-subtle);
-  color: var(--mojito-fg-secondary);
-}
-.tag.kill {
-  background: var(--mojito-ok-bg);
-  color: var(--mojito-ok-fg);
-}
-.tag.wipe {
-  background: var(--mojito-danger-bg);
-  color: var(--mojito-danger-fg);
-}
-.tag.running {
-  background: var(--mojito-ok-bg);
-  color: var(--mojito-accent);
 }
 
 .banner {
-  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 6px 6px 6px 12px;
-  border-radius: var(--mojito-radius-control);
-  background: var(--mojito-ok-bg);
-  color: var(--mojito-ok-fg);
-  font-size: 13px;
+  margin-bottom: var(--mojito-space-group);
+  padding: 6px 6px 6px 14px;
 }
 .overview-head {
   display: flex;
@@ -407,6 +373,23 @@ body {
   background: var(--mojito-bg-subtle);
   font-weight: 600;
 }
+/* Each table sits in a panel with its title; the header band and the total row reach the panel's edges. */
+.table-panel {
+  overflow: hidden;
+  margin-bottom: var(--mojito-space-section);
+}
+.table-panel th {
+  background: var(--mojito-bg-subtle);
+}
+.table-panel :where(th, td):first-child {
+  padding-left: 20px;
+}
+.table-panel :where(th, td):last-child {
+  padding-right: 20px;
+}
+.table-panel tr:last-child td {
+  border-bottom: 0;
+}
 .name {
   display: flex;
   align-items: center;
@@ -440,12 +423,6 @@ body {
 .role-dps {
   background: var(--mojito-dps-bg);
   color: var(--mojito-dps-fg);
-}
-.table-title {
-  margin: 24px 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mojito-fg-secondary);
 }
 .settings-page {
   display: flex;
@@ -1471,4 +1448,29 @@ table.uptime td:nth-child(2) {
   font-size: 11px;
   color: var(--mojito-fg-tertiary);
   pointer-events: none;
+}
+
+/* Buttons this page draws itself (list rows, the review's tabs, chips, switch and timeline marks) keep their own
+   look: no key edges from mojito-base.css and no press movement. */
+:is(
+  .visit-filter-head,
+  .visit-head,
+  .fight,
+  .tab,
+  .chip,
+  .switch,
+  .uptime-toggle,
+  .segments button,
+  .span-chip button,
+  .event,
+  .event-mark,
+  .cast
+) {
+  box-shadow: none;
+}
+:is(.visit-head, .fight, .tab, .chip, .switch, .event, .event-mark, .cast):active {
+  transform: none;
+}
+.event {
+  white-space: normal;
 }

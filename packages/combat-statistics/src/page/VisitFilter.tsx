@@ -57,9 +57,7 @@ export function VisitFilter({ query }: { query: VisitQuery }) {
   return (
     <section className="visit-filter">
       <button type="button" className="visit-filter-head" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="visit-filter-arrow" aria-hidden="true">
-          {open ? '▾' : '▸'}
-        </span>
+        <span className="mojito-chevron" aria-hidden="true" />
         <span>筛选和搜索</span>
         {!open && <span className="visit-filter-summary ellipsis">{querySummary(query)}</span>}
       </button>
