@@ -3,7 +3,7 @@
 插件页面（侧栏功能页、首页面板、插件设置页）和插件自己的悬浮窗都是独立的网页，宿主的样式和组件进不去。为了让插件看起来和宿主一致，宿主提供三样东西：
 
 - **样式变量**：一组 `--mojito-*` CSS 变量，宿主自动注入每个插件页面和悬浮窗，插件不用写任何代码。值随浅色、深色主题实时变化。
-- **基础样式**（可选）：`/host/mojito-base.css`，引入后按钮、输入框、表格等普通 HTML 元素就和宿主一样。
+- **基础样式**（可选）：`/host/mojito-base.css`，引入后按钮、输入框、开关、表格等普通 HTML 元素就和宿主的界面一样。插件自己写的样式总是比它优先。
 - **字体**：宿主自带的 Geist，`--mojito-font-sans` 和 `--mojito-font-mono` 已经指向它，中文退回微软雅黑。
 
 宿主不提供组件库，也不渲染表单描述。插件用什么框架都可以（React、Vue、原生 DOM、画布），只要颜色、字号、圆角和尺寸取自这些变量。
@@ -43,6 +43,11 @@
 | `--mojito-tank-bg` `-fg`，`healer`，`dps` | | 防护、治疗、输出职能 |
 | `--mojito-chart-grid` `-axis` | | 图表网格线、坐标轴 |
 | `--mojito-shadow-raised` `-popover` | | 选中项 / 插件自己的弹出层 |
+| `--mojito-shadow-control` `-primary` `-card` | | 按钮、下拉框边缘的亮线和暗线 / 主按钮的边缘 / 面板的轻投影 |
+| `--mojito-border-heavy` | | 复选框边框、输入框悬停 |
+| `--mojito-bg-strong` `-selected` `-chip` | | 开关悬停和不可用的填充 / 选中项的底色 / 中性标签的底色 |
+| `--mojito-thumb` `--mojito-shadow-thumb` | | 开关的滑块和它的投影 |
+| `--mojito-scrim` | | 对话框后面压暗页面的遮罩 |
 
 `-bg` 和 `-fg` 成对使用，深色主题下 `-bg` 是半透明的，叠在 `--mojito-bg` 上才是设计的效果。
 
@@ -72,20 +77,27 @@
 <link rel="stylesheet" href="/host/mojito-base.css">
 ```
 
+基础样式的全部规则都放在一个 CSS 层（`@layer mojito`）里。插件自己写的、不在层里的样式不管选择器多弱、写在哪里，都比它优先，所以不需要提高选择器的优先级去覆盖它；也不要在自己的样式里再声明名为 `mojito` 的层。
+
 写成以 `/` 开头的地址：插件页面的地址是 `mojito-plugin://runtime/plugin/…`，这个地址会指向宿主的 `mojito-plugin://runtime/host/mojito-base.css`。用 Vite 构建时会提示“doesn't exist at build time”，可以忽略。开发服务器上的页面同样可用。
 
 基础样式包括：
 
 - `body`：底色、文字颜色、字体和 `--mojito-space-page` 内边距。不想要内边距时自己覆盖。
 - 标题、段落、链接、`small`、分隔线、`code`/`kbd`、焦点框、选中文字、滚动条。
-- `button`：默认是次要按钮；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px。
-- `input`、`select`、`textarea`、复选框、单选框、滑块，`label`、`fieldset`。
+- `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。
+- `input`、`select`、`textarea`：30px 高，悬停时边框加深，焦点时是强调色边框加一圈浅色光圈；`select` 用宿主的上下箭头。
+- 复选框和单选框：选中时是青柠色；`<input type="checkbox" role="switch">` 是开关，用于立即生效的设置。滑块、`progress`、`meter` 用宿主的颜色。
+- `label`、`fieldset`、`legend`；`details` 的展开标记换成宿主的箭头，不改变布局。
+- `code`、`pre`、`kbd`（键帽）、`mark`、`blockquote`、列表、`dialog`。
 - `table`：表头、行高 36px、悬停、等宽数字。
-- 四个类：
+- 六个类：
   - `.mojito-panel`：带边框的容器，12px 圆角。
   - `.mojito-field`：一行设置，左边标签和说明，右边控件；相邻的自动加分隔线。
   - `.mojito-chip`：状态和职能标签，`data-tone="ok|warn|danger|tank|healer|dps"`。
   - `.mojito-secondary`：说明文字。
+  - `.mojito-callout`：一段提示，`data-tone="warn|danger"`。
+  - `.mojito-segmented`：几个选项并排，里面是带 `aria-pressed` 的按钮，或包着单选框的 `label`；选中的一项是青柠色。
 
 一个设置页：
 
@@ -142,7 +154,7 @@ OverlayPlugin 兼容模板是第三方页面，宿主不给它们注入变量。
 保证（版本 1 内不会删除或改名）：
 
 - `--mojito-*` 变量的名字和用途，`--mojito-contract`。
-- `/host/mojito-base.css` 的地址，里面的四个类名和 `data-variant`、`data-size`、`data-tone` 属性。
+- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的六个类名，`data-variant`、`data-size`、`data-tone`、`data-icon` 属性和 `role="switch"`。
 - 字体地址 `/host/fonts/`。
 
 不保证：
