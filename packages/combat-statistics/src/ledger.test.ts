@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { GameEvent } from './combat-events.js'
 import { actors, attribution, effect, npcParty, sample, tick } from './fixtures.js'
-import { Ledger, overhealMetrics } from './ledger.js'
+import { Ledger, type LedgerEntry, overhealMetrics } from './ledger.js'
 import { REFLECT_SKILL } from './model.js'
 
 it('counts AoE effects separately, preserves expanded values, and keeps names out of identity', () => {
@@ -613,4 +613,38 @@ it('counts the damage, damage taken and death of an NPC party member in its own 
   expect(rows[0]).toMatchObject({ actor: { key: 'source:0:4', name: '亲信', kind: 'member' } })
   expect(rows[0].totals).toMatchObject({ damage: 100, taken: 30, deaths: 1 })
   expect(ledger.diagnostics.outOfScopeDamage).toBe(0)
+})
+
+const memberTick = tick({ target: 1, unknown: 100, shares: [] })
+const enemyTick = tick({ unknown: 100, shares: [] })
+
+it('counts a summed tick on a member without shares as damage taken, not as unassigned', () => {
+  const ledger = new Ledger(actors())
+  const entries: LedgerEntry[] = []
+  ledger.observer = (entry) => entries.push(entry)
+  ledger.periodic(memberTick)
+  expect(entries).toEqual([expect.objectContaining({ field: 'taken', skill: 'status:0', amount: 100 })])
+  const member = ledger.summary(1000, 2000, false).find((row) => row.actor.id === 1)
+  expect(member?.totals).toMatchObject({ taken: 100, damage: 0 })
+  expect(member?.metrics.taken.quality).toBe('observed')
+  expect(ledger.diagnostics).toMatchObject({ unassignedObservedDamage: 0, observedTargetDamage: 0 })
+})
+
+it('still counts a summed tick on an enemy without shares as unassigned', () => {
+  const ledger = new Ledger(actors())
+  ledger.periodic(enemyTick)
+  expect(ledger.diagnostics).toMatchObject({ unassignedObservedDamage: 100, observedTargetDamage: 100 })
+})
+
+it('counts the damage taken of a revised summed tick on a member once', () => {
+  const ledger = new Ledger(actors())
+  ledger.periodic(memberTick)
+  expect(ledger.periodic({ ...memberTick, phase: 'post' }, true)).toBe(true)
+  expect(ledger.summary(1000, 2000, false).find((row) => row.actor.id === 1)?.totals.taken).toBe(100)
+  expect(ledger.pending.size).toBe(0)
+  expect(ledger.diagnostics.unassignedObservedDamage).toBe(0)
+})
+
+it('does not take a summed tick on a member without shares as hostile', () => {
+  expect(new Ledger(actors()).periodicHostile(memberTick)).toBe(false)
 })

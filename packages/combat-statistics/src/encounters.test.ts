@@ -641,3 +641,17 @@ it('refreshes the ledger only when the actors or the active encounter changed', 
     refresh.mockRestore()
   }
 })
+it('counts a summed tick on a member only within a fight', () => {
+  const { encounters } = setup()
+  const summed = { target: 1, unknown: 100, shares: [] }
+  encounters.accept(sample({ type: 'periodicTick', data: tick(summed) }, 1000), 1000)
+  expect(encounters.active).toBeNull()
+  encounters.accept(sample(effect(1), 2000), 2000)
+  encounters.accept(
+    sample({ type: 'periodicTick', data: tick({ ...summed, tickId: 2, occurredAt: 2500 }) }, 2500),
+    2500,
+  )
+  const summary = encounters.snapshot()!
+  expect(summary.rows.find((row) => row.actor.id === 1)?.totals.taken).toBe(100)
+  expect(summary.diagnostics.unassignedObservedDamage).toBe(0)
+})

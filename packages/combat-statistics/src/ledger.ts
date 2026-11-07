@@ -601,10 +601,9 @@ export class Ledger {
         })
       if (!tick.isHeal && !inScope(source)) outside += share.amount
     }
-    if (
-      inScope(receiver) &&
-      (tick.isHeal || tick.shares.some((s) => identities.get(s.sourceId ?? -1)?.kind === 'enemy'))
-    )
+    // Summed ticks that enemies or the environment put on a member have no shares and no known source,
+    // so damage taken goes by the receiver alone.
+    if (inScope(receiver))
       contributions.push({
         actor: receiver,
         field: tick.isHeal ? 'healingTaken' : 'taken',
@@ -617,7 +616,7 @@ export class Ledger {
       actors: identities,
       tick: structuredClone(tick),
       contributions,
-      unknown: tick.isHeal ? 0 : tick.unknown,
+      unknown: !tick.isHeal && receiver?.kind === 'enemy' ? tick.unknown : 0,
       outside,
       observed: !tick.isHeal && receiver?.kind === 'enemy' ? tick.total : 0,
       overhealed,
