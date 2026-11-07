@@ -3,6 +3,7 @@ import { periodicDefs } from './defs/index.js'
 import {
   type ElementRules,
   type GaugeModifier,
+  mergeClassJobActions,
   PeriodicDefsError,
   parsePeriodicDefs,
   potencyAt,
@@ -707,6 +708,192 @@ describe('parsePeriodicDefs', () => {
   })
 })
 
+/** Two files that share Rampart and its status, as the role actions of the tanks */
+function classJobFiles() {
+  const rampart = () => ({
+    id: 1191,
+    modifiers: [{ type: 'damageTaken', value: [{ level: 1, value: -0.2 }], scope: 'all' }],
+  })
+  return [
+    {
+      name: 'ClassJobActions/Paladin',
+      content: {
+        classJob: 19,
+        statuses: [
+          rampart(),
+          { id: 725, periodic: { kind: 'damage', action: 3538, potency: [{ level: 1, potency: 30 }] } },
+        ] as Record<string, any>[],
+        actions: [
+          {
+            id: 9,
+            category: 'weaponskill',
+            attackType: 'physical',
+            calibration: { kind: 'damage', potency: [{ level: 1, potency: 220 }] },
+            potency: { base: [{ level: 1, potency: 220 }] },
+          },
+          { id: 3538, category: 'weaponskill', attackType: 'physical' },
+          { id: 7531, category: 'ability', attackType: null },
+        ] as Record<string, any>[],
+      } as Record<string, any>,
+    },
+    {
+      name: 'ClassJobActions/Warrior',
+      content: {
+        classJob: 21,
+        statuses: [rampart()] as Record<string, any>[],
+        actions: [
+          {
+            id: 31,
+            category: 'weaponskill',
+            attackType: 'physical',
+            calibration: { kind: 'damage', potency: [{ level: 1, potency: 240 }] },
+          },
+          { id: 7531, category: 'ability', attackType: null },
+          { id: 16465, category: 'weaponskill', attackType: 'physical', forced: 'criticalDirect' },
+        ] as Record<string, any>[],
+      } as Record<string, any>,
+    },
+  ]
+}
+
+type Files = ReturnType<typeof classJobFiles>
+
+/** The data the files give with the rest of a valid input */
+const defsOf = (files: Files) => parsePeriodicDefs({ ...validInput(), ...mergeClassJobActions(files) })
+
+/** The error that merging the files, or reading the merged input, throws after the change */
+function mergeErrorOf(change: (files: Files) => void): PeriodicDefsError {
+  const files = classJobFiles()
+  change(files)
+  try {
+    defsOf(files)
+  } catch (error) {
+    expect(error).toBeInstanceOf(PeriodicDefsError)
+    return error as PeriodicDefsError
+  }
+  throw new Error('expected a PeriodicDefsError')
+}
+
+describe('mergeClassJobActions', () => {
+  it('gives each entry the job of its file', () => {
+    const defs = defsOf(classJobFiles())
+    expect(defs.periodic.get(725)?.job).toBe(19)
+    expect(defs.calibration.get(9)).toMatchObject([{ job: 19 }])
+    expect(defs.calibration.get(31)).toMatchObject([{ job: 21 }])
+    expect(defs.samples.get(9)).toMatchObject([{ job: 19 }])
+    expect(defs.forced.get(16465)).toBe('criticalDirect')
+  })
+
+  it('lists a shared status and action once', () => {
+    const merged = mergeClassJobActions(classJobFiles())
+    expect(merged.statuses.statuses.filter((entry: any) => entry.id === 1191)).toHaveLength(1)
+    expect(merged.actionTypes.actions.map((entry) => entry.id)).toEqual([9, 31, 3538, 7531, 16465])
+    expect(defsOf(classJobFiles()).actionTypes.get(7531)).toEqual({ category: 'ability', attackType: null })
+  })
+
+  it('gives the forced result of an action in several files once', () => {
+    const files = classJobFiles()
+    files[0].content.actions.push({
+      id: 16465,
+      category: 'weaponskill',
+      attackType: 'physical',
+      forced: 'criticalDirect',
+    })
+    files[1].content.actions[2].calibration = { kind: 'damage', potency: [{ level: 1, potency: 500 }] }
+    expect(defsOf(files).forced.get(16465)).toBe('criticalDirect')
+    const forced = mergeClassJobActions(files).actions.actions.filter((entry: any) => 'forced' in entry)
+    expect(forced).toHaveLength(1)
+  })
+
+  it.each([
+    ['an unknown field of a file', (files: Files) => (files[0].content.extra = 1), 'ClassJobActions/Paladin.extra'],
+    [
+      'a class or job given twice',
+      (files: Files) => (files[1].content.classJob = 19),
+      'ClassJobActions/Warrior.classJob',
+    ],
+    [
+      'actions out of order',
+      (files: Files) => files[1].content.actions.reverse(),
+      'ClassJobActions/Warrior.actions[1].id',
+    ],
+    [
+      'the job of a periodic status',
+      (files: Files) => (files[0].content.statuses[1].periodic.job = 19),
+      'ClassJobActions/Paladin.statuses[1].periodic.job',
+    ],
+    [
+      'the job of an action',
+      (files: Files) => (files[0].content.actions[0].job = 19),
+      'ClassJobActions/Paladin.actions[0].job',
+    ],
+    [
+      'the job of a calibration',
+      (files: Files) => (files[0].content.actions[0].calibration.job = 19),
+      'ClassJobActions/Paladin.actions[0].calibration.job',
+    ],
+    [
+      'a shared status that differs',
+      (files: Files) => (files[1].content.statuses[0].modifiers[0].scope = 'source'),
+      'ClassJobActions/Warrior.statuses[0]',
+    ],
+    [
+      'a shared action of another category',
+      (files: Files) => (files[1].content.actions[1].category = 'spell'),
+      'ClassJobActions/Warrior.actions[1].category',
+    ],
+    [
+      'a shared action with another forced result',
+      (files: Files) => (files[1].content.actions[1].forced = 'critical'),
+      'ClassJobActions/Warrior.actions[1].forced',
+    ],
+  ])('rejects %s', (_, change, path) => {
+    expect(mergeErrorOf(change).path).toBe(path)
+  })
+
+  it('names the shared status an entry differs from', () => {
+    const error = mergeErrorOf((files) => (files[1].content.statuses[0].modifiers[0].scope = 'source'))
+    expect(error.reason).toBe('status 1191 differs from ClassJobActions/Paladin.statuses[0]')
+  })
+
+  it.each([
+    [
+      'a status',
+      (files: Files) => {
+        for (const file of files) file.content.statuses[0].modifiers[0].scope = 'party'
+      },
+      'ClassJobActions/Paladin.statuses[0].modifiers[0].scope',
+    ],
+    [
+      'a periodic status',
+      (files: Files) => (files[0].content.statuses[1].periodic.kind = 'mana'),
+      'ClassJobActions/Paladin.statuses[1].periodic.kind',
+    ],
+    [
+      'a calibration',
+      (files: Files) => (files[1].content.actions[0].calibration.kind = 'mana'),
+      'ClassJobActions/Warrior.actions[0].calibration.kind',
+    ],
+    [
+      'a forced result',
+      (files: Files) => (files[1].content.actions[2].forced = 'never'),
+      'ClassJobActions/Warrior.actions[2].forced',
+    ],
+    [
+      'a sample potency',
+      (files: Files) => (files[0].content.actions[0].potency.base = []),
+      'ClassJobActions/Paladin.actions[0].potency.base',
+    ],
+    [
+      'an action type',
+      (files: Files) => (files[0].content.actions[1].attackType = 'fire'),
+      'ClassJobActions/Paladin.actions[1].attackType',
+    ],
+  ])('gives the path in its file of an error in %s', (_, change, path) => {
+    expect(mergeErrorOf(change).path).toBe(path)
+  })
+})
+
 describe('potencyAt', () => {
   const table = [
     { level: 1, potency: 250 },
@@ -762,5 +949,17 @@ describe('periodicDefs', () => {
     expect(Object.keys(gekko.potency).sort()).toEqual(['base', 'combo', 'comboRear', 'rear'])
     // Actions that no job learns, one that another action raises, and one whose potency depends on the stacks
     for (const id of [16196, 7487, 36946, 24385]) expect(periodicDefs.samples.has(id)).toBe(false)
+  })
+
+  it('leaves out the actions of PvP', () => {
+    for (const id of [29716, 41494, 29236]) expect(periodicDefs.actionTypes.has(id)).toBe(false)
+  })
+
+  it('gives a sample action only to the jobs that learn it', () => {
+    // Ruin and Ruin II of the scholar; it does not learn Fester, Energy Drain or the gemstone summons of the arcanist
+    for (const id of [17869, 17870]) expect(periodicDefs.samples.get(id)?.map((item) => item.job)).toEqual([28])
+    for (const id of [181, 16508, 25802, 25803, 25804]) {
+      expect(periodicDefs.samples.get(id)?.map((item) => item.job)).not.toContain(28)
+    }
   })
 })

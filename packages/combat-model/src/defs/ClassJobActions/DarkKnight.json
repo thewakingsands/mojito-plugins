@@ -1,0 +1,204 @@
+{
+  "classJob": 32,
+  "statuses": [
+    {
+      "id": 751,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 16470
+        }
+      ]
+    },
+    {
+      "id": 1191,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0 }, { "level": 94, "value": 0.15 }],
+          "valueAction": 7531,
+          "scope": "all"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": 3617,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 180 }, { "level": 94, "potency": 300 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 180 }, { "level": 94, "potency": 300 }]
+      }
+    },
+    {
+      "id": 3621,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 120 }]
+      }
+    },
+    {
+      "id": 3623,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }, { "level": 84, "potency": 120 }, { "level": 94, "potency": 240 }],
+        "combo": [{ "level": 1, "potency": 240 }, { "level": 84, "potency": 260 }, { "level": 94, "potency": 380 }]
+      }
+    },
+    {
+      "id": 3624,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }]
+      }
+    },
+    { "id": 3625, "category": "ability", "attackType": null },
+    { "id": 3629, "category": "ability", "attackType": null },
+    {
+      "id": 3632,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }, { "level": 84, "potency": 140 }, { "level": 94, "potency": 260 }],
+        "combo": [{ "level": 1, "potency": 320 }, { "level": 84, "potency": 360 }, { "level": 94, "potency": 480 }]
+      }
+    },
+    { "id": 3634, "category": "ability", "attackType": null },
+    { "id": 3636, "category": "ability", "attackType": null },
+    { "id": 3638, "category": "ability", "attackType": null },
+    {
+      "id": 3639,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 3641,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 240 }]
+      }
+    },
+    {
+      "id": 3643,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 510 }, { "level": 94, "potency": 540 }]
+      }
+    },
+    { "id": 7390, "category": "ability", "attackType": null },
+    {
+      "id": 7391,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }, { "level": 94, "potency": 240 }]
+      }
+    },
+    {
+      "id": 7392,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 500 }, { "level": 94, "potency": 600 }]
+      }
+    },
+    { "id": 7393, "category": "ability", "attackType": null },
+    { "id": 7531, "category": "ability", "attackType": null },
+    { "id": 7533, "category": "ability", "attackType": null },
+    { "id": 7535, "category": "ability", "attackType": "physical" },
+    { "id": 7537, "category": "ability", "attackType": null },
+    { "id": 7538, "category": "ability", "attackType": "physical" },
+    { "id": 7540, "category": "ability", "attackType": "physical" },
+    { "id": 7548, "category": "ability", "attackType": null },
+    {
+      "id": 16466,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 16467,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 300 }]
+      }
+    },
+    {
+      "id": 16468,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }, { "level": 94, "potency": 120 }],
+        "combo": [{ "level": 1, "potency": 140 }, { "level": 94, "potency": 160 }]
+      }
+    },
+    {
+      "id": 16469,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 160 }]
+      }
+    },
+    {
+      "id": 16470,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 460 }]
+      }
+    },
+    { "id": 16471, "category": "ability", "attackType": null },
+    { "id": 16472, "category": "ability", "attackType": null },
+    { "id": 25754, "category": "ability", "attackType": null },
+    {
+      "id": 25755,
+      "category": "ability",
+      "attackType": null,
+      "potency": {
+        "base": [{ "level": 1, "potency": 500 }]
+      }
+    },
+    { "id": 25756, "category": "ability", "attackType": "magic" },
+    {
+      "id": 25757,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 600 }]
+      }
+    },
+    { "id": 32067, "category": "ability", "attackType": null },
+    { "id": 36926, "category": "ability", "attackType": null },
+    { "id": 36927, "category": "ability", "attackType": null },
+    { "id": 36928, "category": "weaponskill", "attackType": "physical" },
+    { "id": 36929, "category": "weaponskill", "attackType": "physical" },
+    { "id": 36930, "category": "weaponskill", "attackType": "physical" },
+    { "id": 36931, "category": "weaponskill", "attackType": "physical" },
+    {
+      "id": 36932,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 1000 }]
+      }
+    }
+  ]
+}

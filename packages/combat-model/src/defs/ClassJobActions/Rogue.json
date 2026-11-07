@@ -1,0 +1,98 @@
+{
+  "classJob": 29,
+  "statuses": [
+    {
+      "id": 638,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.05 }],
+          "valueAction": 2248,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 3254,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 2258,
+          "scope": "source"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": 2240,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 180 }]
+      }
+    },
+    { "id": 2241, "category": "ability", "attackType": null },
+    {
+      "id": 2242,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }],
+        "combo": [{ "level": 1, "potency": 260 }]
+      }
+    },
+    { "id": 2245, "category": "ability", "attackType": null },
+    {
+      "id": 2247,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 120 }]
+      }
+    },
+    {
+      "id": 2248,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }]
+      }
+    },
+    {
+      "id": 2254,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 2255,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }],
+        "combo": [{ "level": 1, "potency": 280 }],
+        "rear": [{ "level": 1, "potency": 160 }],
+        "comboRear": [{ "level": 1, "potency": 340 }]
+      }
+    },
+    {
+      "id": 2258,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 300 }],
+        "rear": [{ "level": 1, "potency": 400 }]
+      }
+    },
+    { "id": 7541, "category": "ability", "attackType": null },
+    { "id": 7542, "category": "ability", "attackType": null },
+    { "id": 7546, "category": "ability", "attackType": null },
+    { "id": 7548, "category": "ability", "attackType": null },
+    { "id": 7549, "category": "ability", "attackType": "physical" },
+    { "id": 7863, "category": "ability", "attackType": "physical" }
+  ]
+}

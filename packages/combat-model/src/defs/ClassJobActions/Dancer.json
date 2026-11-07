@@ -1,0 +1,201 @@
+{
+  "classJob": 38,
+  "statuses": [
+    {
+      "id": 1821,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 1822,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
+    },
+    {
+      "id": 1825,
+      "modifiers": [
+        {
+          "type": "critRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16011
+        },
+        {
+          "type": "directHitRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 16011
+        }
+      ]
+    },
+    {
+      "id": 2105,
+      "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte", "byteOf": 1821 }]
+    },
+    {
+      "id": 2695,
+      "periodic": {
+        "kind": "heal",
+        "action": 16014,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    }
+  ],
+  "actions": [
+    { "id": 7541, "category": "ability", "attackType": null },
+    { "id": 7548, "category": "ability", "attackType": null },
+    { "id": 7551, "category": "ability", "attackType": "physical" },
+    { "id": 7553, "category": "ability", "attackType": "physical" },
+    { "id": 7554, "category": "ability", "attackType": "physical" },
+    { "id": 7557, "category": "ability", "attackType": null },
+    {
+      "id": 15989,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 200 }, { "level": 94, "potency": 220 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    {
+      "id": 15990,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }, { "level": 94, "potency": 120 }],
+        "combo": [{ "level": 1, "potency": 260 }, { "level": 94, "potency": 280 }]
+      }
+    },
+    {
+      "id": 15991,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 260 }, { "level": 94, "potency": 280 }]
+      }
+    },
+    {
+      "id": 15992,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 320 }, { "level": 94, "potency": 340 }]
+      }
+    },
+    {
+      "id": 15993,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 120 }]
+      }
+    },
+    {
+      "id": 15994,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }],
+        "combo": [{ "level": 1, "potency": 160 }]
+      }
+    },
+    {
+      "id": 15995,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 160 }]
+      }
+    },
+    {
+      "id": 15996,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    { "id": 15997, "category": "weaponskill", "attackType": null },
+    { "id": 15998, "category": "weaponskill", "attackType": null },
+    { "id": 15999, "category": "weaponskill", "attackType": null },
+    { "id": 16000, "category": "weaponskill", "attackType": null },
+    { "id": 16001, "category": "weaponskill", "attackType": null },
+    { "id": 16002, "category": "weaponskill", "attackType": null },
+    { "id": 16003, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16004, "category": "weaponskill", "attackType": "physical" },
+    {
+      "id": 16005,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 500 }, { "level": 94, "potency": 540 }]
+      }
+    },
+    { "id": 16006, "category": "ability", "attackType": null },
+    {
+      "id": 16007,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }, { "level": 94, "potency": 180 }]
+      }
+    },
+    {
+      "id": 16008,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    {
+      "id": 16009,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    { "id": 16010, "category": "ability", "attackType": null },
+    { "id": 16011, "category": "ability", "attackType": null },
+    { "id": 16012, "category": "ability", "attackType": null },
+    { "id": 16013, "category": "ability", "attackType": null },
+    { "id": 16014, "category": "ability", "attackType": null },
+    {
+      "id": 16015,
+      "category": "ability",
+      "attackType": null,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 300 }]
+      }
+    },
+    { "id": 16191, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16192, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16193, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16194, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16195, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16196, "category": "weaponskill", "attackType": "physical" },
+    { "id": 18073, "category": "ability", "attackType": null },
+    { "id": 25789, "category": "ability", "attackType": null },
+    { "id": 25790, "category": "weaponskill", "attackType": "physical" },
+    {
+      "id": 25791,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 300 }, { "level": 94, "potency": 460 }]
+      }
+    },
+    { "id": 25792, "category": "weaponskill", "attackType": "physical", "forced": "criticalDirect" },
+    {
+      "id": 36983,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 540 }]
+      }
+    },
+    { "id": 36984, "category": "weaponskill", "attackType": "physical" },
+    { "id": 36985, "category": "weaponskill", "attackType": "physical" }
+  ]
+}

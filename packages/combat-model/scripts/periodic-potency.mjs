@@ -1,41 +1,45 @@
 #!/usr/bin/env node
 
-// Fills the potency tables of the periodic data, and writes action-types.json and sample-actions.json, from the game
-// data.
+// Fills the potency tables of the periodic data, and writes the actions of each class and job into its file of
+// ClassJobActions, from the game data.
 //
 // The script reads the descriptions of the actions in ActionTransient, evaluates their If macros for every level
-// from 1 to the maxLevel of version.json with the job of the entry, and writes the potency of every level where it
-// changes. It lists the category and the attack type of every action of the players and their pets from the Action
-// sheet, and the base, combo and positional potencies of the actions of the combat jobs whose description states
-// nothing else about their potency. It prints the statuses whose description says they raise a potency and that
-// statuses.json and REVIEWED_STATUSES do not account for yet. It writes level-modifiers.json, the level modifiers of the
+// from 1 to the maxLevel of version.json with the job of the file, and writes the potency of every level where it
+// changes. An action outside PvP goes into the file of each class and job that its ClassJobCategory names, with its
+// category and attack type from the Action sheet, and the base, combo and positional potencies for that job when its
+// description states nothing else about its potency; the calibration and the forced result the file gave it stay. The
+// actions of no class or job, as those of the pets and those a crafter or gatherer may use, go nowhere. The statuses
+// stay where the files put them. It prints the statuses whose description says they raise a potency and that the
+// files and REVIEWED_STATUSES do not account for yet. It writes level-modifiers.json, the level modifiers of the
 // critical and direct hit attributes at every level. Run `pnpm build` in this package first.
 //
 //   node scripts/periodic-potency.mjs --game <path> --defs src/defs
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { blackMageElements } from '../dist/defs/black-mage.js'
-import { gaugeModifiers } from '../dist/defs/gauge.js'
-import { parsePeriodicDefs, SAMPLE_VARIANTS } from '../dist/defs.js'
+import { blackMageElements, gaugeModifiers } from '../dist/defs/ClassJobActions/BlackMage.js'
+import { mergeClassJobActions, parsePeriodicDefs, SAMPLE_VARIANTS } from '../dist/defs.js'
 import { evaluateSeString, Language, openExcel, renderText, SeStringMacroError } from './game-data.mjs'
 
 const USAGE = `Usage: node scripts/periodic-potency.mjs --game <path> --defs <dir>
 
-Reads version.json, statuses.json and actions.json of the periodic data, and
-fills the potency tables of every periodic status and calibration action from
-the action descriptions of the game. Writes action-types.json, the category and
-the attack type of every action of the players and their pets, from the Action
-sheet, and sample-actions.json, the potencies of the actions of the combat jobs
-that the potency samples use, and level-modifiers.json, the sub and div of every
-level from the ParamGrow sheet. Nothing is written when an entry has no potency
-at a level, when an action of the data is not in action-types.json, or when
+Reads version.json and ClassJobActions/*.json of the periodic data, and fills
+the potency tables of every periodic status and calibration action from the
+action descriptions of the game, for the class or job of the file. Rewrites the
+actions of each file: those outside PvP that the ClassJobCategory of the Action
+sheet gives the class or job, with their category and attack type, the
+potencies that the potency samples use, and the calibration and forced result
+the file gave them. Writes level-modifiers.json, the sub and div of every level
+from the ParamGrow sheet. Nothing is written when an entry has no potency at a
+level, when a file gives a calibration or a forced result to an action its class
+or job does not have, when a file is not named after its class or job, or when
 ParamGrow differs from the values of the wiki this script checks it against.
 
-Prints the number of sample actions of each job, and the statuses that raise a
-potency but have neither a potencyBonus modifier in statuses.json nor an entry
-in REVIEWED_STATUSES of this script. Each of them goes into one of the two.
+Prints the number of sample actions of each job, the files it creates, which
+ClassJobActions/index.ts must list, and the statuses that raise a potency but
+have neither a potencyBonus modifier in the files nor an entry in
+REVIEWED_STATUSES of this script. Each of them goes into one of the two.
 
 Options:
   --game <path>   The game directory of the client, which holds sqpack/ and ffxivgame.ver. Required.
@@ -50,9 +54,12 @@ const ACTION_CATEGORY_COLUMN = 3
 const CLASS_JOB_COLUMN = 10
 const CLASS_JOB_LEVEL_COLUMN = 12
 const ATTACK_TYPE_COLUMN = 44
+const CLASS_JOB_CATEGORY_COLUMN = 50
 const IS_PVP_COLUMN = 56
 // The class a job starts from, as the marauder of the warrior
 const CLASS_JOB_PARENT_COLUMN = 29
+// The English name, which without its spaces names the file of the class or job
+const CLASS_JOB_NAME_COLUMN = 30
 const STATUS_DESCRIPTION_COLUMN = 1
 const PARAM_GROW_SUB_COLUMN = 5
 const PARAM_GROW_DIV_COLUMN = 6
@@ -80,6 +87,10 @@ const ATTACK_TYPES = new Map([
   [6, 'darkness'],
 ])
 
+/** The classes and jobs that have a file: the paladin to the beastmaster */
+const FILE_CLASS_JOBS = Array.from({ length: 25 }, (_, index) => 19 + index)
+/** The crafters and gatherers; an action one of them may use, as Sprint, belongs to no file */
+const CRAFTERS_GATHERERS = Array.from({ length: 11 }, (_, index) => 8 + index)
 /** The combat jobs, without the blue mage, a limited job */
 const SAMPLE_JOBS = Array.from({ length: 24 }, (_, index) => 19 + index).filter((job) => job !== 36)
 /** How a description states the potencies that a sample tells apart by the bonus percentage of the hit */
@@ -99,11 +110,11 @@ const RAISE_WORDS = ['提升', '提高', '增加', '上升']
 
 /** Why a status that raises a potency needs no potencyBonus modifier; no other reason is allowed */
 const REVIEW = {
-  gauge: 'gauge.ts gives the change of the potency',
+  gauge: 'ClassJobActions/BlackMage.ts gives the change of the potency',
   blueMage: 'a status of the blue mage',
   pvp: 'a status of PvP',
   healing: 'the potency is that of heals',
-  multiplier: 'statuses.json has a multiplier for it, which the samples are divided by',
+  multiplier: 'a file has a multiplier for it, which the samples are divided by',
   unused: 'no PvE action of a player applies it in this version',
 }
 
@@ -256,7 +267,7 @@ function potencyTable(description, job, maxLevel, [starts, label]) {
 }
 
 /**
- * The potencies a description states, by their keys in sample-actions.json.
+ * The potencies a description states, by their keys in the potency of an action.
  * @returns Why the action is left out, when the description says anything else about the potency or forces the hit
  */
 function samplePotencies(text) {
@@ -321,11 +332,27 @@ async function actionDescription(excel, id) {
 }
 
 /**
- * The sample actions: the spells, weaponskills and abilities outside PvP of a combat job or of the class it starts
- * from, once for each job that uses them.
- * @returns The entries of sample-actions.json, and the number of entries written and left out by job
+ * The classes and jobs with a file that the ClassJobCategory of the action names. None for an action without one, as
+ * those of the pets, or one that a crafter or gatherer may also use.
+ * @param categories ClassJobCategory ID → its row, filled as the rows are read
  */
-async function sampleActionsOf(excel, maxLevel) {
+async function classJobsOf(excel, row, categories) {
+  const id = row[CLASS_JOB_CATEGORY_COLUMN]
+  if (id === 0) return []
+  if (!categories.has(id)) categories.set(id, await excel.readRow('ClassJobCategory', id, Language.ChineseSimplified))
+  // Column 0 is the name; that of a class or job is its ID plus 1
+  const category = categories.get(id)
+  if (CRAFTERS_GATHERERS.some((classJob) => category[classJob + 1] === true)) return []
+  return FILE_CLASS_JOBS.filter((classJob) => category[classJob + 1] === true)
+}
+
+/**
+ * The sample actions: the spells, weaponskills and abilities outside PvP of a combat job or of the class it starts
+ * from, once for each job that uses them and that their ClassJobCategory names: a scholar has no sample of an action of
+ * the arcanist it does not learn.
+ * @returns The sample actions with their job, and the number of entries written and left out by job
+ */
+async function sampleActionsOf(excel, maxLevel, categories) {
   const parents = new Map()
   for (const job of SAMPLE_JOBS) {
     parents.set(job, (await excel.readRow('ClassJob', job, Language.ChineseSimplified))[CLASS_JOB_PARENT_COLUMN])
@@ -335,7 +362,8 @@ async function sampleActionsOf(excel, maxLevel) {
     const row = await excel.readRow('Action', id, Language.ChineseSimplified)
     const classJob = row[CLASS_JOB_COLUMN]
     if (!ACTION_CATEGORIES.has(row[ACTION_CATEGORY_COLUMN]) || row[IS_PVP_COLUMN] === true || !(classJob > 0)) continue
-    const jobs = SAMPLE_JOBS.filter((job) => job === classJob || parents.get(job) === classJob)
+    const users = await classJobsOf(excel, row, categories)
+    const jobs = SAMPLE_JOBS.filter((job) => (job === classJob || parents.get(job) === classJob) && users.includes(job))
     if (jobs.length === 0) continue
     const description = await actionDescription(excel, id)
     for (const job of jobs) {
@@ -378,11 +406,11 @@ async function sampleActionsOf(excel, maxLevel) {
 
 /**
  * The statuses whose description raises a potency for any combat job at maxLevel, that have no potencyBonus modifier
- * in statuses.json and are not in REVIEWED_STATUSES
+ * in the files and are not in REVIEWED_STATUSES
  */
 async function pendingStatuses(excel, statuses, maxLevel) {
   const marked = new Set(
-    statuses.statuses
+    statuses
       .filter((entry) => (entry.modifiers ?? []).some((modifier) => modifier.type === 'potencyBonus'))
       .map((entry) => entry.id),
   )
@@ -410,6 +438,54 @@ async function pendingStatuses(excel, statuses, maxLevel) {
   return pending
 }
 
+/** The fields of an action that only its file gives, which the script keeps when it rewrites the actions */
+const KEPT_FIELDS = ['calibration', 'forced']
+
+/** The files of ClassJobActions, by name, each with its name without .json and its content */
+async function readClassJobFiles(directory) {
+  const names = (await readdir(directory)).filter((name) => name.endsWith('.json')).sort()
+  return Promise.all(
+    names.map(async (name) => ({
+      name: name.slice(0, -'.json'.length),
+      content: await readJson(join(directory, name)),
+    })),
+  )
+}
+
+/** The input of mergeClassJobActions, with the names the model gives the files */
+const classJobActionsFiles = (files) => files.map(({ name, content }) => ({ name: `ClassJobActions/${name}`, content }))
+
+/**
+ * The actions of a class or job as its file lists them: those the game gives it, with the fields of KEPT_FIELDS its
+ * file gave them and their sample potencies
+ * @param types The category and the attack type of each action of the class or job, by ascending ID
+ * @param given The actions of the file
+ * @param samples The sample actions of the class or job
+ * @param where The file, for the errors
+ */
+function rewriteActions(types, given, samples, where, errors) {
+  const kept = new Map(
+    given.filter((entry) => KEPT_FIELDS.some((field) => entry[field] !== undefined)).map((entry) => [entry.id, entry]),
+  )
+  const potencies = new Map(samples.map(({ id, potency }) => [id, potency]))
+  const actions = types.map(({ id, category, attackType }) => {
+    const action = { id, category, attackType }
+    const entry = kept.get(id)
+    kept.delete(id)
+    for (const field of KEPT_FIELDS) if (entry?.[field] !== undefined) action[field] = entry[field]
+    const potency = potencies.get(id)
+    potencies.delete(id)
+    if (potency) action.potency = potency
+    return action
+  })
+  for (const [id, entry] of kept) {
+    const fields = KEPT_FIELDS.filter((field) => entry[field] !== undefined).join(', ')
+    errors.push(`${where}: action ${id} has ${fields}, but the class or job does not have it`)
+  }
+  for (const id of potencies.keys()) errors.push(`${where}: sample action ${id} is not an action of the class or job`)
+  return actions
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2))
   if (options.help) {
@@ -419,23 +495,16 @@ async function main() {
 
   const paths = {
     version: join(options.defs, 'version.json'),
-    statuses: join(options.defs, 'statuses.json'),
-    actions: join(options.defs, 'actions.json'),
-    sampleActions: join(options.defs, 'sample-actions.json'),
-    actionTypes: join(options.defs, 'action-types.json'),
     levelModifiers: join(options.defs, 'level-modifiers.json'),
+    classJobActions: join(options.defs, 'ClassJobActions'),
   }
   const version = await readJson(paths.version)
-  const statuses = await readJson(paths.statuses)
-  const actions = await readJson(paths.actions)
+  const files = await readClassJobFiles(paths.classJobActions)
   // Checks every field the script does not fill
   const defs = parsePeriodicDefs(
     {
       version,
-      statuses,
-      actions,
-      sampleActions: await readJson(paths.sampleActions),
-      actionTypes: { actions: [] },
+      ...mergeClassJobActions(classJobActionsFiles(files)),
       levelModifiers: { levels: [] },
       gauge: gaugeModifiers,
       elements: blackMageElements,
@@ -451,19 +520,42 @@ async function main() {
   const excel = await openExcel(options.game)
   const errors = []
   const notes = []
-  const actionTypes = { actions: [] }
+  /** Class or job → the name of its file */
+  const fileNames = new Map()
+  /** Class or job → the category and the attack type of its actions */
+  const actionTypes = new Map(FILE_CLASS_JOBS.map((classJob) => [classJob, []]))
+  /** The actions of no class or job, which no file lists */
+  let unowned = 0
+  const categories = new Map()
   const levelModifiers = { levels: [] }
   let samples
   let pending
   try {
-    // The spells, weaponskills and abilities that a class or job learns, or that have a level: the pets have it
+    for (const classJob of FILE_CLASS_JOBS) {
+      const row = await excel.readRow('ClassJob', classJob, Language.ChineseSimplified)
+      fileNames.set(classJob, renderText(row[CLASS_JOB_NAME_COLUMN]).replaceAll(' ', ''))
+    }
+    for (const { name, content } of files) {
+      const expected = fileNames.get(content.classJob)
+      if (expected === undefined) {
+        errors.push(`ClassJobActions/${name}.json: class or job ${content.classJob} has no file`)
+      } else if (expected !== name) {
+        errors.push(`ClassJobActions/${name}.json: class or job ${content.classJob} is named ${expected}`)
+      }
+    }
+
+    // The spells, weaponskills and abilities outside PvP that a class or job learns, or that have a level: the pets
+    // have it
     for (const id of await excel.rowIds('Action', Language.ChineseSimplified)) {
       const row = await excel.readRow('Action', id, Language.ChineseSimplified)
       const category = ACTION_CATEGORIES.get(row[ACTION_CATEGORY_COLUMN])
-      if (!category || !(row[CLASS_JOB_COLUMN] > 0 || row[CLASS_JOB_LEVEL_COLUMN] > 0)) continue
+      if (!category || row[IS_PVP_COLUMN] === true) continue
+      if (!(row[CLASS_JOB_COLUMN] > 0 || row[CLASS_JOB_LEVEL_COLUMN] > 0)) continue
       const attackType = ATTACK_TYPES.get(row[ATTACK_TYPE_COLUMN])
-      if (attackType === undefined) errors.push(`action-types: action ${id} has AttackType ${row[ATTACK_TYPE_COLUMN]}`)
-      actionTypes.actions.push({ id, category, attackType })
+      if (attackType === undefined) errors.push(`action types: action ${id} has AttackType ${row[ATTACK_TYPE_COLUMN]}`)
+      const classJobs = await classJobsOf(excel, row, categories)
+      if (classJobs.length === 0) unowned++
+      for (const classJob of classJobs) actionTypes.get(classJob).push({ id, category, attackType })
     }
     const tableOf = async (id, job, marker, where) => {
       const result = potencyTable(await actionDescription(excel, id), job, defs.maxLevel, marker)
@@ -477,26 +569,30 @@ async function main() {
       return result.table
     }
 
-    for (const [index, entry] of statuses.statuses.entries()) {
-      if (!entry.periodic) continue
-      const where = `statuses[${index}].periodic`
-      const { kind, action, job } = entry.periodic
-      const potency = await tableOf(action, job, markers[`periodic${kind}`], where)
-      entry.periodic = { kind, action, job, potency }
+    for (const { name, content } of files) {
+      const job = content.classJob
+      for (const [index, entry] of content.statuses.entries()) {
+        if (!entry.periodic) continue
+        const where = `ClassJobActions/${name}.statuses[${index}].periodic`
+        const { kind, action } = entry.periodic
+        const potency = await tableOf(action, job, markers[`periodic${kind}`], where)
+        entry.periodic = { kind, action, potency }
+      }
+      for (const [index, entry] of content.actions.entries()) {
+        if (!entry.calibration) continue
+        const where = `ClassJobActions/${name}.actions[${index}].calibration`
+        const { kind, gauge } = entry.calibration
+        const potency = await tableOf(entry.id, job, markers[`calibration${kind}`], where)
+        entry.calibration = gauge ? { kind, potency, gauge } : { kind, potency }
+      }
     }
 
-    for (const [index, entry] of actions.actions.entries()) {
-      if (!entry.calibration) continue
-      const where = `actions[${index}]`
-      const { kind, gauge } = entry.calibration
-      const potency = await tableOf(entry.id, entry.job, markers[`calibration${kind}`], `${where}.calibration`)
-      const calibration = gauge ? { kind, potency, gauge } : { kind, potency }
-      const { id, job, forced } = entry
-      actions.actions[index] = forced ? { id, job, calibration, forced } : { id, job, calibration }
-    }
-
-    samples = await sampleActionsOf(excel, defs.maxLevel)
-    pending = await pendingStatuses(excel, statuses, defs.maxLevel)
+    samples = await sampleActionsOf(excel, defs.maxLevel, categories)
+    pending = await pendingStatuses(
+      excel,
+      files.flatMap(({ content }) => content.statuses),
+      defs.maxLevel,
+    )
 
     for (let level = 1; level <= defs.maxLevel; level++) {
       const row = await excel.readRow('ParamGrow', level, Language.None)
@@ -514,6 +610,20 @@ async function main() {
     await excel.close()
   }
 
+  const samplesOf = new Map(FILE_CLASS_JOBS.map((classJob) => [classJob, []]))
+  for (const { id, job, potency } of samples.entries) samplesOf.get(job).push({ id, potency })
+  const byClassJob = new Map(files.map((file) => [file.content.classJob, file]))
+  const created = []
+  const outputs = FILE_CLASS_JOBS.map((classJob) => {
+    const file = byClassJob.get(classJob)
+    const name = fileNames.get(classJob)
+    if (!file) created.push(name)
+    const where = `ClassJobActions/${file?.name ?? name}.json`
+    const given = file?.content.actions ?? []
+    const actions = rewriteActions(actionTypes.get(classJob), given, samplesOf.get(classJob), where, errors)
+    return { name, content: { classJob, statuses: file?.content.statuses ?? [], actions } }
+  })
+
   for (const note of notes) console.log(note)
   if (errors.length) {
     for (const error of errors) console.error(error)
@@ -521,27 +631,25 @@ async function main() {
   }
 
   // The result must pass the check the model does when it loads
-  const sampleActions = { actions: samples.entries }
   parsePeriodicDefs({
     version,
-    statuses,
-    actions,
-    sampleActions,
-    actionTypes,
+    ...mergeClassJobActions(classJobActionsFiles(outputs)),
     levelModifiers,
     gauge: gaugeModifiers,
     elements: blackMageElements,
   })
-  await writeFile(paths.statuses, `${formatJson(statuses)}\n`)
-  await writeFile(paths.actions, `${formatJson(actions)}\n`)
-  await writeFile(paths.actionTypes, `${formatJson(actionTypes)}\n`)
-  await writeFile(paths.sampleActions, `${formatJson(sampleActions)}\n`)
+  for (const { name, content } of outputs) {
+    await writeFile(join(paths.classJobActions, `${name}.json`), `${formatJson(content)}\n`)
+  }
   await writeFile(paths.levelModifiers, `${formatJson(levelModifiers)}\n`)
   const calibrations = [...defs.calibration.values()].flat().length
+  const listed = [...actionTypes.values()].reduce((sum, list) => sum + list.length, 0)
   console.log(
-    `filled ${defs.periodic.size} periodic statuses and ${calibrations} calibrations, ` +
-      `listed ${actionTypes.actions.length} action types`,
+    `filled ${defs.periodic.size} periodic statuses and ${calibrations} calibrations, listed ${listed} actions of ` +
+      `the classes and jobs, and left out ${unowned} actions of no class or job`,
   )
+  for (const name of created)
+    console.log(`created ClassJobActions/${name}.json, which ClassJobActions/index.ts must list`)
   for (const [job, { written, excluded }] of samples.counts) {
     console.log(`job ${job}: ${written} sample actions, ${excluded} left out`)
   }

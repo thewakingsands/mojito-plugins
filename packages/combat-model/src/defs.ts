@@ -158,7 +158,7 @@ export interface PeriodicDefs {
   calibration: ReadonlyMap<number, readonly Calibration[]>
   /** Action ID → the potencies of each job that uses it, for the potency samples */
   samples: ReadonlyMap<number, readonly SampleAction[]>
-  /** Action ID → the category and the attack type of the actions of players and their pets */
+  /** Action ID → the category and the attack type of the actions of the classes and jobs, without those of their pets */
   actionTypes: ReadonlyMap<number, ActionType>
   /** Level → its modifiers */
   levelModifiers: ReadonlyMap<number, LevelModifier>
@@ -212,6 +212,15 @@ function describe(value: unknown): string {
   return String(value)
 }
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/**
+ * The entries mergeClassJobActions builds for parsePeriodicDefs, with the path of the entry of the file each comes
+ * from, so that an error names the file and not the merged input
+ */
+const origins = new WeakMap<object, string>()
+
 /** Reads one value of the input, and knows where it is */
 class Reader {
   constructor(
@@ -223,19 +232,19 @@ class Reader {
     throw new PeriodicDefsError(this.path, reason)
   }
 
-  /** The member at the key; its path follows that of this object */
+  /** The member at the key; its path follows that of this object, or is that of the file entry it was merged from */
   at(key: string | number): Reader {
-    const path = typeof key === 'number' ? `${this.path}[${key}]` : this.path ? `${this.path}.${key}` : key
     const value =
       typeof key === 'number' ? (this.value as unknown[])[key] : (this.value as Record<string, unknown>)[key]
+    const origin = typeof value === 'object' && value !== null ? origins.get(value) : undefined
+    if (origin !== undefined) return new Reader(value, origin)
+    const path = typeof key === 'number' ? `${this.path}[${key}]` : this.path ? `${this.path}.${key}` : key
     return new Reader(value, path)
   }
 
   /** Checks that this is an object with only the keys given; returns the keys it has */
   object(required: readonly string[], optional: readonly string[] = []): Set<string> {
-    if (typeof this.value !== 'object' || this.value === null || Array.isArray(this.value)) {
-      this.fail(`expected an object, got ${describe(this.value)}`)
-    }
+    if (!isObject(this.value)) this.fail(`expected an object, got ${describe(this.value)}`)
     const keys = new Set(Object.keys(this.value))
     for (const key of required) if (!keys.has(key)) this.at(key).fail('is required')
     for (const key of keys) {
@@ -557,7 +566,7 @@ function readLevelModifiers(input: Reader, maxLevel: number, requireAll: boolean
   return modifiers
 }
 
-/** An action a file names, which action-types.json must list */
+/** An action a file names, which the action types must list */
 interface ActionRef {
   path: Reader
   id: number
@@ -647,10 +656,133 @@ function readElements(input: Reader, maxLevel: number): ElementRules {
   return { classJobs, enochianLevel, maxStacks, actions }
 }
 
+/** A file of ClassJobActions; the paths of its errors start with the name */
+export interface ClassJobActionsFile {
+  name: string
+  content: unknown
+}
+
+/** Whether two JSON values are the same: arrays item by item in order, objects key by key */
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((item, i) => sameJson(item, b[i]))
+  if (!isObject(a) || !isObject(b)) return false
+  const keys = Object.keys(a)
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameJson(a[key], b[key]))
+}
+
+/** The ID of an entry; parsePeriodicDefs checks the rest of it */
+function entryId(entry: Reader): number {
+  if (!isObject(entry.value)) entry.fail(`expected an object, got ${describe(entry.value)}`)
+  return entry.at('id').positiveInteger()
+}
+
+/** The job comes from the classJob of the file, and an entry must not give it again */
+function rejectJob(entry: Reader): void {
+  if (isObject(entry.value) && Object.hasOwn(entry.value, 'job')) {
+    entry.at('job').fail('is given by the classJob of the file')
+  }
+}
+
+/** The fields of an action that each file listing it must give alike */
+const SHARED_ACTION_FIELDS = ['category', 'attackType', 'forced'] as const
+
 /**
- * requirePotency defaults to true; with false, the potency tables periodic-potency.mjs fills may be left out and are
- * empty in the result, action-types.json and level-modifiers.json may be empty, and the actions are not looked up in
- * action-types.json. periodic-potency.mjs reads the files it fills this way.
+ * Merges the files of ClassJobActions into the statuses, actions, sampleActions and actionTypes of parsePeriodicDefs.
+ * A file holds one class or job: its statuses, and its actions by ascending ID with their category and attack type,
+ * and their calibration, forced result and sample potencies when they have them; the entries leave out the job, which
+ * the classJob of the file gives. A status or an action several classes and jobs have, as those of the role actions, is
+ * in the file of each: the status the same in every file, the action with the same category, attack type and forced
+ * result. The calibrations and the sample potencies are those of the job of the file. The errors of parsePeriodicDefs
+ * in a merged entry give its path in its file.
+ * @throws PeriodicDefsError
+ */
+export function mergeClassJobActions(files: readonly ClassJobActionsFile[]) {
+  const classJobs = new Map<number, string>()
+  const firstStatuses = new Map<number, Reader>()
+  const firstActions = new Map<number, Reader>()
+  /** The actions whose forced result an entry of actions already gives, which parsePeriodicDefs takes only once */
+  const forcedGiven = new Set<number>()
+  const statuses: object[] = []
+  const actions: object[] = []
+  const sampleActions: object[] = []
+  const actionTypes: { id: number }[] = []
+  const from = <T extends object>(entry: Reader, value: T): T => {
+    origins.set(value, entry.path)
+    return value
+  }
+
+  for (const file of files) {
+    const root = new Reader(file.content, file.name)
+    root.object(['classJob', 'statuses', 'actions'])
+    const job = root.at('classJob').positiveInteger()
+    const other = classJobs.get(job)
+    if (other !== undefined) root.at('classJob').fail(`class or job ${job} is also that of ${other}`)
+    classJobs.set(job, file.name)
+
+    for (const entry of root.at('statuses').array()) {
+      const id = entryId(entry)
+      const periodic = entry.at('periodic')
+      rejectJob(periodic)
+      const first = firstStatuses.get(id)
+      if (first) {
+        if (!sameJson(first.value, entry.value)) entry.fail(`status ${id} differs from ${first.path}`)
+        continue
+      }
+      firstStatuses.set(id, entry)
+      const status = { ...(entry.value as Record<string, unknown>) }
+      if (isObject(periodic.value)) status.periodic = { ...periodic.value, job }
+      statuses.push(from(entry, status))
+    }
+
+    let last = 0
+    for (const entry of root.at('actions').array()) {
+      const id = entryId(entry)
+      if (id <= last) entry.at('id').fail('IDs must ascend')
+      last = id
+      rejectJob(entry)
+      const keys = entry.object(['id', 'category', 'attackType'], ['calibration', 'forced', 'potency'])
+      rejectJob(entry.at('calibration'))
+      const { category, attackType, calibration, forced, potency } = entry.value as Record<string, unknown>
+
+      const first = firstActions.get(id)
+      if (first) {
+        for (const field of SHARED_ACTION_FIELDS) {
+          const value = (first.value as Record<string, unknown>)[field]
+          if (!sameJson(value, (entry.value as Record<string, unknown>)[field])) {
+            entry.at(field).fail(`must be the same as in ${first.path}`)
+          }
+        }
+      } else {
+        firstActions.set(id, entry)
+        actionTypes.push(from(entry, { id, category, attackType }))
+      }
+
+      const giveForced = keys.has('forced') && !forcedGiven.has(id)
+      if (giveForced) forcedGiven.add(id)
+      if (keys.has('calibration')) {
+        actions.push(from(entry, giveForced ? { id, job, calibration, forced } : { id, job, calibration }))
+      } else if (giveForced) {
+        actions.push(from(entry, { id, forced }))
+      }
+      if (keys.has('potency')) sampleActions.push(from(entry, { id, job, potency }))
+    }
+  }
+
+  actionTypes.sort((a, b) => a.id - b.id)
+  return {
+    statuses: { statuses },
+    actions: { actions },
+    sampleActions: { actions: sampleActions },
+    actionTypes: { actions: actionTypes },
+  }
+}
+
+/**
+ * statuses, actions, sampleActions and actionTypes are what mergeClassJobActions returns. requirePotency defaults to
+ * true; with false, the potency tables periodic-potency.mjs fills may be left out and are empty in the result, the
+ * action types and level-modifiers.json may be empty, and the actions are not looked up in the action types.
+ * periodic-potency.mjs reads the files it fills this way.
  * @throws PeriodicDefsError
  */
 export function parsePeriodicDefs(
@@ -658,9 +790,7 @@ export function parsePeriodicDefs(
     version: unknown
     statuses: unknown
     actions: unknown
-    /** The content of sample-actions.json */
     sampleActions: unknown
-    /** The content of action-types.json */
     actionTypes: unknown
     /** The content of level-modifiers.json */
     levelModifiers: unknown
@@ -691,7 +821,7 @@ export function parsePeriodicDefs(
   }
   if (requirePotency) {
     for (const { path, id } of [...statuses.actionRefs, ...actions.actionRefs, ...sampleActions.actionRefs]) {
-      if (!actionTypes.has(id)) path.fail(`action ${id} is not listed in action-types.json`)
+      if (!actionTypes.has(id)) path.fail(`action ${id} is not listed in the action types`)
     }
   }
 

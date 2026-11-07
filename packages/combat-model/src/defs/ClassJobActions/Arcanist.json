@@ -1,0 +1,74 @@
+{
+  "classJob": 26,
+  "statuses": [],
+  "actions": [
+    { "id": 163, "category": "spell", "attackType": "magic" },
+    { "id": 172, "category": "spell", "attackType": "magic" },
+    { "id": 173, "category": "spell", "attackType": "magic" },
+    {
+      "id": 181,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 340 }]
+      }
+    },
+    { "id": 7559, "category": "ability", "attackType": null },
+    { "id": 7560, "category": "ability", "attackType": "magic" },
+    { "id": 7561, "category": "ability", "attackType": null },
+    { "id": 7562, "category": "ability", "attackType": null },
+    { "id": 16230, "category": "spell", "attackType": "magic" },
+    {
+      "id": 16508,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    { "id": 16511, "category": "spell", "attackType": "magic" },
+    { "id": 25798, "category": "spell", "attackType": "magic" },
+    { "id": 25799, "category": "ability", "attackType": null },
+    { "id": 25800, "category": "spell", "attackType": "magic" },
+    {
+      "id": 25802,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 400 }]
+      }
+    },
+    {
+      "id": 25803,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 400 }]
+      }
+    },
+    {
+      "id": 25804,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 400 }]
+      }
+    },
+    { "id": 25808, "category": "spell", "attackType": "magic" },
+    { "id": 25809, "category": "spell", "attackType": "magic" },
+    { "id": 25810, "category": "spell", "attackType": "magic" },
+    { "id": 25811, "category": "spell", "attackType": "magic" },
+    { "id": 25812, "category": "spell", "attackType": "magic" },
+    { "id": 25813, "category": "spell", "attackType": "magic" },
+    { "id": 25814, "category": "spell", "attackType": "magic" },
+    { "id": 25815, "category": "spell", "attackType": "magic" },
+    { "id": 25816, "category": "spell", "attackType": "magic" },
+    { "id": 25841, "category": "ability", "attackType": null },
+    { "id": 25843, "category": "spell", "attackType": "magic" },
+    { "id": 25844, "category": "spell", "attackType": "magic" },
+    { "id": 25845, "category": "spell", "attackType": "magic" },
+    { "id": 25880, "category": "spell", "attackType": "magic" },
+    { "id": 25883, "category": "spell", "attackType": "magic" },
+    { "id": 25884, "category": "spell", "attackType": "magic" }
+  ]
+}

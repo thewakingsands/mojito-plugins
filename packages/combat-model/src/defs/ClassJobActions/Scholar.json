@@ -1,0 +1,318 @@
+{
+  "classJob": 28,
+  "statuses": [
+    {
+      "id": 179,
+      "periodic": {
+        "kind": "damage",
+        "action": 17864,
+        "potency": [{ "level": 1, "potency": 20 }]
+      }
+    },
+    {
+      "id": 189,
+      "periodic": {
+        "kind": "damage",
+        "action": 17865,
+        "potency": [{ "level": 1, "potency": 40 }]
+      }
+    },
+    {
+      "id": 315,
+      "periodic": {
+        "kind": "heal",
+        "action": 803,
+        "potency": [{ "level": 1, "potency": 80 }]
+      }
+    },
+    {
+      "id": 317,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 805,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 791,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 3587,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 1221,
+      "modifiers": [
+        {
+          "type": "critRateTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 7436,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 1874,
+      "periodic": {
+        "kind": "heal",
+        "action": 16550,
+        "potency": [{ "level": 1, "potency": 80 }]
+      }
+    },
+    {
+      "id": 1875,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 16551,
+          "category": "spell"
+        }
+      ]
+    },
+    {
+      "id": 1895,
+      "periodic": {
+        "kind": "damage",
+        "action": 16540,
+        "potency": [{ "level": 1, "potency": 70 }, { "level": 94, "potency": 85 }]
+      }
+    },
+    {
+      "id": 2710,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 25867,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 3883,
+      "periodic": {
+        "kind": "damage",
+        "action": 37012,
+        "potency": [{ "level": 1, "potency": 140 }]
+      }
+    },
+    {
+      "id": 3885,
+      "periodic": {
+        "kind": "heal",
+        "action": 37014,
+        "potency": [{ "level": 1, "potency": 100 }]
+      }
+    }
+  ],
+  "actions": [
+    { "id": 166, "category": "ability", "attackType": null },
+    {
+      "id": 167,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    { "id": 173, "category": "spell", "attackType": "magic" },
+    { "id": 185, "category": "spell", "attackType": "magic" },
+    { "id": 186, "category": "spell", "attackType": "magic" },
+    { "id": 188, "category": "ability", "attackType": null },
+    { "id": 189, "category": "ability", "attackType": null },
+    {
+      "id": 190,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 400 }, { "level": 85, "potency": 450 }]
+      }
+    },
+    {
+      "id": 802,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 85, "potency": 180 }]
+      }
+    },
+    { "id": 803, "category": "ability", "attackType": null },
+    { "id": 805, "category": "ability", "attackType": null },
+    { "id": 3583, "category": "ability", "attackType": null },
+    {
+      "id": 3584,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 220 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 220 }]
+      }
+    },
+    { "id": 3585, "category": "ability", "attackType": null },
+    { "id": 3586, "category": "ability", "attackType": null },
+    { "id": 3587, "category": "ability", "attackType": null },
+    { "id": 7434, "category": "ability", "attackType": null },
+    {
+      "id": 7435,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 240 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 240 }]
+      }
+    },
+    { "id": 7436, "category": "ability", "attackType": null },
+    { "id": 7437, "category": "ability", "attackType": null },
+    { "id": 7438, "category": "ability", "attackType": null },
+    { "id": 7559, "category": "ability", "attackType": null },
+    { "id": 7561, "category": "ability", "attackType": null },
+    { "id": 7562, "category": "ability", "attackType": null },
+    { "id": 7568, "category": "spell", "attackType": null },
+    { "id": 7571, "category": "ability", "attackType": null },
+    { "id": 7869, "category": "ability", "attackType": null },
+    { "id": 16537, "category": "ability", "attackType": null },
+    { "id": 16538, "category": "ability", "attackType": null },
+    {
+      "id": 16539,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }, { "level": 54, "potency": 165 }]
+      }
+    },
+    {
+      "id": 16540,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 70 }, { "level": 94, "potency": 85 }]
+      }
+    },
+    {
+      "id": 16541,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 255 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 255 }]
+      }
+    },
+    { "id": 16542, "category": "ability", "attackType": null },
+    { "id": 16543, "category": "ability", "attackType": null },
+    { "id": 16544, "category": "ability", "attackType": null },
+    { "id": 16545, "category": "ability", "attackType": null },
+    { "id": 16546, "category": "ability", "attackType": null },
+    { "id": 16547, "category": "ability", "attackType": null },
+    { "id": 16548, "category": "spell", "attackType": "magic" },
+    { "id": 16550, "category": "ability", "attackType": null },
+    { "id": 16551, "category": "ability", "attackType": null },
+    { "id": 16560, "category": "spell", "attackType": "magic" },
+    { "id": 17215, "category": "spell", "attackType": "magic" },
+    {
+      "id": 17864,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 20 }]
+      }
+    },
+    {
+      "id": 17865,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 40 }]
+      }
+    },
+    {
+      "id": 17869,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }]
+      }
+    },
+    {
+      "id": 17870,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "damage",
+        "potency": [
+          { "level": 1, "potency": 140 },
+          { "level": 54, "potency": 160 },
+          { "level": 64, "potency": 180 },
+          { "level": 72, "potency": 200 },
+          { "level": 82, "potency": 220 }
+        ]
+      },
+      "potency": {
+        "base": [
+          { "level": 1, "potency": 140 },
+          { "level": 54, "potency": 160 },
+          { "level": 64, "potency": 180 },
+          { "level": 72, "potency": 200 },
+          { "level": 82, "potency": 220 }
+        ]
+      }
+    },
+    {
+      "id": 25865,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 295 }, { "level": 94, "potency": 320 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 295 }, { "level": 94, "potency": 320 }]
+      }
+    },
+    {
+      "id": 25866,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 180 }]
+      }
+    },
+    { "id": 25867, "category": "ability", "attackType": null },
+    { "id": 25868, "category": "ability", "attackType": null },
+    {
+      "id": 37012,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 140 }]
+      }
+    },
+    { "id": 37013, "category": "spell", "attackType": "magic" },
+    { "id": 37014, "category": "ability", "attackType": null },
+    { "id": 37015, "category": "spell", "attackType": "magic" },
+    { "id": 37016, "category": "spell", "attackType": "magic" },
+    { "id": 37037, "category": "ability", "attackType": null }
+  ]
+}

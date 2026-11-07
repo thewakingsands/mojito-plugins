@@ -1,0 +1,293 @@
+{
+  "classJob": 39,
+  "statuses": [
+    {
+      "id": 2586,
+      "modifiers": [
+        {
+          "type": "damageTaken",
+          "value": [{ "level": 1, "value": 0.1 }],
+          "valueAction": 24378,
+          "scope": "source"
+        }
+      ]
+    },
+    {
+      "id": 2588,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24382]
+        }
+      ]
+    },
+    {
+      "id": 2589,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24383]
+        }
+      ]
+    },
+    {
+      "id": 2590,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24395]
+        }
+      ]
+    },
+    {
+      "id": 2591,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24396]
+        }
+      ]
+    },
+    {
+      "id": 2598,
+      "periodic": {
+        "kind": "heal",
+        "action": 24404,
+        "potency": [{ "level": 1, "potency": 50 }]
+      }
+    },
+    {
+      "id": 2599,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.03 }],
+          "valueAction": 24405
+        }
+      ]
+    },
+    {
+      "id": 2855,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24382]
+        }
+      ]
+    },
+    {
+      "id": 2857,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24395]
+        }
+      ]
+    },
+    {
+      "id": 3204,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [24385]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": 7541,
+      "category": "ability",
+      "attackType": null,
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 500 }, { "level": 94, "potency": 800 }]
+      }
+    },
+    { "id": 7542, "category": "ability", "attackType": null },
+    { "id": 7546, "category": "ability", "attackType": null },
+    { "id": 7548, "category": "ability", "attackType": null },
+    { "id": 7549, "category": "ability", "attackType": "physical" },
+    { "id": 7863, "category": "ability", "attackType": "physical" },
+    {
+      "id": 24373,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "calibration": {
+        "kind": "damage",
+        "potency": [
+          { "level": 1, "potency": 260 },
+          { "level": 60, "potency": 300 },
+          { "level": 84, "potency": 320 },
+          { "level": 94, "potency": 420 }
+        ]
+      },
+      "potency": {
+        "base": [
+          { "level": 1, "potency": 260 },
+          { "level": 60, "potency": 300 },
+          { "level": 84, "potency": 320 },
+          { "level": 94, "potency": 420 }
+        ]
+      }
+    },
+    {
+      "id": 24374,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [
+          { "level": 1, "potency": 100 },
+          { "level": 60, "potency": 140 },
+          { "level": 84, "potency": 160 },
+          { "level": 94, "potency": 260 }
+        ],
+        "combo": [
+          { "level": 1, "potency": 340 },
+          { "level": 60, "potency": 380 },
+          { "level": 84, "potency": 400 },
+          { "level": 94, "potency": 500 }
+        ]
+      }
+    },
+    {
+      "id": 24375,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [
+          { "level": 1, "potency": 100 },
+          { "level": 60, "potency": 140 },
+          { "level": 84, "potency": 180 },
+          { "level": 94, "potency": 280 }
+        ],
+        "combo": [
+          { "level": 1, "potency": 420 },
+          { "level": 60, "potency": 460 },
+          { "level": 84, "potency": 500 },
+          { "level": 94, "potency": 600 }
+        ]
+      }
+    },
+    {
+      "id": 24376,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 120 }, { "level": 60, "potency": 140 }]
+      }
+    },
+    {
+      "id": 24377,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }, { "level": 60, "potency": 120 }],
+        "combo": [{ "level": 1, "potency": 160 }, { "level": 60, "potency": 180 }]
+      }
+    },
+    {
+      "id": 24378,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 240 }, { "level": 60, "potency": 300 }]
+      }
+    },
+    {
+      "id": 24379,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 80 }, { "level": 60, "potency": 100 }]
+      }
+    },
+    {
+      "id": 24380,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 460 }, { "level": 94, "potency": 520 }]
+      }
+    },
+    {
+      "id": 24381,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 180 }]
+      }
+    },
+    { "id": 24382, "category": "weaponskill", "attackType": "slashing" },
+    { "id": 24383, "category": "weaponskill", "attackType": "slashing" },
+    {
+      "id": 24384,
+      "category": "weaponskill",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }]
+      }
+    },
+    { "id": 24385, "category": "weaponskill", "attackType": "slashing" },
+    {
+      "id": 24386,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 200 }, { "level": 60, "potency": 300 }]
+      }
+    },
+    { "id": 24387, "category": "spell", "attackType": null },
+    { "id": 24388, "category": "spell", "attackType": "magic" },
+    {
+      "id": 24389,
+      "category": "ability",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 340 }]
+      }
+    },
+    { "id": 24390, "category": "ability", "attackType": "slashing" },
+    { "id": 24391, "category": "ability", "attackType": "slashing" },
+    {
+      "id": 24392,
+      "category": "ability",
+      "attackType": "slashing",
+      "potency": {
+        "base": [{ "level": 1, "potency": 140 }]
+      }
+    },
+    {
+      "id": 24393,
+      "category": "ability",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 560 }]
+      }
+    },
+    { "id": 24394, "category": "ability", "attackType": null },
+    { "id": 24395, "category": "weaponskill", "attackType": "slashing" },
+    { "id": 24396, "category": "weaponskill", "attackType": "slashing" },
+    { "id": 24397, "category": "weaponskill", "attackType": "slashing" },
+    {
+      "id": 24398,
+      "category": "spell",
+      "attackType": "magic",
+      "potency": {
+        "base": [{ "level": 1, "potency": 1100 }]
+      }
+    },
+    { "id": 24399, "category": "ability", "attackType": "slashing" },
+    { "id": 24400, "category": "ability", "attackType": "slashing" },
+    { "id": 24401, "category": "ability", "attackType": null },
+    { "id": 24402, "category": "ability", "attackType": null },
+    { "id": 24403, "category": "ability", "attackType": null },
+    { "id": 24404, "category": "ability", "attackType": null },
+    { "id": 24405, "category": "ability", "attackType": null },
+    { "id": 36969, "category": "ability", "attackType": "magic" },
+    { "id": 36970, "category": "weaponskill", "attackType": "slashing" },
+    { "id": 36971, "category": "weaponskill", "attackType": "slashing" },
+    { "id": 36972, "category": "weaponskill", "attackType": "slashing" },
+    { "id": 36973, "category": "weaponskill", "attackType": "slashing" }
+  ]
+}

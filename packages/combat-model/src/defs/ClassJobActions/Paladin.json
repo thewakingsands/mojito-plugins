@@ -1,0 +1,199 @@
+{
+  "classJob": 19,
+  "statuses": [
+    {
+      "id": 76,
+      "modifiers": [
+        {
+          "type": "damageDealt",
+          "value": [{ "level": 1, "value": 0.25 }],
+          "valueAction": 20
+        }
+      ]
+    },
+    {
+      "id": 248,
+      "periodic": {
+        "kind": "damage",
+        "action": 23,
+        "potency": [{ "level": 1, "potency": 30 }]
+      }
+    },
+    {
+      "id": 1191,
+      "modifiers": [
+        {
+          "type": "healingReceived",
+          "value": [{ "level": 1, "value": 0 }, { "level": 94, "value": 0.15 }],
+          "valueAction": 7531,
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "id": 1368,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7384, 16458, 16459, 25748, 25749, 25750]
+        }
+      ]
+    },
+    {
+      "id": 2673,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [7384, 16458]
+        }
+      ]
+    },
+    {
+      "id": 2676,
+      "periodic": {
+        "kind": "heal",
+        "action": 25746,
+        "potency": [{ "level": 1, "potency": 250 }]
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": 9,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "calibration": {
+        "kind": "damage",
+        "potency": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 200 }, { "level": 94, "potency": 220 }]
+      },
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }, { "level": 84, "potency": 200 }, { "level": 94, "potency": 220 }]
+      }
+    },
+    {
+      "id": 15,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }, { "level": 84, "potency": 140 }, { "level": 94, "potency": 170 }],
+        "combo": [{ "level": 1, "potency": 260 }, { "level": 84, "potency": 300 }, { "level": 94, "potency": 330 }]
+      }
+    },
+    {
+      "id": 16,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    { "id": 17, "category": "ability", "attackType": null },
+    { "id": 20, "category": "ability", "attackType": null },
+    {
+      "id": 21,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }],
+        "combo": [{ "level": 1, "potency": 330 }]
+      }
+    },
+    { "id": 22, "category": "ability", "attackType": null },
+    { "id": 23, "category": "ability", "attackType": "physical" },
+    {
+      "id": 24,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 100 }]
+      }
+    },
+    { "id": 27, "category": "ability", "attackType": null },
+    { "id": 28, "category": "ability", "attackType": null },
+    {
+      "id": 29,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 270 }]
+      }
+    },
+    { "id": 30, "category": "ability", "attackType": null },
+    {
+      "id": 3538,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 700 }]
+      }
+    },
+    { "id": 3539, "category": "weaponskill", "attackType": "physical" },
+    { "id": 3540, "category": "ability", "attackType": null },
+    {
+      "id": 3541,
+      "category": "spell",
+      "attackType": "magic",
+      "calibration": {
+        "kind": "heal",
+        "potency": [{ "level": 1, "potency": 1000 }]
+      }
+    },
+    { "id": 3542, "category": "ability", "attackType": null },
+    {
+      "id": 7381,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 120 }]
+      }
+    },
+    { "id": 7382, "category": "ability", "attackType": null },
+    { "id": 7383, "category": "ability", "attackType": "magic" },
+    { "id": 7384, "category": "spell", "attackType": "magic" },
+    { "id": 7385, "category": "ability", "attackType": null },
+    { "id": 7531, "category": "ability", "attackType": null },
+    { "id": 7533, "category": "ability", "attackType": null },
+    { "id": 7535, "category": "ability", "attackType": "physical" },
+    { "id": 7537, "category": "ability", "attackType": null },
+    { "id": 7538, "category": "ability", "attackType": "physical" },
+    { "id": 7540, "category": "ability", "attackType": "physical" },
+    { "id": 7548, "category": "ability", "attackType": null },
+    { "id": 16457, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16458, "category": "spell", "attackType": "magic" },
+    { "id": 16459, "category": "spell", "attackType": "magic" },
+    {
+      "id": 16460,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 360 }, { "level": 84, "potency": 400 }, { "level": 94, "potency": 460 }]
+      }
+    },
+    {
+      "id": 16461,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 150 }]
+      }
+    },
+    { "id": 25746, "category": "ability", "attackType": null },
+    {
+      "id": 25747,
+      "category": "ability",
+      "attackType": "physical",
+      "potency": {
+        "base": [{ "level": 1, "potency": 450 }]
+      }
+    },
+    { "id": 25748, "category": "spell", "attackType": "magic" },
+    { "id": 25749, "category": "spell", "attackType": "magic" },
+    { "id": 25750, "category": "spell", "attackType": "magic" },
+    { "id": 32065, "category": "ability", "attackType": null },
+    { "id": 36918, "category": "weaponskill", "attackType": "physical" },
+    { "id": 36919, "category": "weaponskill", "attackType": "physical" },
+    { "id": 36920, "category": "ability", "attackType": null },
+    { "id": 36921, "category": "ability", "attackType": "magic" },
+    { "id": 36922, "category": "ability", "attackType": "magic" }
+  ]
+}

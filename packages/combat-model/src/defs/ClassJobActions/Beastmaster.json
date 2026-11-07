@@ -1,0 +1,68 @@
+{
+  "classJob": 43,
+  "statuses": [
+    {
+      "id": 4614,
+      "modifiers": [
+        {
+          "type": "potencyBonus",
+          "actions": [44891]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    { "id": 44879, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44880, "category": "ability", "attackType": "physical" },
+    { "id": 44881, "category": "ability", "attackType": null },
+    { "id": 44882, "category": "ability", "attackType": null },
+    { "id": 44883, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44884, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44885, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44886, "category": "ability", "attackType": "magic" },
+    { "id": 44887, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44888, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44889, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44890, "category": "ability", "attackType": null },
+    { "id": 44891, "category": "ability", "attackType": null },
+    { "id": 44892, "category": "ability", "attackType": null },
+    { "id": 44893, "category": "ability", "attackType": "blunt" },
+    { "id": 44894, "category": "ability", "attackType": null },
+    { "id": 44895, "category": "ability", "attackType": null },
+    { "id": 44896, "category": "ability", "attackType": null },
+    { "id": 44897, "category": "ability", "attackType": null },
+    { "id": 44898, "category": "ability", "attackType": null },
+    { "id": 44899, "category": "ability", "attackType": "magic" },
+    { "id": 44900, "category": "spell", "attackType": "magic" },
+    { "id": 44901, "category": "ability", "attackType": null },
+    { "id": 44902, "category": "ability", "attackType": "physical" },
+    { "id": 44903, "category": "ability", "attackType": null },
+    { "id": 44904, "category": "ability", "attackType": null },
+    { "id": 44905, "category": "ability", "attackType": null },
+    { "id": 44910, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44911, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44912, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44913, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44914, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44915, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44916, "category": "weaponskill", "attackType": "darkness" },
+    { "id": 44930, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44931, "category": "weaponskill", "attackType": "physical" },
+    { "id": 44932, "category": "weaponskill", "attackType": "magic" },
+    { "id": 44933, "category": "weaponskill", "attackType": "magic" },
+    { "id": 45038, "category": "ability", "attackType": null },
+    { "id": 45039, "category": "ability", "attackType": null },
+    { "id": 45040, "category": "ability", "attackType": null },
+    { "id": 45041, "category": "ability", "attackType": null },
+    { "id": 47092, "category": "ability", "attackType": null },
+    { "id": 47093, "category": "ability", "attackType": null },
+    { "id": 47238, "category": "ability", "attackType": null },
+    { "id": 47239, "category": "ability", "attackType": null },
+    { "id": 47240, "category": "ability", "attackType": null },
+    { "id": 47241, "category": "ability", "attackType": null },
+    { "id": 47242, "category": "ability", "attackType": null },
+    { "id": 47243, "category": "ability", "attackType": null },
+    { "id": 47244, "category": "ability", "attackType": null },
+    { "id": 47245, "category": "ability", "attackType": null }
+  ]
+}
