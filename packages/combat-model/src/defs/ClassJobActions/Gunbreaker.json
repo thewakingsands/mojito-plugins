@@ -50,7 +50,7 @@
   "actions": [
     { "id": 7531, "category": "ability", "attackType": null },
     { "id": 7533, "category": "ability", "attackType": null },
-    { "id": 7535, "category": "ability", "attackType": "physical" },
+    { "id": 7535, "category": "ability", "attackType": "physical", "partyMitigation": true, "duration": 15 },
     { "id": 7537, "category": "ability", "attackType": null },
     { "id": 7538, "category": "ability", "attackType": "physical" },
     { "id": 7540, "category": "ability", "attackType": "physical" },
@@ -144,7 +144,7 @@
     { "id": 16157, "category": "ability", "attackType": "physical" },
     { "id": 16158, "category": "ability", "attackType": "physical" },
     { "id": 16159, "category": "ability", "attackType": "physical" },
-    { "id": 16160, "category": "ability", "attackType": null },
+    { "id": 16160, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 15 },
     { "id": 16161, "category": "ability", "attackType": null },
     {
       "id": 16162,

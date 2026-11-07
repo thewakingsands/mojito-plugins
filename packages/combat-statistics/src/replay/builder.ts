@@ -1,3 +1,4 @@
+import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type { Status } from '@ffcafe/mojito-plugin-sdk'
 import type { GameEvent } from '../combat-events.js'
 import { roleOf } from '../jobs.js'
@@ -17,7 +18,7 @@ import {
   type StatusNote,
 } from '../view-model.js'
 import { bossEvents } from './bosses.js'
-import { partyMitigations, penaltyStatuses, raidBuffs } from './catalog.js'
+import { penaltyStatuses } from './catalog.js'
 import { cutsceneEvents } from './cutscenes.js'
 
 /** How far back the hits of a death go */
@@ -673,14 +674,16 @@ export function complete(partial: PartialReplay, data: GameData): ReplayData {
     ...rest,
     casts: rest.casts.map((cast) => ({ ...cast, name: data.action(cast.actionId) })),
     actions: actionIds.map((actionId) => {
-      const buff = raidBuffs.get(actionId),
-        mitigation = partyMitigations.get(actionId)
+      // Seconds in the combat model
+      const buff = periodicDefs.raidBuffActions.get(actionId)
+      const mitigation = periodicDefs.partyMitigations.get(actionId)
+      const seconds = buff ?? mitigation
       return {
         actionId,
         name: data.action(actionId),
         gcd: data.gcd(actionId) ?? false,
         lane: buff !== undefined ? 'buff' : mitigation !== undefined ? 'mitigation' : null,
-        durationMs: buff ?? mitigation ?? null,
+        durationMs: seconds === undefined ? null : seconds * 1000,
       }
     }),
     statusInfo: statusIds.map((statusId) => ({

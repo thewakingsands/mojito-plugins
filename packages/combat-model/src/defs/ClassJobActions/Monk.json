@@ -41,6 +41,7 @@
     },
     {
       "id": 1185,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "damageDealt",
@@ -89,7 +90,7 @@
     { "id": 4262, "category": "weaponskill", "attackType": null },
     { "id": 7394, "category": "ability", "attackType": null },
     { "id": 7395, "category": "ability", "attackType": null },
-    { "id": 7396, "category": "ability", "attackType": null },
+    { "id": 7396, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     {
       "id": 7541,
       "category": "ability",
@@ -102,7 +103,7 @@
     { "id": 7542, "category": "ability", "attackType": null },
     { "id": 7546, "category": "ability", "attackType": null },
     { "id": 7548, "category": "ability", "attackType": null },
-    { "id": 7549, "category": "ability", "attackType": "physical" },
+    { "id": 7549, "category": "ability", "attackType": "physical", "partyMitigation": true, "duration": 15 },
     { "id": 7863, "category": "ability", "attackType": "physical" },
     {
       "id": 16473,

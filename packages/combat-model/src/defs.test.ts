@@ -892,6 +892,102 @@ describe('mergeClassJobActions', () => {
   ])('gives the path in its file of an error in %s', (_, change, path) => {
     expect(mergeErrorOf(change).path).toBe(path)
   })
+
+  describe('marks', () => {
+    /** Rampart and its status marked in both files, and Goring Blade a raid buff */
+    function markedFiles() {
+      const files = classJobFiles()
+      for (const file of files) {
+        file.content.statuses[0].raidBuff = true
+        const rampart = file.content.actions.find((action: Record<string, any>) => action.id === 7531)
+        Object.assign(rampart ?? {}, { partyMitigation: true, duration: 20 })
+      }
+      Object.assign(files[0].content.actions[1], { raidBuff: true, duration: 30 })
+      return files
+    }
+
+    it('reads the marks and the durations', () => {
+      const defs = defsOf(markedFiles())
+      expect([...defs.raidBuffStatuses]).toEqual([1191])
+      expect([...defs.raidBuffActions]).toEqual([[3538, 30]])
+      expect([...defs.partyMitigations]).toEqual([[7531, 20]])
+    })
+
+    it('has no marks without them', () => {
+      const defs = defsOf(classJobFiles())
+      expect(defs.raidBuffStatuses.size + defs.raidBuffActions.size + defs.partyMitigations.size).toBe(0)
+    })
+
+    it.each([
+      [
+        'a status mark that is not true',
+        (files: Files) => (files[0].content.statuses[1].raidBuff = false),
+        'ClassJobActions/Paladin.statuses[1].raidBuff',
+      ],
+      [
+        'a shared status marked in one file only',
+        (files: Files) => delete files[1].content.statuses[0].raidBuff,
+        'ClassJobActions/Warrior.statuses[0].raidBuff',
+      ],
+      [
+        'an action mark that is not true',
+        (files: Files) => (files[0].content.actions[1].raidBuff = 1),
+        'ClassJobActions/Paladin.actions[1].raidBuff',
+      ],
+      [
+        'an action with both marks',
+        (files: Files) => (files[0].content.actions[1].partyMitigation = true),
+        'ClassJobActions/Paladin.actions[1].partyMitigation',
+      ],
+      [
+        'a mark without a duration',
+        (files: Files) => delete files[0].content.actions[1].duration,
+        'ClassJobActions/Paladin.actions[1].duration',
+      ],
+      [
+        'a duration without a mark',
+        (files: Files) => (files[0].content.actions[0].duration = 20),
+        'ClassJobActions/Paladin.actions[0].duration',
+      ],
+      [
+        'a duration that is not a positive integer',
+        (files: Files) => (files[0].content.actions[1].duration = 0),
+        'ClassJobActions/Paladin.actions[1].duration',
+      ],
+      [
+        'a shared action with another mark',
+        (files: Files) => {
+          delete files[1].content.actions[1].partyMitigation
+          files[1].content.actions[1].raidBuff = true
+        },
+        'ClassJobActions/Warrior.actions[1].raidBuff',
+      ],
+      [
+        'a shared action marked in one file only',
+        (files: Files) => {
+          delete files[1].content.actions[1].partyMitigation
+          delete files[1].content.actions[1].duration
+        },
+        'ClassJobActions/Warrior.actions[1].partyMitigation',
+      ],
+      [
+        'a shared action with another duration',
+        (files: Files) => (files[1].content.actions[1].duration = 15),
+        'ClassJobActions/Warrior.actions[1].duration',
+      ],
+    ])('rejects %s', (_, change, path) => {
+      const files = markedFiles()
+      change(files)
+      try {
+        defsOf(files)
+      } catch (error) {
+        expect(error).toBeInstanceOf(PeriodicDefsError)
+        expect((error as PeriodicDefsError).path).toBe(path)
+        return
+      }
+      throw new Error('expected a PeriodicDefsError')
+    })
+  })
 })
 
 describe('potencyAt', () => {
@@ -961,5 +1057,28 @@ describe('periodicDefs', () => {
     for (const id of [181, 16508, 25802, 25803, 25804]) {
       expect(periodicDefs.samples.get(id)?.map((item) => item.job)).not.toContain(28)
     }
+  })
+
+  it('has the durations of the raid buffs', () => {
+    const { raidBuffActions } = periodicDefs
+    const durations = [16552, 37026, 2248, 16011, 16196, 114, 16003].map((id) => raidBuffActions.get(id))
+    expect(durations).toEqual([20, 15, 20, 20, 20, 45, 60])
+    // Buffs of the caster or of one member, and Trick Attack, which 技能威力表 does not mark as 团辅
+    for (const id of [20, 7395, 2258, 37024]) expect(raidBuffActions.has(id)).toBe(false)
+  })
+
+  it('has the durations of the party mitigations', () => {
+    const durations = [7535, 3540, 2887, 16536].map((id) => periodicDefs.partyMitigations.get(id))
+    expect(durations).toEqual([15, 30, 10, 20])
+  })
+
+  it('puts no action in both lanes', () => {
+    for (const id of periodicDefs.raidBuffActions.keys()) expect(periodicDefs.partyMitigations.has(id)).toBe(false)
+  })
+
+  it('marks the statuses raid buffs give the party or the target', () => {
+    for (const id of [1878, 3889, 638, 1825, 2105, 1297]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(true)
+    // Those the caster alone has, and the vulnerability of Trick Attack
+    for (const id of [76, 3254, 1821, 1239, 1298]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(false)
   })
 })

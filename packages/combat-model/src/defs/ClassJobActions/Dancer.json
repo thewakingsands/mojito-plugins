@@ -7,10 +7,12 @@
     },
     {
       "id": 1822,
+      "raidBuff": true,
       "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
     },
     {
       "id": 1825,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "critRate",
@@ -26,6 +28,7 @@
     },
     {
       "id": 2105,
+      "raidBuff": true,
       "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte", "byteOf": 1821 }]
     },
     {
@@ -120,8 +123,8 @@
     { "id": 16000, "category": "weaponskill", "attackType": null },
     { "id": 16001, "category": "weaponskill", "attackType": null },
     { "id": 16002, "category": "weaponskill", "attackType": null },
-    { "id": 16003, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16004, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16003, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 60 },
+    { "id": 16004, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
     {
       "id": 16005,
       "category": "weaponskill",
@@ -156,8 +159,8 @@
       }
     },
     { "id": 16010, "category": "ability", "attackType": null },
-    { "id": 16011, "category": "ability", "attackType": null },
-    { "id": 16012, "category": "ability", "attackType": null },
+    { "id": 16011, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
+    { "id": 16012, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 15 },
     { "id": 16013, "category": "ability", "attackType": null },
     { "id": 16014, "category": "ability", "attackType": null },
     {
@@ -169,12 +172,12 @@
         "potency": [{ "level": 1, "potency": 300 }]
       }
     },
-    { "id": 16191, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16192, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16193, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16194, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16195, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16196, "category": "weaponskill", "attackType": "physical" },
+    { "id": 16191, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 60 },
+    { "id": 16192, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 60 },
+    { "id": 16193, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
+    { "id": 16194, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
+    { "id": 16195, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
+    { "id": 16196, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
     { "id": 18073, "category": "ability", "attackType": null },
     { "id": 25789, "category": "ability", "attackType": null },
     { "id": 25790, "category": "weaponskill", "attackType": "physical" },

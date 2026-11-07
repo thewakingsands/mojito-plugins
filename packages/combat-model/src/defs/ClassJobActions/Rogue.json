@@ -3,6 +3,7 @@
   "statuses": [
     {
       "id": 638,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "damageTaken",
@@ -56,6 +57,8 @@
       "id": 2248,
       "category": "ability",
       "attackType": "physical",
+      "raidBuff": true,
+      "duration": 20,
       "potency": {
         "base": [{ "level": 1, "potency": 150 }]
       }
@@ -92,7 +95,7 @@
     { "id": 7542, "category": "ability", "attackType": null },
     { "id": 7546, "category": "ability", "attackType": null },
     { "id": 7548, "category": "ability", "attackType": null },
-    { "id": 7549, "category": "ability", "attackType": "physical" },
+    { "id": 7549, "category": "ability", "attackType": "physical", "partyMitigation": true, "duration": 15 },
     { "id": 7863, "category": "ability", "attackType": "physical" }
   ]
 }

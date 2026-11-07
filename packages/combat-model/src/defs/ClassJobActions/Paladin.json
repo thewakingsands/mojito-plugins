@@ -128,7 +128,7 @@
       }
     },
     { "id": 3539, "category": "weaponskill", "attackType": "physical" },
-    { "id": 3540, "category": "ability", "attackType": null },
+    { "id": 3540, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 30 },
     {
       "id": 3541,
       "category": "spell",
@@ -153,7 +153,7 @@
     { "id": 7385, "category": "ability", "attackType": null },
     { "id": 7531, "category": "ability", "attackType": null },
     { "id": 7533, "category": "ability", "attackType": null },
-    { "id": 7535, "category": "ability", "attackType": "physical" },
+    { "id": 7535, "category": "ability", "attackType": "physical", "partyMitigation": true, "duration": 15 },
     { "id": 7537, "category": "ability", "attackType": null },
     { "id": 7538, "category": "ability", "attackType": "physical" },
     { "id": 7540, "category": "ability", "attackType": "physical" },

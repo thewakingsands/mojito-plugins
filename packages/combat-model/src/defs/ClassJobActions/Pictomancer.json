@@ -3,6 +3,7 @@
   "statuses": [
     {
       "id": 3685,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "damageDealt",
@@ -14,7 +15,7 @@
   ],
   "actions": [
     { "id": 7559, "category": "ability", "attackType": null },
-    { "id": 7560, "category": "ability", "attackType": "magic" },
+    { "id": 7560, "category": "ability", "attackType": "magic", "partyMitigation": true, "duration": 15 },
     { "id": 7561, "category": "ability", "attackType": null },
     { "id": 7562, "category": "ability", "attackType": null },
     { "id": 25880, "category": "spell", "attackType": "magic" },
@@ -106,7 +107,7 @@
     { "id": 34672, "category": "ability", "attackType": "magic" },
     { "id": 34673, "category": "ability", "attackType": "magic" },
     { "id": 34674, "category": "ability", "attackType": null },
-    { "id": 34675, "category": "ability", "attackType": null },
+    { "id": 34675, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     {
       "id": 34676,
       "category": "ability",
@@ -131,7 +132,7 @@
     { "id": 34683, "category": "ability", "attackType": null },
     { "id": 34684, "category": "ability", "attackType": null },
     { "id": 34685, "category": "ability", "attackType": null },
-    { "id": 34686, "category": "ability", "attackType": null },
+    { "id": 34686, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 10 },
     {
       "id": 34688,
       "category": "spell",

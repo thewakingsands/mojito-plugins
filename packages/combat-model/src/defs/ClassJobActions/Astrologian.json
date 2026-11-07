@@ -43,6 +43,7 @@
     },
     {
       "id": 1878,
+      "raidBuff": true,
       "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
     },
     {
@@ -74,6 +75,7 @@
     },
     {
       "id": 3887,
+      "raidBuff": true,
       "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
     },
     {
@@ -89,6 +91,7 @@
     },
     {
       "id": 3889,
+      "raidBuff": true,
       "modifiers": [{ "type": "damageDealt", "valueFrom": "applyByte" }]
     },
     {
@@ -196,7 +199,7 @@
     { "id": 7568, "category": "spell", "attackType": null },
     { "id": 7571, "category": "ability", "attackType": null },
     { "id": 8324, "category": "ability", "attackType": null },
-    { "id": 16552, "category": "ability", "attackType": null },
+    { "id": 16552, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     { "id": 16553, "category": "ability", "attackType": null },
     {
       "id": 16554,
@@ -221,7 +224,7 @@
     { "id": 16556, "category": "ability", "attackType": null },
     { "id": 16557, "category": "ability", "attackType": null },
     { "id": 16558, "category": "ability", "attackType": null },
-    { "id": 16559, "category": "ability", "attackType": null },
+    { "id": 16559, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 20 },
     { "id": 16560, "category": "spell", "attackType": "magic" },
     {
       "id": 25871,
@@ -248,6 +251,8 @@
       "id": 25874,
       "category": "spell",
       "attackType": "magic",
+      "partyMitigation": true,
+      "duration": 15,
       "potency": {
         "base": [{ "level": 1, "potency": 250 }, { "level": 94, "potency": 270 }]
       }
@@ -259,10 +264,10 @@
     { "id": 37020, "category": "ability", "attackType": null },
     { "id": 37021, "category": "ability", "attackType": null },
     { "id": 37022, "category": "ability", "attackType": null },
-    { "id": 37023, "category": "ability", "attackType": null },
+    { "id": 37023, "category": "ability", "attackType": null, "raidBuff": true, "duration": 15 },
     { "id": 37024, "category": "ability", "attackType": null },
     { "id": 37025, "category": "ability", "attackType": null },
-    { "id": 37026, "category": "ability", "attackType": null },
+    { "id": 37026, "category": "ability", "attackType": null, "raidBuff": true, "duration": 15 },
     { "id": 37027, "category": "ability", "attackType": null },
     { "id": 37028, "category": "ability", "attackType": null },
     {

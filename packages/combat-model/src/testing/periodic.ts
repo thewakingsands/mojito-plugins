@@ -243,6 +243,10 @@ export function testDefs(
     actions: { actions },
     sampleActions: { actions: sampleActions },
     actionTypes: { actions: actionTypes },
+    // The statuses above that raid buffs give
+    raidBuffStatuses: [1878, 786, 2105, 141, 1221, 3849],
+    raidBuffActions: [],
+    partyMitigations: [],
     levelModifiers: testLevelModifiers(),
     gauge: testGauge,
     elements: testElements,

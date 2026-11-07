@@ -49,6 +49,7 @@
     },
     {
       "id": 1221,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "critRateTaken",
@@ -126,7 +127,7 @@
     { "id": 173, "category": "spell", "attackType": "magic" },
     { "id": 185, "category": "spell", "attackType": "magic" },
     { "id": 186, "category": "spell", "attackType": "magic" },
-    { "id": 188, "category": "ability", "attackType": null },
+    { "id": 188, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 15 },
     { "id": 189, "category": "ability", "attackType": null },
     {
       "id": 190,
@@ -177,7 +178,7 @@
         "base": [{ "level": 1, "potency": 240 }]
       }
     },
-    { "id": 7436, "category": "ability", "attackType": null },
+    { "id": 7436, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     { "id": 7437, "category": "ability", "attackType": null },
     { "id": 7438, "category": "ability", "attackType": null },
     { "id": 7559, "category": "ability", "attackType": null },
@@ -300,7 +301,7 @@
       }
     },
     { "id": 25867, "category": "ability", "attackType": null },
-    { "id": 25868, "category": "ability", "attackType": null },
+    { "id": 25868, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 20 },
     {
       "id": 37012,
       "category": "ability",

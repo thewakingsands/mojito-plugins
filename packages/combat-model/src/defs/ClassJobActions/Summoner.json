@@ -11,6 +11,7 @@
     },
     {
       "id": 2703,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "damageDealt",
@@ -95,7 +96,7 @@
     },
     { "id": 7449, "category": "ability", "attackType": "magic" },
     { "id": 7559, "category": "ability", "attackType": null },
-    { "id": 7560, "category": "ability", "attackType": "magic" },
+    { "id": 7560, "category": "ability", "attackType": "magic", "partyMitigation": true, "duration": 15 },
     { "id": 7561, "category": "ability", "attackType": null },
     { "id": 7562, "category": "ability", "attackType": null },
     {
@@ -133,7 +134,7 @@
     { "id": 25798, "category": "spell", "attackType": "magic" },
     { "id": 25799, "category": "ability", "attackType": null },
     { "id": 25800, "category": "spell", "attackType": "magic" },
-    { "id": 25801, "category": "ability", "attackType": null },
+    { "id": 25801, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     {
       "id": 25802,
       "category": "spell",

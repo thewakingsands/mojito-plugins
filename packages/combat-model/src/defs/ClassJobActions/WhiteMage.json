@@ -211,7 +211,7 @@
         "base": [{ "level": 1, "potency": 1240 }, { "level": 94, "potency": 1400 }]
       }
     },
-    { "id": 16536, "category": "ability", "attackType": null },
+    { "id": 16536, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 20 },
     { "id": 16560, "category": "spell", "attackType": "magic" },
     {
       "id": 25859,

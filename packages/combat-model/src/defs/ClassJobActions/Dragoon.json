@@ -15,6 +15,7 @@
     },
     {
       "id": 786,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "critRate",
@@ -170,7 +171,7 @@
         "comboRear": [{ "level": 1, "potency": 300 }, { "level": 94, "potency": 340 }]
       }
     },
-    { "id": 3557, "category": "ability", "attackType": null },
+    { "id": 3557, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     {
       "id": 7397,
       "category": "weaponskill",
@@ -200,7 +201,7 @@
     { "id": 7542, "category": "ability", "attackType": null },
     { "id": 7546, "category": "ability", "attackType": null },
     { "id": 7548, "category": "ability", "attackType": null },
-    { "id": 7549, "category": "ability", "attackType": "physical" },
+    { "id": 7549, "category": "ability", "attackType": "physical", "partyMitigation": true, "duration": 15 },
     { "id": 7863, "category": "ability", "attackType": "physical" },
     {
       "id": 16477,

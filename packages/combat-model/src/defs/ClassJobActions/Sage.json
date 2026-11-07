@@ -146,7 +146,7 @@
         "base": [{ "level": 1, "potency": 160 }]
       }
     },
-    { "id": 24298, "category": "ability", "attackType": null },
+    { "id": 24298, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 15 },
     { "id": 24299, "category": "ability", "attackType": null },
     { "id": 24300, "category": "ability", "attackType": null },
     { "id": 24301, "category": "ability", "attackType": null },
@@ -183,8 +183,8 @@
     },
     { "id": 24308, "category": "spell", "attackType": "magic" },
     { "id": 24309, "category": "ability", "attackType": null },
-    { "id": 24310, "category": "ability", "attackType": null },
-    { "id": 24311, "category": "ability", "attackType": null },
+    { "id": 24310, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 20 },
+    { "id": 24311, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 15 },
     {
       "id": 24312,
       "category": "spell",

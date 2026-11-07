@@ -14,7 +14,7 @@
       }
     },
     { "id": 7559, "category": "ability", "attackType": null },
-    { "id": 7560, "category": "ability", "attackType": "magic" },
+    { "id": 7560, "category": "ability", "attackType": "magic", "partyMitigation": true, "duration": 15 },
     { "id": 7561, "category": "ability", "attackType": null },
     { "id": 7562, "category": "ability", "attackType": null },
     { "id": 16230, "category": "spell", "attackType": "magic" },

@@ -23,6 +23,7 @@
     },
     {
       "id": 1297,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "damageDealt",
@@ -156,7 +157,7 @@
         "base": [{ "level": 1, "potency": 380 }, { "level": 94, "potency": 420 }]
       }
     },
-    { "id": 7520, "category": "ability", "attackType": null },
+    { "id": 7520, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     { "id": 7521, "category": "ability", "attackType": null },
     { "id": 7523, "category": "spell", "attackType": "magic" },
     {
@@ -178,7 +179,7 @@
     { "id": 7529, "category": "weaponskill", "attackType": "magic" },
     { "id": 7530, "category": "weaponskill", "attackType": "magic" },
     { "id": 7559, "category": "ability", "attackType": null },
-    { "id": 7560, "category": "ability", "attackType": "magic" },
+    { "id": 7560, "category": "ability", "attackType": "magic", "partyMitigation": true, "duration": 15 },
     { "id": 7561, "category": "ability", "attackType": null },
     { "id": 7562, "category": "ability", "attackType": null },
     {
@@ -232,7 +233,7 @@
         "base": [{ "level": 1, "potency": 380 }, { "level": 94, "potency": 440 }]
       }
     },
-    { "id": 25857, "category": "ability", "attackType": null },
+    { "id": 25857, "category": "ability", "attackType": null, "partyMitigation": true, "duration": 10 },
     { "id": 25858, "category": "spell", "attackType": "magic" },
     { "id": 25880, "category": "spell", "attackType": "magic" },
     { "id": 37002, "category": "weaponskill", "attackType": "magic" },

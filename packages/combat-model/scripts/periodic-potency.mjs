@@ -7,8 +7,8 @@
 // from 1 to the maxLevel of version.json with the job of the file, and writes the potency of every level where it
 // changes. An action outside PvP goes into the file of each class and job that its ClassJobCategory names, with its
 // category and attack type from the Action sheet, and the base, combo and positional potencies for that job when its
-// description states nothing else about its potency; the calibration and the forced result the file gave it stay. The
-// actions of no class or job, as those of the pets and those a crafter or gatherer may use, go nowhere. The statuses
+// description states nothing else about its potency; the raid buff or party mitigation mark with its duration, the
+// calibration and the forced result the file gave it stay. The actions of no class or job, as those of the pets and those a crafter or gatherer may use, go nowhere. The statuses
 // stay where the files put them. It prints the statuses whose description says they raise a potency and that the
 // files and REVIEWED_STATUSES do not account for yet. It writes level-modifiers.json, the level modifiers of the
 // critical and direct hit attributes at every level. Run `pnpm build` in this package first.
@@ -29,11 +29,12 @@ the potency tables of every periodic status and calibration action from the
 action descriptions of the game, for the class or job of the file. Rewrites the
 actions of each file: those outside PvP that the ClassJobCategory of the Action
 sheet gives the class or job, with their category and attack type, the
-potencies that the potency samples use, and the calibration and forced result
-the file gave them. Writes level-modifiers.json, the sub and div of every level
-from the ParamGrow sheet. Nothing is written when an entry has no potency at a
-level, when a file gives a calibration or a forced result to an action its class
-or job does not have, when a file is not named after its class or job, or when
+potencies that the potency samples use, and the raid buff or party mitigation
+mark and its duration, the calibration and the forced result the file gave them.
+Writes level-modifiers.json, the sub and div of every level from the ParamGrow
+sheet. Nothing is written when an entry has no potency at a level, when a file
+gives a mark, a calibration or a forced result to an action its class or job
+does not have, when a file is not named after its class or job, or when
 ParamGrow differs from the values of the wiki this script checks it against.
 
 Prints the number of sample actions of each job, the files it creates, which
@@ -439,7 +440,7 @@ async function pendingStatuses(excel, statuses, maxLevel) {
 }
 
 /** The fields of an action that only its file gives, which the script keeps when it rewrites the actions */
-const KEPT_FIELDS = ['calibration', 'forced']
+const KEPT_FIELDS = ['raidBuff', 'partyMitigation', 'duration', 'calibration', 'forced']
 
 /** The files of ClassJobActions, by name, each with its name without .json and its content */
 async function readClassJobFiles(directory) {

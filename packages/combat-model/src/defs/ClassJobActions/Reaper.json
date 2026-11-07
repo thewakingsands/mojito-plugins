@@ -58,6 +58,7 @@
     },
     {
       "id": 2599,
+      "raidBuff": true,
       "modifiers": [
         {
           "type": "damageDealt",
@@ -107,7 +108,7 @@
     { "id": 7542, "category": "ability", "attackType": null },
     { "id": 7546, "category": "ability", "attackType": null },
     { "id": 7548, "category": "ability", "attackType": null },
-    { "id": 7549, "category": "ability", "attackType": "physical" },
+    { "id": 7549, "category": "ability", "attackType": "physical", "partyMitigation": true, "duration": 15 },
     { "id": 7863, "category": "ability", "attackType": "physical" },
     {
       "id": 24373,
@@ -283,7 +284,7 @@
     { "id": 24402, "category": "ability", "attackType": null },
     { "id": 24403, "category": "ability", "attackType": null },
     { "id": 24404, "category": "ability", "attackType": null },
-    { "id": 24405, "category": "ability", "attackType": null },
+    { "id": 24405, "category": "ability", "attackType": null, "raidBuff": true, "duration": 20 },
     { "id": 36969, "category": "ability", "attackType": "magic" },
     { "id": 36970, "category": "weaponskill", "attackType": "slashing" },
     { "id": 36971, "category": "weaponskill", "attackType": "slashing" },
