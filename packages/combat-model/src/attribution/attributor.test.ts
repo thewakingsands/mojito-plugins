@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DamageAttributionEvent, PeriodicRevisionEvent } from '../events.js'
 import type { CombatInput } from '../input.js'
 import { criticalMultiplierOf } from '../periodic/prior.js'
-import { ASTROLOGIAN, ENEMY, SAGE, SAMURAI } from '../testing/periodic.js'
+import { ASTROLOGIAN, ENEMY, SAGE, SAMURAI, testDefs } from '../testing/periodic.js'
 import {
   AbilityEffectResultFlag,
   AbilityEffectSeverity,
@@ -26,14 +26,15 @@ import { attribute } from './kernel.js'
 const PET = 0x40000010
 const ENEMY_2 = 0x40000002
 const DIVINATION_SHARE = 1 - 1 / 1.06
+const BRAVER = 200
 
 /** A harness whose attributor reads what the estimator reads and gives back */
 class AttributionHarness extends Harness {
   attributor = new DamageAttributor(this.estimator, this.combatants)
   splits: DamageAttributionEvent[] = []
 
-  constructor() {
-    super()
+  constructor(defs = testDefs()) {
+    super(defs)
     this.combatants.update(PET, { bNpcBase: 10490, ownerId: SAMURAI }, true)
     this.combatants.update(ENEMY_2, { bNpcBase: 541 }, true)
   }
@@ -78,6 +79,14 @@ describe('DamageAttributor', () => {
       { statusId: DIVINATION, sourceId: ASTROLOGIAN, amount: expect.closeTo(10000 * DIVINATION_SHARE, 9) },
     ])
     expect(split.retained).toBeCloseTo(10000 / 1.06, 9)
+  })
+
+  it('gives no part of a limit break to the raid buffs', () => {
+    const harness = new AttributionHarness({ ...testDefs(), limitBreaks: new Set([BRAVER]) }).divination(SAMURAI)
+    harness.effect(SAMURAI, BRAVER, [{ target: ENEMY, entities: [damage(10000)] }])
+    expect(harness.splits).toEqual([])
+    harness.effect(SAMURAI, HAKAZE, [{ target: ENEMY, entities: [damage(10000)] }])
+    expect(harness.lastSplit()).toMatchObject({ origin: { type: 'action', action: HAKAZE } })
   })
 
   it('splits a hit of the player with the rates of the attributes', () => {

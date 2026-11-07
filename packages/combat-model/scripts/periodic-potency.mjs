@@ -32,7 +32,7 @@ sheet gives the class or job, with their category and attack type, the
 potencies that the potency samples use, and the raid buff or party mitigation
 mark and its duration, the calibration and the forced result the file gave them.
 Writes level-modifiers.json, the sub and div of every level from the ParamGrow
-sheet. Nothing is written when an entry has no potency at a level, when a file
+sheet, and limit-breaks.json, the Action IDs of the limit breaks outside PvP. Nothing is written when an entry has no potency at a level, when a file
 gives a mark, a calibration or a forced result to an action its class or job
 does not have, when a file is not named after its class or job, or when
 ParamGrow differs from the values of the wiki this script checks it against.
@@ -71,6 +71,8 @@ const KNOWN_LEVEL_MODIFIERS = new Map([
   [90, { sub: 400, div: 1900 }],
   [100, { sub: 420, div: 2780 }],
 ])
+/** The row of ActionCategory that the limit breaks have */
+const LIMIT_BREAK_CATEGORY = 9
 const ACTION_CATEGORIES = new Map([
   [2, 'spell'],
   [3, 'weaponskill'],
@@ -497,6 +499,7 @@ async function main() {
   const paths = {
     version: join(options.defs, 'version.json'),
     levelModifiers: join(options.defs, 'level-modifiers.json'),
+    limitBreaks: join(options.defs, 'limit-breaks.json'),
     classJobActions: join(options.defs, 'ClassJobActions'),
   }
   const version = await readJson(paths.version)
@@ -529,6 +532,7 @@ async function main() {
   let unowned = 0
   const categories = new Map()
   const levelModifiers = { levels: [] }
+  const limitBreaks = []
   let samples
   let pending
   try {
@@ -549,6 +553,8 @@ async function main() {
     // have it
     for (const id of await excel.rowIds('Action', Language.ChineseSimplified)) {
       const row = await excel.readRow('Action', id, Language.ChineseSimplified)
+      // A PvP limit break is an action of each player, which stays with the player who uses it
+      if (row[ACTION_CATEGORY_COLUMN] === LIMIT_BREAK_CATEGORY && row[IS_PVP_COLUMN] !== true) limitBreaks.push(id)
       const category = ACTION_CATEGORIES.get(row[ACTION_CATEGORY_COLUMN])
       if (!category || row[IS_PVP_COLUMN] === true) continue
       if (!(row[CLASS_JOB_COLUMN] > 0 || row[CLASS_JOB_LEVEL_COLUMN] > 0)) continue
@@ -631,11 +637,13 @@ async function main() {
     throw new Error(`${errors.length} entries could not be filled, nothing is written`)
   }
 
+  limitBreaks.sort((a, b) => a - b)
   // The result must pass the check the model does when it loads
   parsePeriodicDefs({
     version,
     ...mergeClassJobActions(classJobActionsFiles(outputs)),
     levelModifiers,
+    limitBreaks,
     gauge: gaugeModifiers,
     elements: blackMageElements,
   })
@@ -643,12 +651,14 @@ async function main() {
     await writeFile(join(paths.classJobActions, `${name}.json`), `${formatJson(content)}\n`)
   }
   await writeFile(paths.levelModifiers, `${formatJson(levelModifiers)}\n`)
+  await writeFile(paths.limitBreaks, `${formatJson(limitBreaks)}\n`)
   const calibrations = [...defs.calibration.values()].flat().length
   const listed = [...actionTypes.values()].reduce((sum, list) => sum + list.length, 0)
   console.log(
     `filled ${defs.periodic.size} periodic statuses and ${calibrations} calibrations, listed ${listed} actions of ` +
       `the classes and jobs, and left out ${unowned} actions of no class or job`,
   )
+  console.log(`listed ${limitBreaks.length} limit breaks`)
   for (const name of created)
     console.log(`created ClassJobActions/${name}.json, which ClassJobActions/index.ts must list`)
   for (const [job, { written, excluded }] of samples.counts) {

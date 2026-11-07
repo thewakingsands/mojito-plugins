@@ -377,6 +377,15 @@ describe('parsePeriodicDefs', () => {
     })
   })
 
+  it('reads the limit breaks, and has none when they are left out', () => {
+    expect(parsePeriodicDefs(validInput()).limitBreaks.size).toBe(0)
+    expect([...parsePeriodicDefs({ ...validInput(), limitBreaks: [200, 203] }).limitBreaks]).toEqual([200, 203])
+    for (const id of [1.5, -200, 0]) {
+      expect(errorOf((input) => Object.assign(input, { limitBreaks: [200, id] })).path).toBe('limit-breaks[1]')
+    }
+    expect(errorOf((input) => Object.assign(input, { limitBreaks: {} })).path).toBe('limit-breaks')
+  })
+
   it('lets the filled fields be missing without requirePotency', () => {
     const input = validInput()
     delete statusAt(input, 0).periodic.potency
@@ -1062,6 +1071,12 @@ describe('periodicDefs', () => {
     expect(Object.keys(gekko.potency).sort()).toEqual(['base', 'combo', 'comboRear', 'rear'])
     // Actions that no job learns, one that another action raises, and one whose potency depends on the stacks
     for (const id of [16196, 7487, 36946, 24385]) expect(periodicDefs.samples.has(id)).toBe(false)
+  })
+
+  it('lists the limit breaks outside PvP', () => {
+    // Braver and Skyshard; not the auto-attack
+    for (const id of [200, 203]) expect(periodicDefs.limitBreaks.has(id)).toBe(true)
+    expect(periodicDefs.limitBreaks.has(7)).toBe(false)
   })
 
   it('leaves out the actions of PvP', () => {

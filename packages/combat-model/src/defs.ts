@@ -183,6 +183,8 @@ export interface PeriodicDefs {
   elements: ElementRules
   /** Action ID → forced result */
   forced: ReadonlyMap<number, ForcedResult>
+  /** The Action IDs of the limit breaks outside PvP */
+  limitBreaks: ReadonlySet<number>
 }
 
 export class PeriodicDefsError extends Error {
@@ -581,6 +583,11 @@ function readLevelModifiers(input: Reader, maxLevel: number, requireAll: boolean
   return modifiers
 }
 
+function readLimitBreaks(input: Reader): Set<number> {
+  if (input.value === undefined) return new Set()
+  return new Set(input.array().map((entry) => entry.positiveInteger()))
+}
+
 /** An action a file names, which the action types must list */
 interface ActionRef {
   path: Reader
@@ -856,6 +863,8 @@ export function parsePeriodicDefs(
     levelModifiers: unknown
     gauge: readonly GaugeModifier[]
     elements: ElementRules
+    /** The content of limit-breaks.json; none when left out */
+    limitBreaks?: unknown
   },
   options: { requirePotency?: boolean } = {},
 ): PeriodicDefs {
@@ -874,6 +883,7 @@ export function parsePeriodicDefs(
   )
   const gauge = readGauge(new Reader(input.gauge, 'gauge'), maxLevel)
   const elements = readElements(new Reader(input.elements, 'elements'), maxLevel)
+  const limitBreaks = readLimitBreaks(new Reader(input.limitBreaks, 'limit-breaks'))
 
   for (const { path, kind, job } of statuses.jobs) {
     const calibrated = [...actions.calibration.values()].flat().some((item) => item.kind === kind && item.job === job)
@@ -899,5 +909,6 @@ export function parsePeriodicDefs(
     gauge,
     elements,
     forced: actions.forced,
+    limitBreaks,
   }
 }

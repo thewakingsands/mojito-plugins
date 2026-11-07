@@ -76,6 +76,8 @@ export class DamageAttributor {
 
   /** Splits the damage hits of the effect; call it after the estimator read the input */
   handleEffect(event: Extract<CombatInput, { type: 'effect' }>): DamageAttributionEvent[] {
+    // Buffs do not raise the damage of a limit break, so none of it is theirs
+    if (this.estimator.defs.limitBreaks.has(event.action)) return []
     const actor = actorId(event.caster)
     const attacker = this.playerOf(actor)
     if (attacker === null) return []
