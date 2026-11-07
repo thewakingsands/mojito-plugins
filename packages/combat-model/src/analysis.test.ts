@@ -34,9 +34,9 @@ function fight(parts: AnalysisSample[], durationMs = 100_000) {
   return [...series(0, durationMs, 50).filter((item) => !times.has(item.t)), ...parts].sort((a, b) => a.t - b.t)
 }
 const status = (actor: number, statusId: number, from: number, to: number) => ({ actor, statusId, from, to })
-/** The samples of member 0 in a fight of 100 seconds; member 1 and the boss 2 have none */
+/** The samples of member 0 in a fight of 100 seconds; member 1 and the boss 2 have none. 1001 is a raid buff. */
 const analyze = (samples: AnalysisSample[], patch: Partial<AnalysisContext> = {}) =>
-  analyzePotency(samples, { actor: 0, durationMs: 100_000, statuses: [], ...patch })
+  analyzePotency(samples, { actor: 0, durationMs: 100_000, statuses: [], raidBuffStatuses: new Set([1001]), ...patch })
 const shape = (region: { from: number; to: number; deviation: number; count: number }) => ({
   from: region.from,
   to: region.to,
@@ -209,6 +209,22 @@ describe('analyzePotency', () => {
         ],
         [[{ kind: 'down', statusIds: [215] }], null],
         [[{ kind: 'down', statusIds: [1004] }], null],
+      ])
+    })
+
+    it('takes a raid buff as raid only when another member gave it, on the member or on the target', () => {
+      const onTarget = { statusId: 1001, sourceId: 1, holder: 'target' as const, value: 1.1 }
+      const unmarked = { statusId: 1003, sourceId: 1, holder: 'caster' as const, value: 1.1 }
+      const own = { statusId: 1001, sourceId: 0, holder: 'caster' as const, value: 1.1 }
+      const samples = fight([
+        ...series(20_000, 30_000, 55, { multiplier: 1.1, factors: [onTarget] }),
+        ...series(45_000, 55_000, 55, { multiplier: 1.1, factors: [unmarked] }),
+        ...series(70_000, 80_000, 55, { multiplier: 1.1, factors: [own] }),
+      ])
+      expect(analyze(samples)!.regions.map((region) => region.known)).toEqual([
+        [{ kind: 'raid', statusIds: [1001] }],
+        [{ kind: 'self', statusIds: [1003] }],
+        [{ kind: 'self', statusIds: [1001] }],
       ])
     })
 

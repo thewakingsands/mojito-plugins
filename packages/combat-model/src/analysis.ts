@@ -36,6 +36,8 @@ export interface AnalysisContext {
   durationMs: number
   /** The statuses of the fight, from and to in milliseconds after it started */
   statuses: readonly { actor: number; statusId: number; from: number; to: number }[]
+  /** The statuses of the raid buffs, as PeriodicDefs.raidBuffStatuses */
+  raidBuffStatuses: ReadonlySet<number>
 }
 
 export interface PotencyPoint {
@@ -58,7 +60,12 @@ export interface PotencyRegion {
   /** Median r of the region */
   median: number
   count: number
-  /** In the order raid, self, target, down; only groups that have statuses. Status 0 is a modifier of the gauge. */
+  /**
+   * In the order raid, self, target, down; only groups that have statuses. Status 0 is a modifier of the gauge. raid:
+   * the raid buffs another member gave, on the member or on the target; target: the other statuses on the target; self:
+   * the other statuses on the member, those another member gave without being a raid buff among them; down: those that
+   * lower the damage.
+   */
   known: { kind: ReasonKind; statusIds: number[] }[]
   /**
    * 'partly': known reasons and an unknown remainder; 'unknown': no known reason; null: fully explained. self and boss
@@ -165,7 +172,7 @@ function regionOf(
   points: readonly PotencyPoint[],
   baseline: number,
 ): PotencyRegion {
-  const { actor } = context
+  const { actor, raidBuffStatuses } = context
   const from = Math.max(0, points[group[0]].t - REGION_PAD_MS)
   const to = Math.min(context.durationMs, points[group.at(-1)!].t + REGION_PAD_MS)
   const regionMedian = median(group.map((i) => points[i].r))
@@ -191,8 +198,8 @@ function regionOf(
       if (seen.has(key)) continue
       seen.add(key)
       if (factor.value < 1) add('down', factor.statusId)
-      else if (factor.holder === 'target') add('target', factor.statusId)
-      else add(factor.sourceId === actor ? 'self' : 'raid', factor.statusId)
+      else if (factor.sourceId !== actor && raidBuffStatuses.has(factor.statusId)) add('raid', factor.statusId)
+      else add(factor.holder === 'target' ? 'target' : 'self', factor.statusId)
     }
   let damageDown = false
   if (down)

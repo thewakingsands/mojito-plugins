@@ -1,6 +1,9 @@
 import type { DamageContribution } from '../events.js'
 
-/** Whose modifier it is, from the attacker: the attacker, another player, or a source that is not a player */
+/**
+ * Whose modifier it is, from the attacker: the attacker, or another player whose modifier is not a raid buff; another
+ * player, for a raid buff of theirs; or a source that is not a player
+ */
 export type EffectOwner = 'self' | 'player' | 'other'
 
 export interface AttributionEffect {

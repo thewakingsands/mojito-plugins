@@ -690,6 +690,7 @@ export function complete(partial: PartialReplay, data: GameData): ReplayData {
       statusId,
       name: data.status(statusId),
       category: data.category(statusId),
+      raidBuff: periodicDefs.raidBuffStatuses.has(statusId),
     })),
     events: rest.events.map((event) => {
       switch (event.kind) {

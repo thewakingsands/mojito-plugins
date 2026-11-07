@@ -258,6 +258,19 @@ it('lists the Action or Status of every skill in the tables, used or not', async
   }
 })
 
+it('marks the statuses of the raid buffs as the combat model does', async () => {
+  const partial = await build([hit(10_000, 1, [9], 1000)])
+  // Divination, and Damage Down
+  const data = complete(
+    { ...partial, statusIds: [1878, 215] },
+    { action: () => null, status: () => null, gcd: () => null, category: () => null },
+  )
+  expect(data.statusInfo.map(({ statusId, raidBuff }) => [statusId, raidBuff])).toEqual([
+    [1878, true],
+    [215, false],
+  ])
+})
+
 it('fills in the names of the game data', async () => {
   const partial = await build([
     hit(10_000, 1, [9], 1000),
@@ -273,7 +286,7 @@ it('fills in the names of the game data', async () => {
     category: (id) => (id === 215 ? 'debuff' : null),
   })
   expect(data.casts[0].name).toBe('技能500')
-  expect(data.statusInfo).toContainEqual({ statusId: 215, name: '状态215', category: 'debuff' })
+  expect(data.statusInfo).toContainEqual({ statusId: 215, name: '状态215', category: 'debuff', raidBuff: false })
   expect(eventsOf(data, 'penalty')[0]).toMatchObject({ name: '状态215', cause: { name: '技能600' } })
   expect(eventsOf(data, 'death')[0]).toMatchObject({
     killingBlow: { name: '技能600' },

@@ -208,11 +208,16 @@ export class DamageAttributor {
     return { ...rates, criticalMultiplier: criticalMultiplierOf(rates.critical) }
   }
 
-  /** The modifiers, with their sources taken to the players they stand for */
+  /**
+   * The modifiers, with their sources taken to the players they stand for. Another player has a share only of a raid
+   * buff of theirs; their other modifiers count as those of the attacker.
+   */
   private effectsOf(modifiers: readonly SnapshotModifier[], attacker: number): AttributionEffect[] {
+    const { raidBuffStatuses } = this.estimator.defs
     return modifiers.map(({ statusId, sourceId, type, value }) => {
       const player = this.playerOf(sourceId)
-      const owner = player === null ? 'other' : player === attacker ? 'self' : 'player'
+      const owner =
+        player === null ? 'other' : player !== attacker && raidBuffStatuses.has(statusId) ? 'player' : 'self'
       return { statusId, sourceId: player ?? sourceId, owner, type, value }
     })
   }

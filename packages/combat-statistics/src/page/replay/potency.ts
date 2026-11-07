@@ -33,7 +33,14 @@ export function analyzePotency(data: ReplayData, actor: number): PotencyAnalysis
       direct,
       factors: factors.map(({ statusId, source, holder, value }) => ({ statusId, sourceId: source, holder, value })),
     }))
-  const analysis = analyze(samples, { actor, durationMs: data.fight.durationMs, statuses: data.statuses })
+  // The review marks the raid buffs, so that the page need not load the data of the combat model
+  const raidBuffStatuses = new Set(data.statusInfo.filter((info) => info.raidBuff).map((info) => info.statusId))
+  const analysis = analyze(samples, {
+    actor,
+    durationMs: data.fight.durationMs,
+    statuses: data.statuses,
+    raidBuffStatuses,
+  })
   if (!analysis) return null
   const nameOf = (statusId: number) =>
     data.statusInfo.find((info) => info.statusId === statusId)?.name ?? `状态 #${statusId}`

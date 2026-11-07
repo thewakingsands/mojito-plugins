@@ -44,11 +44,11 @@ function data(potency: PotencySample[], patch: Partial<Pick<ReplayData, 'fight' 
     actors: [member(0, 19), member(1, 24), enemy(2, true)],
     potency,
     statusInfo: [
-      { statusId: 215, name: '伤害降低', category: 'debuff' },
-      { statusId: 1001, name: '团辅', category: 'buff' },
-      { statusId: 1002, name: '自身增益', category: 'buff' },
-      { statusId: 1003, name: '易伤', category: 'debuff' },
-      { statusId: 1005, name: '别的状态', category: 'debuff' },
+      { statusId: 215, name: '伤害降低', category: 'debuff', raidBuff: false },
+      { statusId: 1001, name: '团辅', category: 'buff', raidBuff: true },
+      { statusId: 1002, name: '自身增益', category: 'buff', raidBuff: false },
+      { statusId: 1003, name: '易伤', category: 'debuff', raidBuff: false },
+      { statusId: 1005, name: '别的状态', category: 'debuff', raidBuff: false },
     ],
     ...patch,
   })

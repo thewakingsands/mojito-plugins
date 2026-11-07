@@ -189,6 +189,8 @@ export interface ReplayStatusInfo {
   statusId: number
   name: string | null
   category: 'buff' | 'debuff' | null
+  /** Whether the combat model marks it as the status of a raid buff, as PeriodicDefs.raidBuffStatuses */
+  raidBuff: boolean
 }
 /** A hit the host measured the damage per potency with */
 export interface PotencySample {

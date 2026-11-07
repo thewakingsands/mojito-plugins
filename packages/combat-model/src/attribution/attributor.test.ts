@@ -109,6 +109,16 @@ describe('DamageAttributor', () => {
     expect(split.contributions[0].amount).toBeLessThan(10000 * DIVINATION_SHARE)
   })
 
+  it('keeps a modifier another player gave that is no raid buff with the attacker', () => {
+    const harness = new AttributionHarness().divination(SAMURAI)
+    harness.gain(SAMURAI, FUGETSU, ASTROLOGIAN)
+    harness.effect(SAMURAI, HAKAZE, [{ target: ENEMY, entities: [damage(10000)] }])
+    const split = harness.lastSplit()
+    expect(split.contributions.map((item) => [item.sourceId, item.statusId])).toEqual([[ASTROLOGIAN, DIVINATION]])
+    expect(split.unattributed).toBe(0)
+    expect(split.contributions[0].amount).toBeLessThan(10000 * DIVINATION_SHARE)
+  })
+
   it('counts the statuses other players put on the owner for a pet', () => {
     const harness = new AttributionHarness().divination(SAMURAI)
     harness.effect(PET, 16504, [{ target: ENEMY, entities: [damage(10000)] }])

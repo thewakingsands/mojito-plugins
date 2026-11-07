@@ -32,10 +32,10 @@ const data = replayData({
     enemy(5, true),
   ],
   statusInfo: [
-    { statusId: 100, name: '增益', category: 'buff' },
-    { statusId: 101, name: '另一个增益', category: 'buff' },
-    { statusId: 215, name: '伤害降低', category: 'debuff' },
-    { statusId: 300, name: '雪仇', category: 'debuff' },
+    { statusId: 100, name: '增益', category: 'buff', raidBuff: false },
+    { statusId: 101, name: '另一个增益', category: 'buff', raidBuff: false },
+    { statusId: 215, name: '伤害降低', category: 'debuff', raidBuff: false },
+    { statusId: 300, name: '雪仇', category: 'debuff', raidBuff: false },
   ],
   statuses: [
     { actor: 0, statusId: 100, source: 2, from: 0, to: 5000, stacks: null },

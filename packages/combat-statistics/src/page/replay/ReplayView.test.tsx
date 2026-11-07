@@ -59,8 +59,8 @@ const data = replayData({
     { actor: 1, statusId: 215, source: 3, from: 30_000, to: 60_000, stacks: null },
   ],
   statusInfo: [
-    { statusId: 100, name: '增益', category: 'buff' },
-    { statusId: 215, name: '伤害降低', category: 'debuff' },
+    { statusId: 100, name: '增益', category: 'buff', raidBuff: true },
+    { statusId: 215, name: '伤害降低', category: 'debuff', raidBuff: false },
   ],
   casts: [
     { t: 10_000, actor: 3, durationMs: 4700, actionId: 7982, name: '大地摇动', cancelledAt: null },

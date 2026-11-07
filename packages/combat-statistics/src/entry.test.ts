@@ -1411,12 +1411,12 @@ it('builds the review again once game data that could not be read is open', asyn
     (await h.commands.get('statistics')!(request as unknown as Value)) as unknown as ReplayResult
   h.setDataClosed(true)
   // The action name was already read for the visit list, before the data closed.
-  expect(reviewNames(await replay()).statuses).toEqual([{ statusId: 49, name: null, category: null }])
+  expect(reviewNames(await replay()).statuses).toEqual([{ statusId: 49, name: null, category: null, raidBuff: false }])
   h.setDataClosed(false)
   const opened = await replay()
   expect(reviewNames(opened)).toEqual({
     actions: ['技能'],
-    statuses: [{ statusId: 49, name: '状态', category: 'buff' }],
+    statuses: [{ statusId: 49, name: '状态', category: 'buff', raidBuff: false }],
   })
   expect(await replay()).toBe(opened)
   await h.dispose()
@@ -1431,7 +1431,7 @@ it('names the review at once when a session gains its data language', async () =
   // The action name read for the overview is cached; the status was never read.
   expect(reviewNames(await replay())).toEqual({
     actions: ['技能'],
-    statuses: [{ statusId: 49, name: null, category: null }],
+    statuses: [{ statusId: 49, name: null, category: null, raidBuff: false }],
   })
   await h.refreshSession('cn')
   expect(reviewNames(await replay())).toMatchObject({ actions: ['技能'], statuses: [{ category: 'buff' }] })
