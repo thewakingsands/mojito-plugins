@@ -56,4 +56,31 @@ describe('CalibrationSamples', () => {
     samples.clear()
     expect(samples.count(1, 'damage')).toBe(0)
   })
+  it('takes the median of ρ over the casters of the kind', () => {
+    const samples = new CalibrationSamples()
+    samples.add(1, 'damage', 1, 40)
+    samples.add(2, 'damage', 1, 30)
+    samples.add(3, 'damage', 1, 50)
+    expect(samples.medianPerPotency('damage')).toBe(40)
+    samples.add(4, 'damage', 1, 10)
+    expect(samples.medianPerPotency('damage')).toBe(35)
+  })
+
+  it('has no median without samples of the kind', () => {
+    const samples = new CalibrationSamples()
+    samples.add(1, 'heal', 1, 30)
+    expect(samples.medianPerPotency('damage')).toBeNull()
+    expect(samples.medianPerPotency('heal')).toBe(30)
+  })
+
+  it('takes ρ of the last 300 samples of each caster, or of all of them', () => {
+    const samples = new CalibrationSamples()
+    for (let index = 0; index < 400; index++) samples.add(1, 'damage', 1, 10)
+    for (let index = 0; index < CALIBRATION_WINDOW; index++) samples.add(1, 'damage', 1, 20)
+    samples.add(2, 'damage', 1, 15)
+    samples.add(3, 'damage', 1, 50)
+    // Caster 1 has ρ 20 in the window and 10 over all its samples
+    expect(samples.medianPerPotency('damage')).toBe(20)
+    expect(samples.medianPerPotency('damage', true)).toBe(15)
+  })
 })

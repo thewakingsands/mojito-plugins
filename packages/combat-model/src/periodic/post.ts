@@ -51,7 +51,8 @@ export function reviseBattle(
     const withPriors = hasPriors(members)
     const block = withPriors ? state.block(membersOf(members)) : null
     const noise = withPriors ? noiseOf(members) : []
-    const split = splitTick(members, event.total, event.confirmed, block, noise, (value) =>
+    const fallback = block ? [] : estimator.fallbackWeights(members, priorOf, true)
+    const split = splitTick(members, event.total, event.confirmed, block, noise, fallback, (value) =>
       removeTick(value, sum(noise), event.total),
     )
     return {

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { ASTROLOGIAN, ENEMY, SAGE, SAMURAI } from '../testing/periodic.js'
-import { apply, applyExample, COMBUST, example, Harness, HIGANBANA } from '../testing/periodic-harness.js'
+import {
+  apply,
+  applyExample,
+  COMBUST,
+  damage,
+  example,
+  FALL_MALEFIC,
+  Harness,
+  HIGANBANA,
+} from '../testing/periodic-harness.js'
 import { allocate, GaussianState, removeTick, roundShares } from './gaussian.js'
 
 const BOTH: [number, number][] = [
@@ -119,8 +128,32 @@ describe('reviseBattle', () => {
       .tick(ENEMY, 7000)
       .later(10)
       .list(ENEMY, BOTH)
-    expect(harness.last()).toMatchObject({ unknown: 7000, shares: [] })
+    const realtime = harness.last()
+    expect(realtime.unknown).toBe(0)
+    expect(realtime.shares.map((share) => share.basis)).toEqual(['estimated', 'estimated'])
+    expect(realtime.shares.reduce((sum, share) => sum + share.amount, 0)).toBe(7000)
     example(harness).later(10_000).close()
+    const [tick] = harness.revisions[0].ticks
+    expect(tick.unknown).toBe(0)
+    expect(tick.shares.map((share) => share.basis)).toEqual(['estimated', 'estimated'])
+    expect(tick.shares.reduce((sum, share) => sum + share.amount, 0)).toBe(7000)
+  })
+  it('revises a tick by potency when a caster never calibrates', () => {
+    const harness = new Harness()
+    for (const amount of [10800, 11070, 10530]) {
+      harness.effect(ASTROLOGIAN, FALL_MALEFIC, [{ target: ENEMY, entities: [damage(amount)] }])
+    }
+    harness
+      .effect(ASTROLOGIAN, COMBUST.action, [{ target: ENEMY, raw: [apply(COMBUST.status, 174, 58)] }])
+      .gain(ENEMY, COMBUST.status, ASTROLOGIAN, 0)
+      .effect(SAMURAI, HIGANBANA.action, [{ target: ENEMY, raw: [apply(HIGANBANA.status, 6, 250)] }])
+      .gain(ENEMY, HIGANBANA.status, SAMURAI, 1)
+      .later(1000)
+      .tick(ENEMY, 7000)
+      .later(10)
+      .list(ENEMY, BOTH)
+      .later(10_000)
+      .close()
     const [tick] = harness.revisions[0].ticks
     expect(tick.unknown).toBe(0)
     expect(tick.shares.map((share) => share.basis)).toEqual(['estimated', 'estimated'])

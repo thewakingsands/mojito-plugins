@@ -1,5 +1,12 @@
 import { actorId, invalidTarget } from '../constants.js'
-import { type Calibration, type PeriodicDefs, type PeriodicEffect, type PeriodicKind, potencyAt } from '../defs.js'
+import {
+  type Calibration,
+  type PeriodicDefs,
+  type PeriodicEffect,
+  type PeriodicKind,
+  potencyAt,
+  potencyOrLast,
+} from '../defs.js'
 import type { PeriodicRevisionEvent, PeriodicShare, PeriodicTickEvent, PotencySampleEvent } from '../events.js'
 import type { CombatInput, StatusChange } from '../input.js'
 import type { CombatWorld } from '../world.js'
@@ -49,6 +56,11 @@ export interface Snapshot {
   createdAt: number
   /** p, the potency of a tick at the level of the caster with the potency modifiers; null at an unknown level */
   potency: number | null
+  /**
+   * p̃, the potency the split weighs a snapshot without a prior by: the potency at the level of the caster, the last
+   * one of the table at an unknown level, with the potency modifiers
+   */
+  splitPotency: number
   multiplier: number
   critDelta: number
   directDelta: number
@@ -73,6 +85,7 @@ interface Application {
   lowByte: number
   critByte: number
   potency: number | null
+  splitPotency: number
   modifiers: ModifierResult
 }
 
@@ -105,10 +118,19 @@ export interface Split {
   unknown: number
 }
 
+/** The total in proportion to the weights, those below 0 taken as 0; evenly when no weight is above 0 */
+function proportional(weights: readonly number[], total: number): number[] {
+  const kept = weights.map((weight) => Math.max(weight, 0))
+  const weightSum = sum(kept)
+  const values = kept.map((weight) => (weightSum > 0 ? (total * weight) / weightSum : total / kept.length))
+  return roundShares(values, total)
+}
+
 /**
- * Splits a tick among its members.
+ * Splits a tick among its members. Only a tick without members is left unknown.
  * @param block The block of the members, when every member has a prior
  * @param noise r of each member, with the block
+ * @param fallback The weight of each member when there is no block, from PeriodicEstimator.fallbackWeights
  * @param undo Takes the information of this tick out of the block before the conditional split
  */
 export function splitTick(
@@ -117,25 +139,22 @@ export function splitTick(
   confirmed: boolean,
   block: Block | null,
   noise: readonly number[],
+  fallback: readonly number[],
   undo: (block: Block) => Block = (value) => value,
 ): Split {
-  const none: Split = { amounts: [], basis: [], unknown: total }
-  if (members.length === 0) return none
+  if (members.length === 0) return { amounts: [], basis: [], unknown: total }
 
   if (confirmed && new Set(members.map((member) => member.source)).size === 1) {
     if (members.length === 1) return { amounts: [total], basis: ['exact'], unknown: 0 }
-    const weights = block
-      ? block.mean.map((value) => Math.max(value, 0))
-      : members.map((member) => (member.potency ?? 0) * member.multiplier)
-    const weightSum = sum(weights)
-    const values = weights.map((weight) => (weightSum > 0 ? (total * weight) / weightSum : total / members.length))
-    return { amounts: roundShares(values, total), basis: members.map(() => 'sourceExact'), unknown: 0 }
+    const amounts = proportional(block ? block.mean : fallback, total)
+    return { amounts, basis: members.map(() => 'sourceExact'), unknown: 0 }
   }
 
-  if (!block) return none
-  const values = allocate(confirmed ? undo(block) : block, noise, total)
   const basis = confirmed ? 'estimated' : 'unconfirmed'
-  return { amounts: roundShares(values, total), basis: members.map(() => basis), unknown: 0 }
+  const amounts = block
+    ? roundShares(allocate(confirmed ? undo(block) : block, noise, total), total)
+    : proportional(fallback, total)
+  return { amounts, basis: members.map(() => basis), unknown: 0 }
 }
 
 /**
@@ -516,8 +535,13 @@ export class PeriodicEstimator {
       target: holder,
       action: this.actionInfo(periodic.action),
     })
-    const base = potencyAt(periodic.potency, this.level(caster), this.defs.maxLevel)
-    return { modifiers, potency: base === null ? null : base * modifiers.potencyFactor }
+    const level = this.level(caster)
+    const base = potencyAt(periodic.potency, level, this.defs.maxLevel)
+    return {
+      modifiers,
+      potency: base === null ? null : base * modifiers.potencyFactor,
+      splitPotency: potencyOrLast(periodic.potency, level, this.defs.maxLevel) * modifiers.potencyFactor,
+    }
   }
 
   private recordApplication(
@@ -529,12 +553,12 @@ export class PeriodicEstimator {
     critByte: number,
     time: number,
   ): void {
-    const { modifiers, potency } = this.snapshotInputs(periodic, caster, holder)
+    const { modifiers, potency, splitPotency } = this.snapshotInputs(periodic, caster, holder)
     const snapshot = this.snapshots.get(key)
     if (snapshot?.awaitingApply && time - snapshot.createdAt <= APPLY_WINDOW) {
       // The status came first: its application fills in what the snapshot took
       snapshot.awaitingApply = false
-      this.fill(snapshot, { time, lowByte, critByte, potency, modifiers })
+      this.fill(snapshot, { time, lowByte, critByte, potency, splitPotency, modifiers })
       const prior = this.priorOf(snapshot)
       if (prior) {
         if (!snapshot.prior) this.gaussian.addSnapshot(snapshot.id, sourceKey(snapshot))
@@ -542,13 +566,14 @@ export class PeriodicEstimator {
       }
       return
     }
-    this.applications.set(key, { time, lowByte, critByte, potency, modifiers })
+    this.applications.set(key, { time, lowByte, critByte, potency, splitPotency, modifiers })
   }
 
   private fill(snapshot: Snapshot, application: Application): void {
     snapshot.lowByte = application.lowByte
     snapshot.critByte = application.critByte
     snapshot.potency = application.potency
+    snapshot.splitPotency = application.splitPotency
     snapshot.multiplier = application.modifiers.multiplier
     snapshot.critDelta = application.modifiers.critRate
     snapshot.directDelta = application.modifiers.directRate
@@ -585,9 +610,9 @@ export class PeriodicEstimator {
       if (current) this.end(current)
       this.create(key, periodic, holder, buff.actorId, buff.id, index, eventTime, application)
     } else if (!current) {
-      const { modifiers, potency } = this.snapshotInputs(periodic, buff.actorId, holder)
+      const { modifiers, potency, splitPotency } = this.snapshotInputs(periodic, buff.actorId, holder)
       const snapshot = this.create(key, periodic, holder, buff.actorId, buff.id, index, eventTime, null)
-      this.fill(snapshot, { time: eventTime, lowByte: 0, critByte: 0, potency, modifiers })
+      this.fill(snapshot, { time: eventTime, lowByte: 0, critByte: 0, potency, splitPotency, modifiers })
       snapshot.lowByte = null
       snapshot.critByte = null
       snapshot.awaitingApply = true
@@ -617,6 +642,7 @@ export class PeriodicEstimator {
       slot,
       createdAt: time,
       potency: null,
+      splitPotency: 0,
       multiplier: 1,
       critDelta: 0,
       directDelta: 0,
@@ -771,7 +797,8 @@ export class PeriodicEstimator {
     const gaussianMembers = withPriors ? this.membersOf(members) : []
     const block = withPriors ? this.gaussian.block(gaussianMembers) : null
     const noise = withPriors ? members.map((member) => (member.prior as SnapshotPrior).variance) : []
-    const split = splitTick(members, event.value, confirmed, block, noise)
+    const fallback = block ? [] : this.fallbackWeights(members, (snapshot) => snapshot.prior, false)
+    const split = splitTick(members, event.value, confirmed, block, noise, fallback)
     if (confirmed && withPriors) this.gaussian.update(gaussianMembers, event.value, sum(noise))
 
     const result: PeriodicTickEvent = {
@@ -811,6 +838,39 @@ export class PeriodicEstimator {
         snapshot: snapshot.effects.map((effect) => ({ ...effect })),
         rates: { ...rates, criticalMultiplier },
       }
+    })
+  }
+
+  /**
+   * The weights of a split without the block. A member with a prior weighs its mean μ; one without weighs the mean of
+   * a prior on ρ̃ × p̃ × M, where ρ̃ is ρ of its caster or else the median ρ of the casters of the kind, so that both
+   * take the expected gain of critical and direct hits. Without any ρ of the kind no member has a prior, and each
+   * weighs p̃ × M.
+   * @param all Read every sample since the zone changed, as the split after a battle does
+   */
+  fallbackWeights(
+    members: readonly Snapshot[],
+    priorOf: (snapshot: Snapshot) => SnapshotPrior | null,
+    all: boolean,
+  ): number[] {
+    return members.map((snapshot) => {
+      const prior = priorOf(snapshot)
+      if (prior) return prior.mean
+      const rho =
+        this.calibration.perPotency(snapshot.source, snapshot.kind, all) ??
+        this.calibration.medianPerPotency(snapshot.kind, all)
+      if (rho === null) return snapshot.splitPotency * snapshot.multiplier
+      const { critical, direct } = this.ratesOf(snapshot.source)
+      return computePrior({
+        kind: snapshot.kind,
+        base: rho * snapshot.splitPotency * snapshot.multiplier,
+        lowByte: snapshot.lowByte,
+        critByte: snapshot.critByte,
+        critical,
+        direct,
+        critDelta: snapshot.critDelta,
+        directDelta: snapshot.directDelta,
+      }).mean
     })
   }
 

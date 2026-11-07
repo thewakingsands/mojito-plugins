@@ -2,7 +2,7 @@ import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type { Sample } from '@ffcafe/mojito-plugin-sdk'
 import { describe, expect, it } from 'vitest'
 import { CombatEngineRunner, toCombatInput } from './combat-engine.js'
-import type { GameEvent } from './combat-events.js'
+import type { GameEvent, PeriodicTick } from './combat-events.js'
 import { effect, meta, sample } from './fixtures.js'
 
 /** A runner whose timers wait for the test to call them */
@@ -216,6 +216,86 @@ describe('CombatEngineRunner', () => {
     expect(timers.at(-1)?.cancelled).toBe(true)
     // The ids start over with the engine
     expect(value.receive(sample(tick(13, 248, 1), 13000))[0].value.data).toMatchObject({ tickId: 1 })
+  })
+
+  it('splits a summed tick among the statuses on the target before any calibration', () => {
+    const { runner: value, timers, drained, setNow } = runner()
+    const profile = (actorId: number, classJob: number): GameEvent => ({
+      type: 'actorProfileChanged',
+      data: { actorId, classJob, level: 100, ownerId: null },
+    })
+    /** Combust III of the astrologian and Higanbana of the samurai, which apply their statuses and hit nothing */
+    const applies = (seq: number, source: number, action: number, status: number): GameEvent => {
+      const event = effect(seq, 0, source)
+      event.data.actionId = action
+      event.data.targets[0].effects = []
+      event.data.targets[0].rawEntries = [[14 | (6 << 8) | (250 << 16), status << 16]]
+      return event
+    }
+    const packet = (seq: number) => ({ seq, timestamp: 0, sourceActorId: 9, targetActorId: 1 })
+    const status = (statusId: number, sourceActorId: number) => ({ statusId, param: 0, sourceActorId })
+
+    value.receive(sample(profile(1, 33), 0))
+    value.receive(sample(profile(2, 34), 0))
+    value.receive(sample(applies(1, 1, 16554, 1881), 1000))
+    value.receive(sample(applies(2, 2, 7489, 1228), 1000))
+    value.receive(
+      sample(
+        {
+          type: 'statusSlotsChanged',
+          packet: packet(3),
+          data: {
+            actorId: 9,
+            slots: [
+              { slot: 0, status: status(1881, 1) },
+              { slot: 1, status: status(1228, 2) },
+            ],
+            changes: [
+              { kind: 'gained', slot: 0, statusId: 1881, sourceActorId: 1 },
+              { kind: 'gained', slot: 1, statusId: 1228, sourceActorId: 2 },
+            ],
+          },
+        },
+        1000,
+      ),
+    )
+    setNow(2000)
+    value.receive(sample(tick(4, 0, null), 2000))
+    const results = value.receive(
+      sample(
+        {
+          type: 'statusesReplaced',
+          packet: packet(5),
+          data: {
+            actorId: 9,
+            statuses: [
+              { ...status(1881, 1), durationMs: null, observedAt: 2010, slot: 0 },
+              { ...status(1228, 2), durationMs: null, observedAt: 2010, slot: 1 },
+            ],
+          },
+        },
+        2010,
+      ),
+    )
+    const periodic = results.find((item) => item.value.type === 'periodicTick')
+    if (!periodic) throw new Error('no tick')
+    expect(periodic.value.data).toMatchObject({ confirmed: true, unknown: 0, total: 500 })
+    const shares = (periodic.value.data as PeriodicTick).shares
+    expect(shares.map((share) => [share.sourceId, share.basis])).toEqual([
+      [1, 'estimated'],
+      [2, 'estimated'],
+    ])
+    expect(shares.every((share) => share.amount > 0)).toBe(true)
+    expect(shares.reduce((total, share) => total + share.amount, 0)).toBe(500)
+
+    // The window closes after ten quiet seconds, and the revision splits the tick the same way
+    setNow(12010)
+    timers.at(-1)!.callback()
+    const revision = drained.flat().find((item) => item.value.type === 'periodicRevision')
+    if (!revision) throw new Error('no revision')
+    const [revised] = (revision.value.data as { ticks: PeriodicTick[] }).ticks
+    expect(revised.unknown).toBe(0)
+    expect(revised.shares.reduce((total, share) => total + share.amount, 0)).toBe(500)
   })
 
   it('lets a deadline pass on the source clock, also when the next packet says it is before the deadline', () => {

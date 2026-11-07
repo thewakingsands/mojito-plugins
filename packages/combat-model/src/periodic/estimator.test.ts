@@ -15,6 +15,7 @@ import {
   DOSIS,
   damage,
   example,
+  FALL_MALEFIC,
   FIRE,
   FIRE_III,
   FUGETSU,
@@ -34,6 +35,7 @@ import {
   WILDFIRE_ACTION,
   XENOGLOSSY,
 } from '../testing/periodic-harness.js'
+import { roundShares } from './gaussian.js'
 import { computePrior } from './prior.js'
 import { PRIOR_RATE } from './rates.js'
 
@@ -48,6 +50,39 @@ const FORCED = 851
 const SLICE_ACTION = 9
 /** Overheated, which adds potency to the weaponskills */
 const OVERHEATED = 2688
+
+/** Combust III at level 100, and the last potency of Higanbana, which is also its potency at level 100 */
+const COMBUST_POTENCY = 70
+const HIGANBANA_POTENCY = 50
+const HIGANBANA_LAST = 50
+
+const BOTH: [number, number][] = [
+  [COMBUST.status, ASTROLOGIAN],
+  [HIGANBANA.status, SAMURAI],
+]
+
+/** Combust III and Higanbana on the enemy, without modifiers */
+const applyBoth = (harness: Harness) =>
+  harness
+    .effect(ASTROLOGIAN, COMBUST.action, [{ target: ENEMY, raw: [apply(COMBUST.status, 174, 58)] }])
+    .gain(ENEMY, COMBUST.status, ASTROLOGIAN, 0)
+    .effect(SAMURAI, HIGANBANA.action, [{ target: ENEMY, raw: [apply(HIGANBANA.status, 6, 250)] }])
+    .gain(ENEMY, HIGANBANA.status, SAMURAI, 1)
+
+const zipShares = (values: number[], basis: string) =>
+  [COMBUST.status, HIGANBANA.status].map((status, index) => [status, values[index], basis])
+
+/** The amounts of a total in proportion to the weights, as the split rounds them */
+const byWeight = (weights: number[], total: number) => {
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0)
+  return roundShares(
+    weights.map((weight) => (total * weight) / weightSum),
+    total,
+  )
+}
+
+const shareSum = (tick: { shares: { amount: number }[] }) =>
+  tick.shares.reduce((total, share) => total + share.amount, 0)
 
 describe('PeriodicEstimator', () => {
   it('splits the confirmed tick of the example', () => {
@@ -297,21 +332,13 @@ describe('PeriodicEstimator', () => {
     expect(harness.last().shares[0].snapshot.map((item) => item.statusId)).toEqual([BATTLE_LITANY])
   })
 
-  it('leaves the tick unknown until the caster has samples, then gives the snapshot a prior', () => {
+  it('splits the tick by potency until the caster has samples, then gives the snapshot a prior', () => {
     const harness = new Harness()
-    harness
-      .effect(ASTROLOGIAN, COMBUST.action, [{ target: ENEMY, raw: [apply(COMBUST.status, 174, 58)] }])
-      .gain(ENEMY, COMBUST.status, ASTROLOGIAN, 0)
-      .effect(SAMURAI, HIGANBANA.action, [{ target: ENEMY, raw: [apply(HIGANBANA.status, 6, 250)] }])
-      .gain(ENEMY, HIGANBANA.status, SAMURAI, 1)
-      .later(1000)
-      .tick(ENEMY, 7000)
-      .later(10)
-      .list(ENEMY, [
-        [COMBUST.status, ASTROLOGIAN],
-        [HIGANBANA.status, SAMURAI],
-      ])
-    expect(harness.last()).toMatchObject({ prediction: null, unknown: 7000, shares: [] })
+    applyBoth(harness).later(1000).tick(ENEMY, 7000).later(10).list(ENEMY, BOTH)
+    const tick = harness.last()
+    expect(tick).toMatchObject({ prediction: null, unknown: 0 })
+    expect(amounts(tick)).toEqual(zipShares(byWeight([COMBUST_POTENCY, HIGANBANA_POTENCY], 7000), 'estimated'))
+    expect(shareSum(tick)).toBe(7000)
 
     example(harness)
     harness
@@ -324,6 +351,121 @@ describe('PeriodicEstimator', () => {
       ])
     expect(harness.last().prediction).not.toBeNull()
     expect(harness.last().shares).toHaveLength(2)
+  })
+
+  describe('without priors for every member', () => {
+    /** The astrologian calibrates on Fall Malefic to ρ 40; the samurai does not */
+    const calibrateAstrologian = (harness: Harness) => {
+      for (const amount of [10800, 11070, 10530]) {
+        harness.effect(ASTROLOGIAN, FALL_MALEFIC, [{ target: ENEMY, entities: [damage(amount)] }])
+      }
+      return harness
+    }
+
+    /** μ of a snapshot of the test: ρ 40 and no modifiers */
+    const mean = (harness: Harness, caster: number, potency: number, lowByte: number, critByte: number) => {
+      const { critical, direct } = harness.estimator.ratesOf(caster)
+      return computePrior({
+        kind: 'damage',
+        base: 40 * potency,
+        lowByte,
+        critByte,
+        critical,
+        direct,
+        critDelta: 0,
+        directDelta: 0,
+      }).mean
+    }
+
+    it('weighs the member without a prior by the ρ of another caster', () => {
+      const harness = applyBoth(calibrateAstrologian(new Harness()))
+      harness.later(1000).tick(ENEMY, 7000).later(10).list(ENEMY, BOTH)
+      const tick = harness.last()
+      const weights = [
+        mean(harness, ASTROLOGIAN, COMBUST_POTENCY, 174, 58),
+        mean(harness, SAMURAI, HIGANBANA_POTENCY, 6, 250),
+      ]
+      expect(tick).toMatchObject({ prediction: null, unknown: 0, confirmed: true })
+      expect(amounts(tick)).toEqual(zipShares(byWeight(weights, 7000), 'estimated'))
+      expect(shareSum(tick)).toBe(7000)
+    })
+
+    it('takes the last potency of the table at an unknown level', () => {
+      const harness = new Harness()
+      harness.combatants.update(SAMURAI, { level: 0 })
+      applyBoth(calibrateAstrologian(harness))
+      harness.later(1000).tick(ENEMY, 7000).later(10).list(ENEMY, BOTH)
+      const tick = harness.last()
+      const weights = [
+        mean(harness, ASTROLOGIAN, COMBUST_POTENCY, 174, 58),
+        mean(harness, SAMURAI, HIGANBANA_LAST, 6, 250),
+      ]
+      expect(tick.unknown).toBe(0)
+      expect(amounts(tick)).toEqual(zipShares(byWeight(weights, 7000), 'estimated'))
+      expect(tick.shares.every((share) => share.amount > 0)).toBe(true)
+      expect(shareSum(tick)).toBe(7000)
+    })
+
+    it('weighs by potency and multiplier when no caster has ρ', () => {
+      const harness = new Harness()
+      harness.combatants.update(SAMURAI, { level: 0 })
+      applyBoth(harness).later(1000).tick(ENEMY, 7000).later(10).list(ENEMY, BOTH)
+      const tick = harness.last()
+      expect(tick.unknown).toBe(0)
+      expect(amounts(tick)).toEqual(zipShares(byWeight([COMBUST_POTENCY, HIGANBANA_LAST], 7000), 'estimated'))
+    })
+
+    it('splits an unconfirmed tick the same way', () => {
+      const harness = applyBoth(calibrateAstrologian(new Harness()))
+      harness.later(1000).tick(ENEMY, 7000).later(200).tick(SAGE, 1, true)
+      const tick = harness.last()
+      expect(tick).toMatchObject({ combatant: ENEMY, confirmed: false, unknown: 0 })
+      expect(tick.shares.map((share) => share.basis)).toEqual(['unconfirmed', 'unconfirmed'])
+      expect(shareSum(tick)).toBe(7000)
+    })
+
+    it('splits a tick of one source by potency at an unknown level', () => {
+      const defs = testDefs(({ statuses, actionTypes }) => {
+        statuses.push({
+          id: 838,
+          periodic: { kind: 'damage', action: 3599, job: 33, potency: [{ level: 1, potency: 50 }] },
+        })
+        actionTypes.splice(3, 0, { id: 3599, category: 'spell', attackType: 'magic' })
+      })
+      const harness = new Harness(defs)
+      harness.combatants.update(ASTROLOGIAN, { level: 0 })
+      applyExample(harness)
+        .effect(ASTROLOGIAN, 3599, [{ target: ENEMY, raw: [apply(838, 10, 10)] }])
+        .gain(ENEMY, 838, ASTROLOGIAN, 2)
+        .later(1000)
+        .tick(ENEMY, 6001)
+        .later(10)
+        .list(ENEMY, [
+          [COMBUST.status, ASTROLOGIAN],
+          [838, ASTROLOGIAN],
+        ])
+      const tick = harness.last()
+      // Both snapshots take Divination, 1.06
+      const weights = [COMBUST_POTENCY * 1.06, 50 * 1.06]
+      expect(tick.unknown).toBe(0)
+      expect(tick.shares.map((share) => share.basis)).toEqual(['sourceExact', 'sourceExact'])
+      expect(tick.shares.map((share) => share.amount)).toEqual(byWeight(weights, 6001))
+    })
+
+    it('leaves the state as it was', () => {
+      const split = applyBoth(calibrateAstrologian(new Harness()))
+      const skipped = applyBoth(calibrateAstrologian(new Harness()))
+      split.later(1000).tick(ENEMY, 7000).later(10).list(ENEMY, BOTH)
+      skipped.later(1010)
+      for (const harness of [split, skipped]) {
+        for (const perPotency of [46, 45, 47]) {
+          harness.effect(SAMURAI, HAKAZE, [{ target: ENEMY, entities: [damage(perPotency * 200)] }])
+        }
+        harness.later(3000).tick(ENEMY, 7000).later(10).list(ENEMY, BOTH)
+      }
+      expect(split.last().prediction).not.toBeNull()
+      expect(split.last().prediction).toBe(skipped.last().prediction)
+    })
   })
 
   describe('black mages', () => {

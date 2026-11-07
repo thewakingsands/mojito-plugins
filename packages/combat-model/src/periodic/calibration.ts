@@ -69,6 +69,21 @@ export class CalibrationSamples {
     return median([...byAction.values()].map(median))
   }
 
+  /**
+   * The median of ρ over the casters with samples of the kind, for a caster without samples of its own.
+   * @param all Every sample since the zone changed, instead of the last CALIBRATION_WINDOW
+   * @returns null when no caster has samples of the kind
+   */
+  medianPerPotency(kind: PeriodicKind, all = false): number | null {
+    const values: number[] = []
+    for (const key of this.samples.keys()) {
+      if (!key.endsWith(`:${kind}`)) continue
+      const value = this.perPotency(Number(key.slice(0, key.indexOf(':'))), kind, all)
+      if (value !== null) values.push(value)
+    }
+    return values.length ? median(values) : null
+  }
+
   clear(): void {
     this.samples.clear()
   }

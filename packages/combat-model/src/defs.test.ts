@@ -7,6 +7,7 @@ import {
   PeriodicDefsError,
   parsePeriodicDefs,
   potencyAt,
+  potencyOrLast,
   valueAt,
 } from './defs.js'
 import { testLevelModifiers } from './testing/periodic.js'
@@ -1006,6 +1007,22 @@ describe('potencyAt', () => {
   it('has no potency at level 0 or above maxLevel', () => {
     expect(potencyAt(table, 0, 100)).toBeNull()
     expect(potencyAt(table, 101, 100)).toBeNull()
+  })
+})
+
+describe('potencyOrLast', () => {
+  const table = [
+    { level: 1, potency: 250 },
+    { level: 94, potency: 270 },
+  ]
+
+  it('takes the potency at the level when there is one', () => {
+    for (const level of [1, 93, 94, 100]) expect(potencyOrLast(table, level, 100)).toBe(potencyAt(table, level, 100))
+  })
+
+  it('takes the last potency at level 0 or above maxLevel', () => {
+    expect(potencyOrLast(table, 0, 100)).toBe(270)
+    expect(potencyOrLast(table, 101, 100)).toBe(270)
   })
 })
 

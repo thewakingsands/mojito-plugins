@@ -26,6 +26,11 @@ export function potencyAt(table: PotencyTable, level: number, maxLevel: number):
   return entryAt(table, level)?.potency ?? null
 }
 
+/** @returns The potency at the level; the last potency when potencyAt has none, as valueAt does */
+export function potencyOrLast(table: PotencyTable, level: number, maxLevel: number): number {
+  return potencyAt(table, level, maxLevel) ?? table[table.length - 1].potency
+}
+
 /** @returns The value at the level; the last value when the level is unknown (0) */
 export function valueAt(table: ValueTable, level: number): number {
   if (level < 1) return table[table.length - 1].value
