@@ -33,10 +33,11 @@ details {
   border-bottom: 1px solid var(--mojito-border);
   padding: var(--mojito-space-group) 0;
 }
+/* mojito-base.css lays the summary out as a row; the status goes to its end */
 .rule-status {
-  float: right;
+  margin-left: auto;
+  padding-left: var(--mojito-space-group);
   font-variant-numeric: tabular-nums;
-  margin-left: var(--mojito-space-group);
 }
 summary {
   cursor: pointer;
