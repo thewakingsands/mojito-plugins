@@ -190,9 +190,24 @@ const inlineJson = (value) =>
         .join(', ')} }`
     : JSON.stringify(value)
 
+/** The lines of an array of numbers that does not fit on one line: as many numbers on each line as fit */
+function fillNumbers(value, inner) {
+  const lines = []
+  let line = ''
+  for (const [index, item] of value.entries()) {
+    const text = `${item}${index < value.length - 1 ? ',' : ''}`
+    if (line && inner.length + line.length + 1 + text.length > LINE_WIDTH) {
+      lines.push(inner + line)
+      line = text
+    } else line = line ? `${line} ${text}` : text
+  }
+  lines.push(inner + line)
+  return lines
+}
+
 /**
- * JSON as the formatter of the repository writes it: two spaces of indent, a flat object on one line, and an array of
- * plain values or flat objects on one line when it fits.
+ * JSON as the formatter of the repository writes it: two spaces of indent, a flat object on one line, an array of
+ * plain values or flat objects on one line when it fits, and otherwise an array of numbers filled line by line.
  * @param used The width the line has besides the value: the text before it, and the comma after it
  */
 function formatJson(value, indent = '', used = 0) {
@@ -204,6 +219,7 @@ function formatJson(value, indent = '', used = 0) {
       const line = `[${value.map(inlineJson).join(', ')}]`
       if (used + line.length <= LINE_WIDTH) return line
     }
+    if (value.every((item) => typeof item === 'number')) return `[\n${fillNumbers(value, inner).join('\n')}\n${indent}]`
     const items = value.map(
       (item, index) => inner + formatJson(item, inner, inner.length + (index < value.length - 1 ? 1 : 0)),
     )
