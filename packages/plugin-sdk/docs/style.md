@@ -85,7 +85,7 @@
 
 - `body`：底色、文字颜色、字体和 `--mojito-space-page` 内边距。不想要内边距时自己覆盖。
 - 标题、段落、链接、`small`、分隔线、`code`/`kbd`、焦点框、选中文字、滚动条。
-- `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。
+- `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。边缘的亮线和暗线、按下时下沉只给没有 `class` 或带 `data-variant` 的按钮；插件用自己的类画的按钮（标签页、列表行等）不会多出这些效果。
 - `input`、`select`、`textarea`：30px 高，悬停时边框加深，焦点时是强调色边框加一圈浅色光圈；`select` 用宿主的上下箭头。
 - 复选框和单选框：选中时是青柠色；`<input type="checkbox" role="switch">` 是开关，用于立即生效的设置。滑块、`progress`、`meter` 用宿主的颜色。
 - `label`、`fieldset`、`legend`；`details` 的展开标记换成宿主的箭头，不改变布局。
