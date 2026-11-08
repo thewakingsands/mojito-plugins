@@ -1,0 +1,94 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+html:has(body[data-page="overlay"]) {
+  background: transparent;
+}
+body[data-page="overlay"] {
+  background: transparent;
+  overflow: hidden;
+}
+body[data-page="overlay"] #app {
+  height: 100vh;
+}
+.strip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 144px;
+  overflow: hidden;
+}
+.action {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  background: #30343a;
+  border-radius: 3px;
+  font: 11px / 1 sans-serif;
+  overflow: hidden;
+}
+.action[hidden],
+.ruler[hidden] {
+  display: none;
+}
+.action img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.ruler {
+  position: absolute;
+  width: 100%;
+  font: 11px / 1.2 sans-serif;
+  color: #ddd;
+  text-shadow: 0 1px 2px #000;
+}
+.ruler span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+body[data-page="settings"] #app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px;
+}
+h1 {
+  margin: 0 0 24px;
+  font-size: 22px;
+}
+h2 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 28px 0 12px;
+}
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 128px;
+}
+select {
+  font: inherit;
+  padding: 6px 10px;
+}
+.reason,
+.error {
+  margin: 16px 0 0;
+  font-size: 13px;
+}
+.error {
+  color: var(--mojito-danger, #c33);
+}
+body[data-page="settings"] .strip {
+  height: 216px;
+  background: #272a30;
+  border-radius: 4px;
+}

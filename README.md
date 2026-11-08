@@ -93,3 +93,10 @@ CI uploads this directory. Deployment through the `github-pages` environment is
 enabled only when the repository variable `PAGES_DEPLOY_ENABLED` is `true`. Enable
 Pages with GitHub Actions as its source, allow `main` in that environment, and authorize
 deployment before setting that variable; the workflow does not enable settings automatically.
+
+## SkillDisplay
+
+`packages/plugin-skill-display` shows a time strip of your own executed skills. Add SkillDisplay
+from the host's overlay manager, then choose the time window, icon size and direction in the plugin
+settings. The settings page includes a looping preview; topmost, lock and click-through use the
+host's overlay controls.

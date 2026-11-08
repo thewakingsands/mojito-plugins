@@ -283,6 +283,12 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  packages/plugin-skill-display:
+    dependencies:
+      '@ffcafe/mojito-plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+
   packages/raidboss:
     dependencies:
       '@ffcafe/mojito-plugin-sdk':
