@@ -24,6 +24,7 @@ describe('adjacent clock samples', () => {
     const delayed = anchor(first, clock(1100, { source: 'live' }), 200)
     expect(delayed.clock.now).toBe(1200)
     expect(delayed.rate).toBe(1)
+    expect(anchor(delayed, clock(1400, { source: 'live' }), 250).clock.now).toBe(1250)
     expect(anchor(delayed, clock(1400, { source: 'live' }), 500).clock.now).toBe(1500)
     expect(anchor(delayed, clock(500, { source: 'live', generation: 2 }), 500).clock.now).toBe(500)
   })

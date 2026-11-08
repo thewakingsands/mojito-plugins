@@ -20,7 +20,8 @@ export function anchor(previous: Anchor | null, clock: ClockState, received: num
     if (delta >= 0) rate = delta / (received - previous.received)
   }
   if (same && clock.source === 'live' && !clock.paused && !previous.clock.paused) {
-    clock = { ...clock, now: Math.max(clock.now!, previous.clock.now! + Math.max(0, received - previous.received)) }
+    // Both live clocks advance at rate one; delivery latency must not move the existing timeline.
+    clock = { ...clock, now: previous.clock.now! + Math.max(0, received - previous.received) }
   }
   return { clock, received, rate }
 }
