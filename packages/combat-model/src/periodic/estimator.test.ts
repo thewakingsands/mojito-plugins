@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { periodicDefs } from '../defs/index.js'
 import type { CombatInput } from '../input.js'
 import { ASTROLOGIAN, BLACK_MAGE, DANCER, DANCER_2, ENEMY, SAGE, SAMURAI, testDefs } from '../testing/periodic.js'
 import {
@@ -29,6 +30,7 @@ import {
   KERAKEIA,
   SALTED_EARTH,
   SHINTEN,
+  SLICE,
   STANDARD_FINISH,
   STANDARD_FINISH_PARTNER,
   WILDFIRE,
@@ -887,5 +889,62 @@ describe('PeriodicEstimator', () => {
         criticalMultiplier: expect.closeTo(1.35 + 0.254, 12),
       })
     })
+  })
+})
+
+describe('Aetherial Mimicry', () => {
+  const BLUE_MAGE = 0x10000010
+  const AETHERIAL_MIMICRY_OFFENSE = 2125
+  const AETHERIAL_MIMICRY_HEALER = 2126
+  const BLUE_MAGE_SPELL = 11406
+
+  const blueMage = () => {
+    const harness = new Harness(periodicDefs)
+    harness.combatants.update(BLUE_MAGE, { nickname: 'Blue Mage', classJob: 36, level: 80 }, true)
+    return harness
+  }
+
+  it('adds the rates of the offense on top of the rates of the attributes of the player', () => {
+    const harness = blueMage()
+    harness.estimator.setPlayerStats(BLUE_MAGE, 1000, 1000)
+    harness.gain(BLUE_MAGE, AETHERIAL_MIMICRY_OFFENSE, BLUE_MAGE)
+    const { estimator } = harness
+    const compute = () =>
+      estimator.modifiers.compute({
+        kind: 'damage',
+        caster: BLUE_MAGE,
+        target: ENEMY,
+        action: estimator.actionInfo(SLICE),
+      })
+
+    expect(estimator.ratesOf(BLUE_MAGE)).toEqual({ critical: 0.145, direct: 0.262 })
+    expect(compute().critRate).toBeCloseTo(0.2, 9)
+    expect(compute().directRate).toBeCloseTo(0.2, 9)
+
+    harness.lose(BLUE_MAGE, 0)
+    expect(compute().critRate).toBe(0)
+    expect(compute().directRate).toBe(0)
+  })
+
+  it('takes the offense out of the rates of the samples of a party member', () => {
+    const offense = blueMage().gain(BLUE_MAGE, AETHERIAL_MIMICRY_OFFENSE, BLUE_MAGE).rateHits(BLUE_MAGE, 35, 0, 65)
+    expect(offense.estimator.rates.rates(BLUE_MAGE).critical).toBeCloseTo(0.147, 3)
+
+    const none = blueMage().rateHits(BLUE_MAGE, 35, 0, 65)
+    expect(none.estimator.rates.rates(BLUE_MAGE).critical).toBeCloseTo(0.333, 3)
+  })
+
+  it('raises the heals of the healer and not the damage', () => {
+    const harness = blueMage().gain(BLUE_MAGE, AETHERIAL_MIMICRY_HEALER, BLUE_MAGE)
+    const { estimator } = harness
+    const action = estimator.actionInfo(BLUE_MAGE_SPELL)
+
+    expect(
+      estimator.modifiers.compute({ kind: 'heal', caster: BLUE_MAGE, target: BLUE_MAGE, action }).multiplier,
+    ).toBeCloseTo(1.2, 9)
+    const damage = estimator.modifiers.compute({ kind: 'damage', caster: BLUE_MAGE, target: ENEMY, action })
+    expect(damage.multiplier).toBe(1)
+    expect(damage.critRate).toBe(0)
+    expect(damage.directRate).toBe(0)
   })
 })

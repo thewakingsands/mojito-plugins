@@ -6,6 +6,31 @@
       "modifiers": [{ "type": "potencyBonus" }]
     },
     {
+      "id": 2125,
+      "modifiers": [
+        {
+          "type": "critRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 18322
+        },
+        {
+          "type": "directHitRate",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 18322
+        }
+      ]
+    },
+    {
+      "id": 2126,
+      "modifiers": [
+        {
+          "type": "healingDealt",
+          "value": [{ "level": 1, "value": 0.2 }],
+          "valueAction": 18322
+        }
+      ]
+    },
+    {
       "id": 2448,
       "modifiers": [{ "type": "potencyBonus" }]
     }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { periodicDefs } from '../defs/index.js'
 import type { DamageAttributionEvent, PeriodicRevisionEvent } from '../events.js'
 import type { CombatInput } from '../input.js'
 import { criticalMultiplierOf } from '../periodic/prior.js'
@@ -19,6 +20,7 @@ import {
   Harness,
   HIGANBANA,
   SALTED_EARTH,
+  SLICE,
 } from '../testing/periodic-harness.js'
 import { DamageAttributor } from './attributor.js'
 import { attribute } from './kernel.js'
@@ -27,6 +29,8 @@ const PET = 0x40000010
 const ENEMY_2 = 0x40000002
 const DIVINATION_SHARE = 1 - 1 / 1.06
 const BRAVER = 200
+const BLUE_MAGE = 0x10000010
+const AETHERIAL_MIMICRY_OFFENSE = 2125
 
 /** A harness whose attributor reads what the estimator reads and gives back */
 class AttributionHarness extends Harness {
@@ -103,6 +107,29 @@ describe('DamageAttributor', () => {
     const split = harness.lastSplit()
     expect(split.contributions).toEqual(expected.contributions)
     expect(split.retained).toBe(expected.retained)
+  })
+
+  it('keeps the rates of Aetherial Mimicry: Offense with the blue mage', () => {
+    const harness = new AttributionHarness(periodicDefs)
+    harness.combatants.update(BLUE_MAGE, { nickname: 'Blue Mage', classJob: 36, level: 80 }, true)
+    harness.estimator.setPlayerStats(BLUE_MAGE, 1000, 1000)
+    harness.gain(BLUE_MAGE, AETHERIAL_MIMICRY_OFFENSE, BLUE_MAGE)
+    harness.gain(BLUE_MAGE, BATTLE_LITANY, ASTROLOGIAN)
+    harness.effect(BLUE_MAGE, SLICE, [{ target: ENEMY, entities: [damage(10000, AbilityEffectSeverity.Critical)] }])
+    const expected = attribute({
+      amount: 10000,
+      effects: [
+        { statusId: AETHERIAL_MIMICRY_OFFENSE, sourceId: BLUE_MAGE, owner: 'self', type: 'critical', value: 0.2 },
+        { statusId: AETHERIAL_MIMICRY_OFFENSE, sourceId: BLUE_MAGE, owner: 'self', type: 'direct', value: 0.2 },
+        { statusId: BATTLE_LITANY, sourceId: ASTROLOGIAN, owner: 'player', type: 'critical', value: 0.1 },
+      ],
+      rates: { critical: 0.145, direct: 0.262, criticalMultiplier: criticalMultiplierOf(0.145) },
+      outcome: { type: 'hit', critical: true, direct: false, forcedCritical: false, forcedDirect: false },
+    })
+    const split = harness.lastSplit()
+    expect(split.contributions.map((item) => [item.sourceId, item.statusId])).toEqual([[ASTROLOGIAN, BATTLE_LITANY]])
+    expect(split.contributions[0].amount).toBeCloseTo(expected.contributions[0].amount, 9)
+    expect(split.retained).toBeCloseTo(expected.retained, 9)
   })
 
   it('counts a pet for its owner with the statuses of the pet', () => {
