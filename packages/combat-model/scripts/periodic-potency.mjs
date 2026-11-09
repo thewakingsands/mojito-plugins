@@ -10,8 +10,8 @@
 // description states nothing else about its potency; the raid buff or party mitigation mark with its duration, the
 // calibration and the forced result the file gave it stay. The actions of no class or job, as those of the pets and those a crafter or gatherer may use, go nowhere. The statuses
 // stay where the files put them. It prints the statuses whose description says they raise a potency and that the
-// files and REVIEWED_STATUSES do not account for yet. It writes level-modifiers.json, the level modifiers of the
-// critical and direct hit attributes at every level. Run `pnpm build` in this package first.
+// files, common-statuses.json and REVIEWED_STATUSES do not account for yet. It writes level-modifiers.json, the
+// level modifiers of the critical and direct hit attributes at every level. Run `pnpm build` in this package first.
 //
 //   node scripts/periodic-potency.mjs --game <path> --defs src/defs
 
@@ -24,7 +24,8 @@ import { evaluateSeString, Language, openExcel, renderText, SeStringMacroError }
 
 const USAGE = `Usage: node scripts/periodic-potency.mjs --game <path> --defs <dir>
 
-Reads version.json and ClassJobActions/*.json of the periodic data, and fills
+Reads version.json, ClassJobActions/*.json and common-statuses.json of the
+periodic data, and fills
 the potency tables of every periodic status and calibration action from the
 action descriptions of the game, for the class or job of the file. Rewrites the
 actions of each file: those outside PvP that the ClassJobCategory of the Action
@@ -40,7 +41,8 @@ ParamGrow differs from the values of the wiki this script checks it against.
 Prints the number of sample actions of each job, the files it creates, which
 ClassJobActions/index.ts must list, and the statuses that raise a potency but
 have neither a potencyBonus modifier in the files nor an entry in
-REVIEWED_STATUSES of this script. Each of them goes into one of the two.
+REVIEWED_STATUSES of this script. Each of them goes into one of the two: a
+status no class or job applies goes into common-statuses.json.
 
 Options:
   --game <path>   The game directory of the client, which holds sqpack/ and ffxivgame.ver. Required.
@@ -517,14 +519,16 @@ async function main() {
     levelModifiers: join(options.defs, 'level-modifiers.json'),
     limitBreaks: join(options.defs, 'limit-breaks.json'),
     classJobActions: join(options.defs, 'ClassJobActions'),
+    commonStatuses: join(options.defs, 'common-statuses.json'),
   }
   const version = await readJson(paths.version)
+  const commonStatuses = { name: 'common-statuses', content: await readJson(paths.commonStatuses) }
   const files = await readClassJobFiles(paths.classJobActions)
   // Checks every field the script does not fill
   const defs = parsePeriodicDefs(
     {
       version,
-      ...mergeClassJobActions(classJobActionsFiles(files)),
+      ...mergeClassJobActions(classJobActionsFiles(files), commonStatuses),
       levelModifiers: { levels: [] },
       gauge: gaugeModifiers,
       elements: blackMageElements,
@@ -613,7 +617,7 @@ async function main() {
     samples = await sampleActionsOf(excel, defs.maxLevel, categories)
     pending = await pendingStatuses(
       excel,
-      files.flatMap(({ content }) => content.statuses),
+      [...files.flatMap(({ content }) => content.statuses), ...commonStatuses.content.statuses],
       defs.maxLevel,
     )
 
@@ -657,7 +661,7 @@ async function main() {
   // The result must pass the check the model does when it loads
   parsePeriodicDefs({
     version,
-    ...mergeClassJobActions(classJobActionsFiles(outputs)),
+    ...mergeClassJobActions(classJobActionsFiles(outputs), commonStatuses),
     levelModifiers,
     limitBreaks,
     gauge: gaugeModifiers,

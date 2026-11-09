@@ -678,7 +678,7 @@ function readElements(input: Reader, maxLevel: number): ElementRules {
   return { classJobs, enochianLevel, maxStacks, actions }
 }
 
-/** A file of ClassJobActions; the paths of its errors start with the name */
+/** A file of ClassJobActions, or the common file of the statuses; the paths of its errors start with the name */
 export interface ClassJobActionsFile {
   name: string
   content: unknown
@@ -738,12 +738,16 @@ function readActionMark(entry: Reader, keys: Set<string>): ActionMark | null {
  * the duration of its effect in seconds. A status or an action several classes and jobs have, as those of the role
  * actions, is in the file of each: the status the same in every file, the action with the same category, attack type,
  * forced result and mark. The calibrations and the sample potencies are those of the job of the file. The errors of
- * parsePeriodicDefs in a merged entry give its path in its file.
+ * parsePeriodicDefs in a merged entry give its path in its file. common is the file of the statuses no class or job
+ * applies, as those of a duty or its area: an object with only statuses, each in no other file, none periodic.
  * @throws PeriodicDefsError
  */
-export function mergeClassJobActions(files: readonly ClassJobActionsFile[]) {
+export function mergeClassJobActions(files: readonly ClassJobActionsFile[], common?: ClassJobActionsFile) {
   const classJobs = new Map<number, string>()
-  const firstStatuses = new Map<number, { path: string; content: Record<string, unknown>; raidBuff: boolean }>()
+  const firstStatuses = new Map<
+    number,
+    { path: string; content: Record<string, unknown>; raidBuff: boolean; common: boolean }
+  >()
   const firstActions = new Map<number, { entry: Reader; mark: ActionMark | null }>()
   /** The actions whose forced result an entry of actions already gives, which parsePeriodicDefs takes only once */
   const forcedGiven = new Set<number>()
@@ -758,6 +762,30 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[]) {
     origins.set(value, entry.path)
     return value
   }
+  /** job is null for an entry of the common file */
+  const addStatus = (entry: Reader, job: number | null) => {
+    const id = entryId(entry)
+    const periodic = entry.at('periodic')
+    // The potency of a periodic status is filled for the job of its file, which the common file does not have
+    if (job === null && Object.hasOwn(entry.value as object, 'periodic')) {
+      periodic.fail('belongs in the file of the class or job that applies the status')
+    }
+    rejectJob(periodic)
+    const { raidBuff: _raidBuff, ...content } = entry.value as Record<string, unknown>
+    const raidBuff = Object.hasOwn(entry.value as object, 'raidBuff') && entry.at('raidBuff').isTrue()
+    const first = firstStatuses.get(id)
+    if (first) {
+      if (first.common || job === null) entry.at('id').fail(`status ${id} is also in ${first.path}`)
+      if (!sameJson(first.content, content)) entry.fail(`status ${id} differs from ${first.path}`)
+      if (first.raidBuff !== raidBuff) entry.at('raidBuff').fail(`must be the same as in ${first.path}`)
+      return
+    }
+    firstStatuses.set(id, { path: entry.path, content, raidBuff, common: job === null })
+    if (raidBuff) raidBuffStatuses.push(id)
+    const status = { ...content }
+    if (job !== null && isObject(periodic.value)) status.periodic = { ...periodic.value, job }
+    statuses.push(from(entry, status))
+  }
 
   for (const file of files) {
     const root = new Reader(file.content, file.name)
@@ -767,24 +795,7 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[]) {
     if (other !== undefined) root.at('classJob').fail(`class or job ${job} is also that of ${other}`)
     classJobs.set(job, file.name)
 
-    for (const entry of root.at('statuses').array()) {
-      const id = entryId(entry)
-      const periodic = entry.at('periodic')
-      rejectJob(periodic)
-      const { raidBuff: _raidBuff, ...content } = entry.value as Record<string, unknown>
-      const raidBuff = Object.hasOwn(entry.value as object, 'raidBuff') && entry.at('raidBuff').isTrue()
-      const first = firstStatuses.get(id)
-      if (first) {
-        if (!sameJson(first.content, content)) entry.fail(`status ${id} differs from ${first.path}`)
-        if (first.raidBuff !== raidBuff) entry.at('raidBuff').fail(`must be the same as in ${first.path}`)
-        continue
-      }
-      firstStatuses.set(id, { path: entry.path, content, raidBuff })
-      if (raidBuff) raidBuffStatuses.push(id)
-      const status = { ...content }
-      if (isObject(periodic.value)) status.periodic = { ...periodic.value, job }
-      statuses.push(from(entry, status))
-    }
+    for (const entry of root.at('statuses').array()) addStatus(entry, job)
 
     let last = 0
     for (const entry of root.at('actions').array()) {
@@ -825,6 +836,12 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[]) {
       }
       if (keys.has('potency')) sampleActions.push(from(entry, { id, job, potency }))
     }
+  }
+
+  if (common) {
+    const root = new Reader(common.content, common.name)
+    root.object(['statuses'])
+    for (const entry of root.at('statuses').array()) addStatus(entry, null)
   }
 
   actionTypes.sort((a, b) => a.id - b.id)

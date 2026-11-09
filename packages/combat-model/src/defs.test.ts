@@ -998,6 +998,67 @@ describe('mergeClassJobActions', () => {
       throw new Error('expected a PeriodicDefsError')
     })
   })
+
+  describe('common file', () => {
+    /** A status of a duty that raises the potency, which no class or job applies */
+    const commonFile = () => ({
+      name: 'common-statuses',
+      content: { statuses: [{ id: 4789, modifiers: [{ type: 'potencyBonus' }] }] as Record<string, any>[] } as Record<
+        string,
+        any
+      >,
+    })
+
+    function commonErrorOf(change: (files: Files, common: ReturnType<typeof commonFile>) => void) {
+      const files = classJobFiles()
+      const common = commonFile()
+      change(files, common)
+      try {
+        parsePeriodicDefs({ ...validInput(), ...mergeClassJobActions(files, common) })
+      } catch (error) {
+        expect(error).toBeInstanceOf(PeriodicDefsError)
+        return error as PeriodicDefsError
+      }
+      throw new Error('expected a PeriodicDefsError')
+    }
+
+    it('adds its statuses to those of the classes and jobs', () => {
+      const defs = parsePeriodicDefs({ ...validInput(), ...mergeClassJobActions(classJobFiles(), commonFile()) })
+      expect(defs.modifiers.get(4789)).toMatchObject([{ type: 'potencyBonus' }])
+      expect(defs.modifiers.has(1191)).toBe(true)
+    })
+
+    it.each([
+      [
+        'an unknown field',
+        (_: Files, common: ReturnType<typeof commonFile>) => (common.content.classJob = 19),
+        'common-statuses.classJob',
+      ],
+      [
+        'a periodic status',
+        (_: Files, common: ReturnType<typeof commonFile>) =>
+          (common.content.statuses[0].periodic = {
+            kind: 'damage',
+            action: 3538,
+            potency: [{ level: 1, potency: 30 }],
+          }),
+        'common-statuses.statuses[0].periodic',
+      ],
+      [
+        'a status that is also in a file of a class or job',
+        (files: Files, common: ReturnType<typeof commonFile>) =>
+          files[0].content.statuses.push(common.content.statuses[0]),
+        'common-statuses.statuses[0].id',
+      ],
+    ])('rejects %s', (_, change, path) => {
+      expect(commonErrorOf(change).path).toBe(path)
+    })
+
+    it('gives the path in the common file of an error in a status', () => {
+      const error = commonErrorOf((_, common) => (common.content.statuses[0].modifiers[0].type = 'unknown'))
+      expect(error.path).toBe('common-statuses.statuses[0].modifiers[0].type')
+    })
+  })
 })
 
 describe('potencyAt', () => {
@@ -1077,6 +1138,10 @@ describe('periodicDefs', () => {
     // Braver and Skyshard; not the auto-attack
     for (const id of [200, 203]) expect(periodicDefs.limitBreaks.has(id)).toBe(true)
     expect(periodicDefs.limitBreaks.has(7)).toBe(false)
+  })
+
+  it('has the statuses no class or job applies', () => {
+    expect(periodicDefs.modifiers.get(4789)).toMatchObject([{ type: 'potencyBonus' }])
   })
 
   it('leaves out the actions of PvP', () => {
