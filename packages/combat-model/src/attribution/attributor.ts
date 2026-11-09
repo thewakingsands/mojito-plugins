@@ -54,8 +54,8 @@ interface ShareSplit extends Given {
 
 /**
  * Splits the damage of the players among them and the modifiers of other players: the hits as they come, the shares
- * of the ticks as the estimator gives them, and the whole window again when it closes. The part of the modifiers of
- * sources that are not players goes to the attacker and the players in proportion.
+ * of the ticks as the estimator gives them, and the whole window again when it closes. The modifiers of sources that
+ * are not players stay with the attacker, as its own modifiers do.
  */
 export class DamageAttributor {
   /** The hits and the ticks of their own status in the window */
@@ -212,8 +212,8 @@ export class DamageAttributor {
 
   /**
    * The modifiers, with their sources taken to the players they stand for. Another player has a share only of a raid
-   * buff of theirs; their other modifiers count as those of the attacker. The share of a modifier of a source that is
-   * not a player is split among the attacker and the players in proportion.
+   * buff of theirs; their other modifiers count as those of the attacker. A modifier of a source that is not a player
+   * stays with the attacker, as its own modifiers do.
    */
   private effectsOf(modifiers: readonly SnapshotModifier[], attacker: number): AttributionEffect[] {
     const { raidBuffStatuses } = this.estimator.defs
