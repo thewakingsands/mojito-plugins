@@ -70,8 +70,8 @@ function buildFields() {
   label.append(language)
   element('general-fields').append(label)
   fields.set('language', language)
-  field('general-fields', 'output.tts', '语音播报')
-  field('general-fields', 'output.toast', 'Mojito 通知')
+  field('output-fields', 'output.tts', '语音播报')
+  field('output-fields', 'output.toast', 'Mojito 通知')
   for (const [path, title] of [
     ['fate.name', 'FATE 名称'],
     ['fate.level', 'FATE 等级'],
@@ -86,7 +86,11 @@ function buildFields() {
     ['criticalEngagement.name', '临界遭遇名称'],
     ['treasure.result', '寻宝结果'],
   ])
-    field('formatter-fields', `formatter.${path}`, title)
+    field(
+      `formatter-${path.startsWith('fate.') ? 'fate' : path.startsWith('fish.') ? 'fish' : path.startsWith('treasure.') ? 'treasure' : 'world'}`,
+      `formatter.${path}`,
+      title,
+    )
   field('fishing-fields', 'fishing.enabled', '启用鱼漂查询')
   field('fishing-fields', 'fishing.uploadEnabled', '允许上传钓鱼数据')
   field('universalis-fields', 'universalis.enabled', '启用 Universalis 服务')
@@ -131,7 +135,7 @@ function render() {
   renderFates()
   headers.clear()
   renderWebhooks()
-  element('dirty').textContent = dirty ? '有未保存的修改' : '已与保存的设置同步'
+  element('dirty').textContent = dirty ? '有未保存的修改' : '已保存'
 }
 function renderFates() {
   const query = element<HTMLInputElement>('fate-search').value.trim().toLocaleLowerCase()
@@ -144,7 +148,7 @@ function renderFates() {
     )
     for (const [id, value] of matches.slice(0, 60)) {
       const row = document.createElement('li')
-      row.textContent = `${name(value.name)} · Lv.${value.level} · #${id}`
+      row.textContent = `${name(value.name)} · Lv.${value.level} #${id}`
       const button = document.createElement('button')
       button.type = 'button'
       button.textContent = settings.watch.fates.includes(Number(id)) ? '已关注' : '加入'
@@ -186,6 +190,7 @@ function renderWebhooks() {
   const container = element('webhook-rows')
   container.replaceChildren()
   headers.clear()
+  element('webhook-empty').hidden = settings.webhooks.length > 0
   for (const hook of settings.webhooks) {
     const group = document.createElement('fieldset')
     group.className = 'webhook'
@@ -238,6 +243,7 @@ function renderWebhooks() {
       settings.webhooks = settings.webhooks.filter((value) => value.id !== hook.id)
       headers.delete(hook.id)
       group.remove()
+      element('webhook-empty').hidden = settings.webhooks.length > 0
       markDirty()
     })
     group.append(remove)
@@ -248,12 +254,12 @@ async function reload() {
   settings = settingsFrom(await command('settings.get'))
   dirty = false
   render()
-  show('设置已载入。')
+  show('')
 }
 async function diagnostics() {
   const state = await bridge.snapshot('matcha.state')
   const record = state && typeof state === 'object' ? (state as Record<string, Value>) : {}
-  element('session').textContent = `当前会话：${JSON.stringify(record.session ?? null)}`
+  element('session').textContent = JSON.stringify(record.session ?? null, null, 2)
   const list = element('diagnostics')
   list.replaceChildren()
   for (const entry of Array.isArray(record.diagnostics) ? record.diagnostics : []) {
@@ -274,7 +280,38 @@ function click(id: string, action: () => Promise<void> | void) {
     })
   })
 }
+function initializeTabs() {
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+  const select = (tab: HTMLButtonElement) => {
+    for (const item of tabs) {
+      const selected = item === tab
+      item.setAttribute('aria-selected', String(selected))
+      item.tabIndex = selected ? 0 : -1
+      element(item.getAttribute('aria-controls')!).hidden = !selected
+    }
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(tab))
+    tab.addEventListener('keydown', (event) => {
+      const next =
+        event.key === 'ArrowRight'
+          ? (index + 1) % tabs.length
+          : event.key === 'ArrowLeft'
+            ? (index + tabs.length - 1) % tabs.length
+            : event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? tabs.length - 1
+                : null
+      if (next === null) return
+      event.preventDefault()
+      select(tabs[next])
+      tabs[next].focus()
+    })
+  })
+}
 async function initialize() {
+  initializeTabs()
   buildFields()
   bridge = await connectView()
   const catalog = (await command('catalog')) as { fates: typeof fates; templates: typeof templates }
@@ -303,7 +340,7 @@ async function initialize() {
   click('diagnostics-refresh', diagnostics)
   click('test-notification', async () => {
     await command('test.notification')
-    show('已请求测试通知，请确认语音和Mojito 通知。')
+    show('已请求测试通知，请确认语音和 Mojito 通知。')
     await diagnostics()
   })
   click('apply-template', () => {
