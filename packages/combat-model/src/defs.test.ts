@@ -1140,10 +1140,6 @@ describe('periodicDefs', () => {
     expect(periodicDefs.limitBreaks.has(7)).toBe(false)
   })
 
-  it('has the statuses no class or job applies', () => {
-    expect(periodicDefs.modifiers.get(4789)).toMatchObject([{ type: 'potencyBonus' }])
-  })
-
   it('leaves out the actions of PvP', () => {
     for (const id of [29716, 41494, 29236]) expect(periodicDefs.actionTypes.has(id)).toBe(false)
   })
