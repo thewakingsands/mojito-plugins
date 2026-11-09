@@ -22,9 +22,8 @@ export interface MatchaSettings {
     criticalEngagement: { name: boolean }
     treasure: { result: boolean }
   }
-  fishing: { enabled: boolean; uploadEnabled: boolean }
-  universalis: { enabled: boolean; uploadEnabled: boolean; apiKey: string; uploaderId: string }
-  telemetry: { enabled: boolean; root: string; fateBucket: string; npcBucket: string; clientId: string }
+  fishing: { enabled: boolean }
+  universalis: { enabled: boolean; apiKey: string; uploaderId: string }
   webhooks: Webhook[]
   logging: boolean
 }
@@ -40,9 +39,8 @@ export const defaultSettings: MatchaSettings = {
     criticalEngagement: { name: true },
     treasure: { result: true },
   },
-  fishing: { enabled: false, uploadEnabled: false },
-  universalis: { enabled: false, uploadEnabled: false, apiKey: '', uploaderId: '' },
-  telemetry: { enabled: false, root: '', fateBucket: '', npcBucket: '', clientId: '' },
+  fishing: { enabled: false },
+  universalis: { enabled: false, apiKey: '', uploaderId: '' },
   webhooks: [],
   logging: false,
 }
@@ -110,16 +108,6 @@ export function settingsFrom(value: unknown): MatchaSettings {
       }
     })
   }
-  if (result.telemetry.root) result.telemetry.root = httpsEndpoint(result.telemetry.root).replace(/\/$/, '')
-  for (const bucket of [result.telemetry.fateBucket, result.telemetry.npcBucket])
-    if (bucket && !/^[\w-]{1,128}$/.test(bucket)) throw new Error('数据桶名称只能包含字母、数字、下划线和连字符')
-  if (
-    result.telemetry.enabled &&
-    (!result.telemetry.root || !result.telemetry.fateBucket || !result.telemetry.npcBucket)
-  )
-    throw new Error('上报需要配置服务地址及两个数据桶')
-  if (result.telemetry.enabled && !result.telemetry.clientId) result.telemetry.clientId = crypto.randomUUID()
-  if (!result.telemetry.enabled) result.telemetry.clientId = ''
   return result
 }
 export const settingsJson = (settings: MatchaSettings): Json => asJson(settings)

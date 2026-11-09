@@ -246,12 +246,11 @@ describe('Matcha packet compatibility', () => {
       content: 0,
       bait: 0,
       lastZoneChange: 0,
-      npcs: [],
       fates: [],
     })
   })
 
-  it('tracks FATE state, terminal observations and NPC deaths without leaking references', () => {
+  it('tracks FATE state and retains its reminder events', () => {
     const { emit, handlers } = setup()
     handlers.setWorld(1060)
     handlers.handle(packet('FateInfo', 24).u16(0, 8).u32(8, 1_700_000_000).u32(16, 600).value)
@@ -264,41 +263,11 @@ describe('Matcha packet compatibility', () => {
       { type: 'end', fate: 8, progress: 0, extra: 10 },
     ])
     expect(handlers.snapshot().fates).toEqual([])
-    expect(handlers.drainObservations().at(-1)).toMatchObject({
-      type: 'fate',
-      world: 1060,
-      state: { id: 8, progress: -1 },
-    })
-    const npc = packet('NpcSpawn', 656)
-      .u32(68, 2919)
-      .u32(72, 123)
-      .u32(92, 500)
-      .u32(96, 450)
-      .u8(127, 50)
-      .f32(508, 123.5)
-      .f32(512, -4)
-      .f32(516, 567.25)
-    handlers.handle(npc.value)
-    const snapshot = handlers.snapshot()
-    expect(snapshot.npcs[0]).toMatchObject({
-      bNpcName: 2919,
-      curHP: 450,
-      maxHP: 500,
-      position: { x: 123.5, y: -4, z: 567.25 },
-    })
-    snapshot.npcs[0].position.x = 999
-    expect(handlers.snapshot().npcs[0].position.x).toBe(123.5)
-    handlers.handle(packet('ActorControl', 24).u16(0, 2).u32(4, 2).value)
-    expect(handlers.snapshot().npcs).toEqual([])
-    expect(handlers.drainObservations().at(-1)).toMatchObject({ type: 'npc', state: { curHP: 0 } })
-    expect(handlers.drainObservations()).toEqual([])
   })
 
   it.each([
     ['ResumeEventScene32', 136],
     ['InitZone', 136],
-    ['NpcSpawn', 656],
-    ['ActorControl', 24],
     ['ActorControlSelf', 40],
     ['FateInfo', 24],
     ['PlayerSpawn', 24],

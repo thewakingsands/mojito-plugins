@@ -31,7 +31,7 @@ const rates: MarketTaxRates = {
 }
 
 function setup(initial: Partial<UniversalisSettings> = {}) {
-  const settings: UniversalisSettings = { enabled: false, uploadEnabled: false, apiKey: '', uploaderId: '', ...initial }
+  const settings: UniversalisSettings = { enabled: false, apiKey: '', uploaderId: '', ...initial }
   const request = vi.fn(async (_url: string, _options?: HttpOptions) => reply({ itemID: 42, listings: [] }))
   const client = createUniversalisClient({
     http: { request },
@@ -50,8 +50,6 @@ describe('Universalis SDK adapter', () => {
     await client.deleteListing?.(purchase)
     await client.uploadTaxRates?.(1060, rates)
     settings.enabled = true
-    await client.upload(batch)
-    settings.uploadEnabled = true
     await client.upload(batch)
     settings.apiKey = 'configured-key'
     await client.upload(batch)
@@ -89,7 +87,7 @@ describe('Universalis SDK adapter', () => {
   it('redacts upload keys from transport failures and checks non-success HTTP status', async () => {
     const { request, client } = setup({
       enabled: true,
-      uploadEnabled: true,
+
       apiKey: 'sensitive/value',
       uploaderId: 'anonymous-installation',
     })
@@ -103,7 +101,7 @@ describe('Universalis SDK adapter', () => {
   it('uploads listing/history, acknowledged deletions and all eight tax rates using their documented contracts', async () => {
     const { request, client } = setup({
       enabled: true,
-      uploadEnabled: true,
+
       apiKey: 'configured-key',
       uploaderId: 'installation-id',
     })
@@ -165,4 +163,18 @@ describe('Universalis SDK adapter', () => {
     expect(await Promise.all(pending)).toEqual([[], [], [], []])
     expect(request).toHaveBeenCalledTimes(4)
   })
+})
+
+it('uses the same switch to enable and stop queries and uploads', async () => {
+  const { settings, request, client } = setup({ enabled: true, apiKey: 'test-key', uploaderId: 'test-uploader' })
+  request.mockResolvedValue(reply({ listings: [] }))
+  await client.query(1060, 42)
+  await client.upload(batch)
+  expect(request).toHaveBeenCalledTimes(2)
+  settings.enabled = false
+  expect(await client.query(1060, 42)).toEqual([])
+  await client.upload(batch)
+  await client.deleteListing?.(purchase)
+  await client.uploadTaxRates?.(1060, rates)
+  expect(request).toHaveBeenCalledTimes(2)
 })

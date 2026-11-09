@@ -15,17 +15,6 @@ export interface FateState {
   progress: number
 }
 
-export interface NpcState {
-  id: number
-  bNpcName: number
-  location: number
-  fate: number
-  level: number
-  curHP: number
-  maxHP: number
-  position: { x: number; y: number; z: number }
-}
-
 export interface MatchaPacketState {
   world: number
   zone: number
@@ -35,17 +24,10 @@ export interface MatchaPacketState {
   bait: number
   lastZoneChange: number
   fates: FateState[]
-  npcs: NpcState[]
 }
-
-export type MatchaObservation = { world: number; zone: number; instance: number; server: number } & (
-  | { type: 'fate'; state: FateState }
-  | { type: 'npc'; state: NpcState }
-)
 
 // ActorControl categories are stable protocol fields, not version-specific opcodes.
 const control = {
-  setStatus: 2,
   treasureSpot: 84,
   directorUpdate: 109,
   fishingBaitChange: 325,
@@ -53,15 +35,6 @@ const control = {
   fateEnd: 2357,
   fateProgress: 2364,
 } as const
-
-const specialNpc = (id: number) =>
-  (id >= 2919 && id <= 2969) ||
-  (id >= 4350 && id <= 4378) ||
-  id === 4380 ||
-  (id >= 5984 && id <= 6013) ||
-  (id >= 8653 && id <= 8657) ||
-  (id >= 8890 && id <= 8916) ||
-  (id >= 10615 && id <= 10646)
 
 /** A fresh instance represents one capture/session. reset() also invalidates in-flight market responses. */
 export class MatchaPacketHandlers {
@@ -73,8 +46,6 @@ export class MatchaPacketHandlers {
   private bait = 0
   private lastZoneChange = 0
   private readonly fates = new Map<number, FateState>()
-  private readonly npcs = new Map<number, NpcState>()
-  private observations: MatchaObservation[] = []
   private readonly market: MarketPackets
   private readonly now: () => number
   private readonly diagnostic: (message: string) => void
@@ -101,8 +72,6 @@ export class MatchaPacketHandlers {
   reset(): void {
     this.world = this.zone = this.instance = this.server = this.content = this.bait = this.lastZoneChange = 0
     this.fates.clear()
-    this.npcs.clear()
-    this.observations = []
     this.market.reset()
   }
 
@@ -112,8 +81,6 @@ export class MatchaPacketHandlers {
     this.world = world
     this.market.reset()
     this.fates.clear()
-    this.npcs.clear()
-    this.observations = []
   }
 
   snapshot(): MatchaPacketState {
@@ -126,15 +93,7 @@ export class MatchaPacketHandlers {
       bait: this.bait,
       lastZoneChange: this.lastZoneChange,
       fates: [...this.fates.values()].map((state) => ({ ...state })),
-      npcs: [...this.npcs.values()].map((state) => ({ ...state, position: { ...state.position } })),
     }
-  }
-
-  /** Includes terminal/death observations that are no longer present in snapshot(). Bounded and session-scoped. */
-  drainObservations(): MatchaObservation[] {
-    const observations = this.observations
-    this.observations = []
-    return observations
   }
 
   handle(packet: MatchaPacket): void {
@@ -161,24 +120,12 @@ export class MatchaPacketHandlers {
           this.content = data.u16(6)
           this.lastZoneChange = packet.timestamp
           this.fates.clear()
-          this.npcs.clear()
-          this.observations = []
           this.market.reset()
           this.options.emit('InitZone', { zone: this.zone, instance: this.content }, packet.timestamp)
           break
         case 'ResumeEventScene32':
           data.require(136)
           if (data.u32(0) === 0x250000) this.cactpot(data, true, packet.timestamp)
-          break
-        case 'ActorControl':
-          data.require(24)
-          if (data.u16(0) === control.setStatus && data.u32(4) === 2) {
-            const npc = this.npcs.get(packet.sourceActor)
-            if (npc) {
-              this.observe({ type: 'npc', state: { ...npc, curHP: 0, position: { ...npc.position } } })
-              this.npcs.delete(packet.sourceActor)
-            }
-          }
           break
         case 'ActorControlSelf':
           data.require(40)
@@ -192,13 +139,9 @@ export class MatchaPacketHandlers {
           if (fate.startTime !== startTime || fate.duration !== duration) {
             fate.startTime = startTime
             fate.duration = duration
-            this.observe({ type: 'fate', state: { ...fate } })
           }
           break
         }
-        case 'NpcSpawn':
-          this.npc(data, packet.sourceActor)
-          break
         case 'ContentFinderNotifyPop':
         case 'CFNotifyPop': {
           data.require(40)
@@ -310,7 +253,6 @@ export class MatchaPacketHandlers {
         break
       case control.fateStart: {
         const fate = this.fate(data.u16(4))
-        this.observe({ type: 'fate', state: { ...fate } })
         this.options.emit('Fate', { type: 'start', fate: fate.id, progress: 0, extra: 0 }, timestamp)
         break
       }
@@ -320,21 +262,12 @@ export class MatchaPacketHandlers {
         if (progress > 100) return
         if (progress !== fate.progress) {
           fate.progress = progress
-          if (progress === 100) this.observe({ type: 'fate', state: { ...fate } })
         }
         this.options.emit('Fate', { type: 'progress', fate: fate.id, progress, extra: 0 }, timestamp)
         break
       }
       case control.fateEnd: {
         const id = data.u16(4)
-        const fate = this.fates.get(id)
-        if (
-          fate &&
-          (fate.progress === 100 ||
-            (fate.startTime !== 0 && fate.duration !== 0 && timestamp / 1000 + 30 > fate.startTime + fate.duration))
-        ) {
-          this.observe({ type: 'fate', state: { ...fate, progress: -1 } })
-        }
         this.fates.delete(id)
         this.options.emit('Fate', { type: 'end', fate: id, progress: 0, extra: data.u16(28) }, timestamp)
         break
@@ -349,31 +282,6 @@ export class MatchaPacketHandlers {
     if (this.fates.size >= 4096) this.fates.delete(this.fates.keys().next().value as number)
     this.fates.set(id, fate)
     return fate
-  }
-
-  private npc(data: Payload, id: number): void {
-    // Cafe.Matcha uses the 656-byte 7.x payload, with coordinates at 508.
-    data.require(656)
-    const bNpcName = data.u32(68)
-    const fate = data.u16(104)
-    if (fate === 0 && !specialNpc(bNpcName)) return
-    const position = { x: data.f32(508), y: data.f32(512), z: data.f32(516) }
-    if (!Object.values(position).every(Number.isFinite)) return
-    const npc: NpcState = {
-      id,
-      bNpcName,
-      location: data.u32(72),
-      fate,
-      level: data.u8(127),
-      maxHP: data.u32(92),
-      curHP: data.u32(96),
-      position,
-    }
-    const previous = this.npcs.get(id)
-    if (!previous && this.npcs.size >= 4096) this.npcs.delete(this.npcs.keys().next().value as number)
-    this.npcs.set(id, npc)
-    if (!previous || previous.bNpcName !== bNpcName)
-      this.observe({ type: 'npc', state: { ...npc, position: { ...position } } })
   }
 
   private equipment(data: Payload, timestamp: number): void {
@@ -435,16 +343,5 @@ export class MatchaPacketHandlers {
         timestamp,
       )
     }
-  }
-
-  private observe(value: { type: 'fate'; state: FateState } | { type: 'npc'; state: NpcState }): void {
-    if (this.observations.length >= 4096) this.observations.shift()
-    this.observations.push({
-      world: this.world,
-      zone: this.zone,
-      instance: this.instance,
-      server: this.server,
-      ...value,
-    })
   }
 }

@@ -380,7 +380,7 @@ describe('Matcha runtime lifecycle', () => {
   })
   it('keeps replay parsing local even when automatic output and community upload are configured', async () => {
     const settings = structuredClone(defaultSettings)
-    settings.fishing = { enabled: true, uploadEnabled: true }
+    settings.fishing = { enabled: true }
     settings.webhooks = [
       { id: 'test', name: 'test', event: 'Fishing', type: 'JSON', endpoint: 'https://example.test/hook', headers: {} },
     ]

@@ -59,7 +59,7 @@ function fixture() {
   }
 }
 describe('fishing community service', () => {
-  it('requires separate query and upload consent, never backfills and rejects late responses after disable', async () => {
+  it('uses one switch for query and upload, never backfills and rejects late responses after disable', async () => {
     const f = fixture(),
       frame = cast('before', f.now)
     f.service.observe(frame)
@@ -73,7 +73,6 @@ describe('fishing community service', () => {
     expect(f.service.snapshot).toMatchObject({ enabled: false, distributions: [], state: 'disabled' })
     f.newQuery()
     f.service.setEnabled(true)
-    f.service.setUploadEnabled(true)
     f.service.observe(caught(frame))
     f.advance(61000)
     f.service.tick()
@@ -124,7 +123,6 @@ describe('fishing community service', () => {
   it('sends each immutable batch once, retains new records and does not retry failed batches', async () => {
     const f = fixture()
     f.service.setEnabled(true)
-    f.service.setUploadEnabled(true)
     const one = cast('one', f.now)
     f.service.observe(one)
     f.service.observe(caught(one))
@@ -154,7 +152,6 @@ describe('fishing community service', () => {
   it('caps upload queues at 120 and expires records after ten minutes', () => {
     const f = fixture()
     f.service.setEnabled(true)
-    f.service.setUploadEnabled(true)
     for (let i = 0; i < 125; i++) {
       const frame = cast(String(i), f.now)
       f.service.observe(frame)
@@ -166,7 +163,6 @@ describe('fishing community service', () => {
     expect([...bytes.subarray(0, 2)]).toEqual([0x98, 120])
     const expired = fixture()
     expired.service.setEnabled(true)
-    expired.service.setUploadEnabled(true)
     const frame = cast('expired', expired.now)
     expired.service.observe(frame)
     expired.service.observe(caught(frame))
@@ -179,7 +175,6 @@ describe('fishing community service', () => {
   it('clears pending work on replay, rejects unknown places and surfaces missing attributes', async () => {
     const f = fixture()
     f.service.setEnabled(true)
-    f.service.setUploadEnabled(true)
     f.service.observe(cast('unknown', f.now, 950))
     expect(f.api.query).not.toHaveBeenCalled()
     const one = cast('one', f.now)
@@ -201,7 +196,6 @@ describe('fishing community service', () => {
       live: () => true,
     })
     noStats.setEnabled(true)
-    noStats.setUploadEnabled(true)
     noStats.observe(one)
     noStats.observe(caught(one))
     expect(noStats.snapshot).toMatchObject({ uploadState: 'incomplete' })
@@ -209,4 +203,22 @@ describe('fishing community service', () => {
     noStats.dispose()
     f.service.dispose()
   })
+})
+
+it('stops both querying and queued uploads when the single switch is disabled', async () => {
+  const f = fixture()
+  f.service.setEnabled(true)
+  const frame = cast('one', f.now)
+  f.service.observe(frame)
+  f.service.observe(caught(frame))
+  expect(f.api.query).toHaveBeenCalledTimes(1)
+  f.service.setEnabled(false)
+  f.next.resolve([distribution])
+  await flush()
+  f.advance(61000)
+  f.service.tick()
+  expect(f.api.query).toHaveBeenCalledTimes(1)
+  expect(f.api.upload).not.toHaveBeenCalled()
+  expect(f.service.snapshot).toMatchObject({ enabled: false, state: 'disabled', distributions: [] })
+  f.service.dispose()
 })

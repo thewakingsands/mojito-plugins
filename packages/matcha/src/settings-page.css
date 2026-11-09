@@ -162,13 +162,7 @@ textarea {
 #diagnostics {
   padding-left: 22px;
 }
-#diagnostics li {
-  margin: 8px 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--mojito-fg-secondary);
-  font-size: var(--mojito-text-xs);
-}
+
 @media (max-width: 680px) {
   main {
     padding: 20px 16px;
@@ -258,4 +252,85 @@ textarea {
   .mojito-tabs > button {
     padding-inline: 10px;
   }
+}
+
+.fate-search-box {
+  padding: 16px;
+  background: var(--mojito-bg-subtle);
+  border: 1px solid var(--mojito-border-strong);
+  border-radius: var(--mojito-radius-panel);
+}
+.fate-search-box > label {
+  max-width: 480px;
+}
+#fate-search-count:empty {
+  display: none;
+}
+#fate-search-actions[hidden] {
+  display: none;
+}
+.fate-options {
+  padding: 0;
+  list-style: none;
+}
+.fate-options li,
+.fate-results li {
+  display: flex;
+  align-items: center;
+  gap: var(--mojito-space-group);
+  padding: 8px;
+  border-radius: var(--mojito-radius-small);
+}
+.fate-options label,
+.fate-results label {
+  flex: 1;
+}
+.fate-options small,
+.fate-results small {
+  flex-shrink: 0;
+  font-size: var(--mojito-text-xs);
+  color: var(--mojito-fg-secondary);
+}
+.fate-options li[data-selected],
+.fate-results li[data-selected] {
+  background: var(--mojito-ok-bg);
+}
+.fate-tree summary {
+  gap: var(--mojito-space-group);
+}
+.fate-tree summary label {
+  flex: 1;
+}
+.fate-tree details > details,
+.fate-tree .fate-options {
+  margin-left: 24px;
+}
+.fate-tree summary small {
+  color: var(--mojito-fg-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.fate-import {
+  margin-top: 16px;
+}
+@media (max-width: 767px) {
+  .fate-options li,
+  .fate-results li {
+    flex-wrap: wrap;
+  }
+  .fate-options small,
+  .fate-results small {
+    margin-left: 25px;
+  }
+}
+
+#diagnostics li {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--mojito-fg-secondary);
+  font-size: var(--mojito-text-xs);
+}
+
+#universalis-fields > .checkbox {
+  grid-column: 1 / -1;
 }

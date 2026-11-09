@@ -10,7 +10,9 @@ import type {
   ViewIdentity,
 } from '@ffcafe/mojito-plugin-sdk'
 import fates from './data/fate.json'
+import patches from './data/patch.json'
 import templates from './data/template.json'
+import territories from './data/territory.json'
 import worlds from './data/world.json'
 import { createFishingApi, createFishingMemoryReader, FishingHandler, FishingService } from './fishing/index.js'
 import { InitialDataStore } from './initial-data/index.js'
@@ -25,7 +27,6 @@ import { resourceUrl } from './resources.js'
 import { settingsFrom, settingsJson } from './settings.js'
 import { MatchaSnapshot } from './snapshot.js'
 import { SubmarineHandler } from './submarine/index.js'
-import { MatchaTelemetry } from './telemetry.js'
 import { sendWebhook } from './webhooks.js'
 
 const encoder = new TextEncoder()
@@ -205,7 +206,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     getSettings: () => ({
       ...settings.universalis,
       enabled: settings.universalis.enabled && live(),
-      uploadEnabled: settings.universalis.uploadEnabled && live(),
     }),
     dataCenters: Object.fromEntries(Object.entries(worlds).map(([id, world]) => [id, world.dc_en])),
     worldNames: Object.fromEntries(
@@ -217,13 +217,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     onDiagnostic: diagnostic,
   })
   const packets = new MatchaPacketHandlers({ emit, now, market, onDiagnostic: diagnostic })
-  const telemetry = new MatchaTelemetry({
-    http,
-    getSettings: () => ({ ...settings.telemetry, enabled: settings.telemetry.enabled && live() }),
-    now,
-    version,
-    onDiagnostic: diagnostic,
-  })
   const publicSettings = () => {
     const value = structuredClone(settings)
     value.universalis.apiKey = ''
@@ -280,7 +273,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     submarines.reset()
     memory.reset()
     notices.reset()
-    telemetry.reset()
     quiet = false
     state.clear()
     pendingEvents.length = 0
@@ -318,7 +310,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         } finally {
           initialBatch = false
         }
-        telemetry.observe(packets.drainObservations())
         void flush()
       },
       {
@@ -376,10 +367,8 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     packets.reset()
     packets.setWorld(world)
     notices.reset()
-    telemetry.reset()
     fishingService.reset()
     fishingService.setEnabled(settings.fishing.enabled)
-    fishingService.setUploadEnabled(settings.fishing.uploadEnabled)
     if (watchChanged) {
       initialBatch = true
       try {
@@ -489,7 +478,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         requireSettings()
         return saveSettings(input.settings)
       case 'catalog':
-        return asJson({ fates, templates })
+        return asJson({ fates, templates, patches, territories })
       case 'watch.import': {
         requireSettings()
         const file = await readFile(['json'])
@@ -554,7 +543,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       }
       if (captured === sessionRevision) {
         fishingService.tick()
-        await telemetry.tick()
       }
     } catch {
       /* Optional read capabilities can be unavailable during loading. */
@@ -573,14 +561,12 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     fishingService.dispose()
     initial.dispose()
     submarines.dispose()
-    telemetry.dispose()
     await Promise.allSettled(disposers.splice(0).map((dispose) => dispose()))
     await storage.drain()
   }
   try {
     disposers.push(await context.views.onCommand('matcha.command', command))
     fishingService.setEnabled(settings.fishing.enabled)
-    fishingService.setUploadEnabled(settings.fishing.uploadEnabled)
     await flush()
     const subscription = context.session.subscribe(
       (batch) => {

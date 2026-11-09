@@ -30,7 +30,6 @@ export class FishingService {
   private readonly pending: { time: number; row: CborValue[] }[] = []
   private cancellation = new AbortController()
   private enabled = false
-  private uploadEnabled = false
   private disposed = false
   private uploading = false
   private generation = 0
@@ -55,15 +54,6 @@ export class FishingService {
       this.nextUpload = this.options.now() + 60000
       this.queryIfNeeded()
     }
-    this.publish()
-  }
-  /** Separate opt-in. Enabling midway through a cast never backfills its upload. */
-  setUploadEnabled(value: boolean): void {
-    if (this.disposed || this.uploadEnabled === value) return
-    this.uploadEnabled = value
-    this.resetRequests()
-    this.nextUpload = this.options.now() + 60000
-    this.queryIfNeeded()
     this.publish()
   }
   private resetRequests(): void {
@@ -117,7 +107,7 @@ export class FishingService {
           this.options.now() - this.castAttributes.sampledAt > 2000)
       )
         this.castAttributes = null
-      this.eligible = this.enabled && this.uploadEnabled && this.options.live()
+      this.eligible = this.enabled && this.options.live()
     } else if (!this.current || this.current.castId !== value.castId) return
     this.current = structuredClone(value)
     if (this.eligible && value.capture?.terminal) {
@@ -183,7 +173,6 @@ export class FishingService {
     this.queryIfNeeded()
     if (
       this.enabled &&
-      this.uploadEnabled &&
       this.options.live() &&
       this.options.api &&
       !this.uploading &&
@@ -208,8 +197,7 @@ export class FishingService {
     } catch (error) {
       if (error instanceof FishingApiError) delay = Math.min(86400000, Math.max(60000, error.retryAfter))
     }
-    if (this.disposed || !this.enabled || !this.uploadEnabled || !this.options.live() || generation !== this.generation)
-      return
+    if (this.disposed || !this.enabled || !this.options.live() || generation !== this.generation) return
     this.uploading = false
     this.uploadState = success ? 'ok' : 'error'
     if (!success) this.uploadRetry = this.options.now() + delay

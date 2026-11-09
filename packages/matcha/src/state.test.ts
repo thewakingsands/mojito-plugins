@@ -43,12 +43,12 @@ describe('Matcha display state', () => {
 })
 
 describe('settings and outbound events', () => {
-  it('requires separate consent and validates endpoints without mutating defaults', () => {
-    expect(settingsFrom(null).fishing).toEqual({ enabled: false, uploadEnabled: false })
+  it('defaults services off and validates endpoints without mutating defaults', () => {
+    expect(settingsFrom(null).fishing).toEqual({ enabled: false })
     const result = settingsFrom({ watch: { fates: [480, 480] } })
     expect(result.watch.fates).toEqual([480])
     expect(defaultSettings.watch.fates).toEqual([])
-    expect(() => settingsFrom({ telemetry: { enabled: true } })).toThrow()
+    expect(settingsFrom({ telemetry: { enabled: true } })).not.toHaveProperty('telemetry')
     expect(() =>
       settingsFrom({ webhooks: [{ event: 'Fate', type: 'JSON', endpoint: 'http://example.com' }] }),
     ).toThrow()
@@ -135,4 +135,15 @@ it('serializes archive writes, propagates storage errors and restricts setting k
   await expect(storage.set('overlay.matcha-fishing-v1', 'x'.repeat(101))).rejects.toThrow('限制')
   await expect(storage.get('overlay.unknown')).rejects.toThrow('Unknown')
   await storage.drain()
+})
+
+it('normalizes old split switches and discards removed telemetry configuration', () => {
+  const value = settingsFrom({
+    fishing: { enabled: true, uploadEnabled: false },
+    universalis: { enabled: false, uploadEnabled: true },
+    telemetry: { enabled: true, root: 'https://old-service.test', clientId: 'old-id' },
+  })
+  expect(value.fishing).toEqual({ enabled: true })
+  expect(value.universalis).toEqual({ enabled: false, apiKey: '', uploaderId: '' })
+  expect(value).not.toHaveProperty('telemetry')
 })

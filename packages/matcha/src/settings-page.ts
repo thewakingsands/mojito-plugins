@@ -7,7 +7,11 @@ import './settings-page.css'
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 let bridge: ViewBridge
 let settings = structuredClone(defaultSettings)
-let fates: Record<string, { name: Record<string, string>; level: number }> = {}
+type Names = Record<string, string>
+let fates: Record<string, { name: Names; level: number; patch: number; location: number }> = {}
+let patches: Record<string, Names> = {}
+let territories: Record<string, Names> = {}
+const fateGroups: { input: HTMLInputElement; ids: number[]; count: HTMLElement }[] = []
 let templates: { name: Record<string, string>; fate: number[] }[] = []
 let dirty = false
 const controls = element<HTMLFieldSetElement>('controls')
@@ -65,7 +69,9 @@ function buildFields() {
   language.addEventListener('change', () => {
     settings.language = language.value
     markDirty()
+    renderFateTree()
     renderFates()
+    renderTemplates()
   })
   label.append(language)
   element('general-fields').append(label)
@@ -91,18 +97,10 @@ function buildFields() {
       `formatter.${path}`,
       title,
     )
-  field('fishing-fields', 'fishing.enabled', '启用鱼漂查询')
-  field('fishing-fields', 'fishing.uploadEnabled', '允许上传钓鱼数据')
-  field('universalis-fields', 'universalis.enabled', '启用 Universalis 服务')
-  field('universalis-fields', 'universalis.uploadEnabled', '允许上传市场价格')
+  field('fishing-fields', 'fishing.enabled', '启用鱼漂查询及钓鱼数据上传')
+  field('universalis-fields', 'universalis.enabled', '启用在线物价查询及上传')
   field('universalis-fields', 'universalis.apiKey', 'API 密钥', 'password')
   field('universalis-fields', 'universalis.uploaderId', '上传者标识', 'text')
-  field('telemetry-fields', 'telemetry.enabled', '允许上报 FATE 与 NPC 数据')
-  field('telemetry-fields', 'telemetry.root', 'HTTPS 服务地址', 'text')
-  field('telemetry-fields', 'telemetry.fateBucket', 'FATE 数据桶', 'text')
-  field('telemetry-fields', 'telemetry.npcBucket', 'NPC 数据桶', 'text')
-  field('telemetry-fields', 'telemetry.clientId', '客户端标识（启用后生成）', 'text')
-  ;(fields.get('telemetry.clientId') as HTMLInputElement).readOnly = true
   field('logging-fields', 'logging', '保留本地诊断日志')
 }
 function property(root: unknown, path: string): { parent: Record<string, unknown>; key: string } {
@@ -132,40 +130,133 @@ function render() {
     if (input instanceof HTMLInputElement && input.type === 'checkbox') input.checked = Boolean(parent[key])
     else input.value = String(parent[key])
   }
+  renderFateTree()
   renderFates()
+  renderTemplates()
   headers.clear()
   renderWebhooks()
   element('dirty').textContent = dirty ? '有未保存的修改' : '已保存'
 }
-function renderFates() {
+function matchingFates() {
   const query = element<HTMLInputElement>('fate-search').value.trim().toLocaleLowerCase()
+  return Object.entries(fates).filter(
+    ([id, value]) =>
+      id.includes(query) || Object.values(value.name).some((text) => text.toLocaleLowerCase().includes(query)),
+  )
+}
+function updateWatch(ids: number[], checked: boolean) {
+  const selected = new Set(settings.watch.fates)
+  for (const id of ids) {
+    if (checked) selected.add(id)
+    else selected.delete(id)
+  }
+  settings.watch.fates = [...selected]
+  markDirty()
+  renderFates()
+}
+function fateRow(id: number, search = false) {
+  const item = fates[id]
+  const row = document.createElement('li')
+  const label = document.createElement('label')
+  label.className = 'checkbox'
+  const input = document.createElement('input')
+  input.type = 'checkbox'
+  input.id = `${search ? 'fate-result' : 'fate'}-${id}`
+  input.dataset.fateId = String(id)
+  input.addEventListener('change', () => updateWatch([id], input.checked))
+  label.append(input, document.createTextNode(name(item.name)))
+  const meta = document.createElement('small')
+  meta.textContent = `Lv.${item.level} #${id}`
+  row.append(label, meta)
+  return row
+}
+function renderFateTree() {
+  const tree = element('fate-tree')
+  const expanded = new Set([...tree.querySelectorAll<HTMLDetailsElement>('details[open]')].map((d) => d.id))
+  tree.replaceChildren()
+  fateGroups.length = 0
+  const versions = new Map<number, Map<number, number[]>>()
+  for (const [id, item] of Object.entries(fates)) {
+    const patch = item.location === 0 ? 0 : item.patch
+    const areas = versions.get(patch) ?? new Map<number, number[]>()
+    const ids = areas.get(item.location) ?? []
+    ids.push(Number(id))
+    areas.set(item.location, ids)
+    versions.set(patch, areas)
+  }
+  const group = (id: string, title: string, ids: number[]) => {
+    const details = document.createElement('details')
+    details.id = id
+    details.open = expanded.has(id)
+    const summary = document.createElement('summary')
+    const label = document.createElement('label')
+    label.className = 'checkbox'
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    input.id = `${id}-select`
+    input.addEventListener('change', () => updateWatch(ids, input.checked))
+    label.append(input, document.createTextNode(title))
+    const count = document.createElement('small')
+    summary.append(label, count)
+    details.append(summary)
+    fateGroups.push({ input, ids, count })
+    return details
+  }
+  for (const [patch, areas] of [...versions].sort(([a], [b]) => a - b)) {
+    const version = group(
+      `fate-version-${patch}`,
+      patch === 0 ? '未知地区' : `${patch}.0 ${name(patches[patch])}`,
+      [...areas.values()].flat(),
+    )
+    for (const [area, ids] of areas) {
+      const list = document.createElement('ul')
+      list.className = 'fate-options'
+      for (const id of ids) list.append(fateRow(id))
+      if (patch === 0) version.append(list)
+      else {
+        const region = group(`fate-region-${patch}-${area}`, name(territories[area]) || `区域 #${area}`, ids)
+        region.append(list)
+        version.append(region)
+      }
+    }
+    tree.append(version)
+  }
+}
+function renderTemplates() {
+  const select = element<HTMLSelectElement>('fate-template')
+  const value = select.value
+  select.replaceChildren(new Option('选择预设…', ''))
+  templates.forEach((template, index) => {
+    select.add(new Option(name(template.name), String(index)))
+  })
+  select.value = value
+}
+function renderFates() {
+  const focused = document.activeElement?.id
+  const query = element<HTMLInputElement>('fate-search').value.trim()
   const results = element('fate-results')
   results.replaceChildren()
-  if (query) {
-    const matches = Object.entries(fates).filter(
-      ([id, value]) =>
-        id.includes(query) || Object.values(value.name).some((text) => text.toLocaleLowerCase().includes(query)),
-    )
-    for (const [id, value] of matches.slice(0, 60)) {
-      const row = document.createElement('li')
-      row.textContent = `${name(value.name)} · Lv.${value.level} #${id}`
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.textContent = settings.watch.fates.includes(Number(id)) ? '已关注' : '加入'
-      button.disabled = settings.watch.fates.includes(Number(id))
-      button.addEventListener('click', () => {
-        settings.watch.fates.push(Number(id))
-        markDirty()
-        renderFates()
-      })
-      row.append(button)
-      results.append(row)
-    }
-    if (matches.length === 0) {
-      const row = document.createElement('li')
-      row.textContent = '没有匹配的 FATE'
-      results.append(row)
-    }
+  const matches = query ? matchingFates() : []
+  element('fate-search-actions').hidden = matches.length === 0
+  element('fate-search-count').textContent = query
+    ? `匹配 ${matches.length} 项${matches.length > 60 ? '，显示前 60 项' : ''}`
+    : ''
+  for (const [id] of matches.slice(0, 60)) results.append(fateRow(Number(id), true))
+  if (!matches.length) {
+    const row = document.createElement('li')
+    row.textContent = query ? '没有匹配的 FATE' : '输入名称或 ID 查看匹配的 FATE。'
+    results.append(row)
+  }
+  const watched = new Set(settings.watch.fates)
+  for (const input of document.querySelectorAll<HTMLInputElement>('[data-fate-id]')) {
+    input.checked = watched.has(Number(input.dataset.fateId))
+    input.closest('li')?.toggleAttribute('data-selected', input.checked)
+  }
+  for (const { input, ids, count } of fateGroups) {
+    const selected = ids.filter((id) => watched.has(id)).length
+    input.checked = selected === ids.length
+    input.indeterminate = selected > 0 && selected < ids.length
+    count.textContent = `${selected} / ${ids.length}`
   }
   const selected = element('fate-selected')
   selected.replaceChildren()
@@ -175,15 +266,12 @@ function renderFates() {
     button.type = 'button'
     button.textContent = `${name(fates[id]?.name) || `FATE #${id}`} ×`
     button.title = '从关注列表移除'
-    button.addEventListener('click', () => {
-      settings.watch.fates = settings.watch.fates.filter((value) => value !== id)
-      markDirty()
-      renderFates()
-    })
+    button.addEventListener('click', () => updateWatch([id], false))
     row.append(button)
     selected.append(row)
   }
-  element('fate-count').textContent = `已关注 ${settings.watch.fates.length} 项${query ? ' · 搜索最多显示 60 项' : ''}`
+  element('fate-count').textContent = `已关注 ${settings.watch.fates.length} 项`
+  if (focused) document.getElementById(focused)?.focus({ preventScroll: true })
 }
 function renderWebhooks() {
   const pendingHeaders = new Map([...headers].map(([id, input]) => [id, input.value]))
@@ -314,13 +402,17 @@ async function initialize() {
   initializeTabs()
   buildFields()
   bridge = await connectView()
-  const catalog = (await command('catalog')) as { fates: typeof fates; templates: typeof templates }
+  const catalog = (await command('catalog')) as {
+    fates: typeof fates
+    templates: typeof templates
+    patches: typeof patches
+    territories: typeof territories
+  }
   fates = catalog.fates
   templates = catalog.templates
+  patches = catalog.patches
+  territories = catalog.territories
   const select = element<HTMLSelectElement>('fate-template')
-  templates.forEach((template, index) => {
-    select.add(new Option(name(template.name), String(index)))
-  })
   await reload()
   await diagnostics()
   controls.disabled = false
@@ -350,6 +442,18 @@ async function initialize() {
     markDirty()
     renderFates()
   })
+  click('fate-search-select', () =>
+    updateWatch(
+      matchingFates().map(([id]) => Number(id)),
+      true,
+    ),
+  )
+  click('fate-search-clear', () =>
+    updateWatch(
+      matchingFates().map(([id]) => Number(id)),
+      false,
+    ),
+  )
   click('watch-clear', () => {
     settings.watch.fates = []
     markDirty()

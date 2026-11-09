@@ -6,7 +6,6 @@ import type { MarketComparison, MatchaMarketService } from './market.js'
 
 export interface UniversalisSettings {
   enabled: boolean
-  uploadEnabled: boolean
   apiKey?: string
   /** A configured anonymous installation identifier, never a raw character content ID. */
   uploaderId?: string
@@ -48,8 +47,7 @@ export function createUniversalisClient(options: UniversalisOptions): MatchaMark
   }
   const credentials = () => {
     const settings = options.getSettings()
-    if (!settings.enabled || !settings.uploadEnabled || !settings.apiKey?.trim() || !settings.uploaderId?.trim())
-      return null
+    if (!settings.enabled || !settings.apiKey?.trim() || !settings.uploaderId?.trim()) return null
     return { key: settings.apiKey.trim(), uploader: settings.uploaderId.trim() }
   }
   const upload = async (body: Record<string, unknown>): Promise<void> => {

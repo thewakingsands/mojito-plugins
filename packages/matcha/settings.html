@@ -10,7 +10,8 @@
     <main>
       <header><h1>Matcha 设置</h1><span id="connection">正在连接…</span></header>
       <div class="mojito-tabs" role="tablist" aria-label="设置分类">
-        <button type="button" role="tab" id="tab-reminders" aria-controls="panel-reminders" aria-selected="true">提醒与关注</button>
+        <button type="button" role="tab" id="tab-reminders" aria-controls="panel-reminders" aria-selected="true">提醒设置</button>
+        <button type="button" role="tab" id="tab-fates" aria-controls="panel-fates" aria-selected="false" tabindex="-1">FATE 关注</button>
         <button type="button" role="tab" id="tab-services" aria-controls="panel-services" aria-selected="false" tabindex="-1">联网服务</button>
         <button type="button" role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1">数据备份</button>
         <button type="button" role="tab" id="tab-diagnostics" aria-controls="panel-diagnostics" aria-selected="false" tabindex="-1">运行诊断</button>
@@ -32,19 +33,29 @@
                 <fieldset><legend>寻宝</legend><div id="formatter-treasure" class="fields"></div></fieldset>
               </div>
             </section>
+          </div>
+          <div role="tabpanel" id="panel-fates" aria-labelledby="tab-fates" hidden>
             <section>
-              <h2>关注的 FATE</h2><p>只对列表中的 FATE 发送开始或进度提醒。</p>
-              <div class="toolbar"><label>检索名称或 ID<input id="fate-search" type="search" placeholder="例如 驰骋 或 120" /></label><label>预设<select id="fate-template"><option value="">选择预设…</option></select></label><button type="button" id="apply-template">加入预设</button></div>
-              <ul id="fate-results" class="fate-results" aria-label="检索结果"></ul>
-              <p id="fate-count"></p><ul id="fate-selected" class="selected-list" aria-label="已关注的 FATE"></ul>
-              <div class="toolbar"><button type="button" id="watch-import">导入关注列表</button><button type="button" id="watch-export">导出关注列表</button><button type="button" id="watch-clear">清空草稿列表</button></div>
+              <h2>搜索 FATE</h2>
+              <div class="fate-search-box">
+                <label>名称或 ID<input id="fate-search" type="search" placeholder="例如 驰骋 或 120" /></label>
+                <p id="fate-search-count"></p>
+                <div id="fate-search-actions" class="toolbar" hidden><button type="button" id="fate-search-select">关注搜索结果</button><button type="button" id="fate-search-clear">取消关注搜索结果</button></div>
+                <ul id="fate-results" class="fate-results" aria-label="搜索结果"></ul>
+              </div>
             </section>
+            <section><h2>按版本与区域选择</h2><div id="fate-tree" class="fate-tree"></div></section>
+            <section>
+              <h2>导入预设</h2>
+              <div class="toolbar"><label>预设<select id="fate-template"><option value="">选择预设…</option></select></label><button type="button" id="apply-template">加入关注</button></div>
+              <div class="toolbar fate-import"><button type="button" id="watch-import">导入关注列表</button><button type="button" id="watch-export">导出关注列表</button></div>
+            </section>
+            <section><div class="section-heading"><h2 id="fate-count">已关注 0 项</h2><button type="button" id="watch-clear">清空草稿列表</button></div><details><summary>查看已关注的 FATE</summary><ul id="fate-selected" class="selected-list" aria-label="已关注的 FATE"></ul></details></section>
           </div>
           <div role="tabpanel" id="panel-services" aria-labelledby="tab-services" hidden>
-            <p class="panel-intro">联网查询与上传默认关闭，修改后保存生效。</p>
-            <section><h2>鱼漂社区统计</h2><p>查询为当前钓场提供社区咬钩区间。数据上传需单独开启；关闭后仍保留本地钓鱼记录和手工区间。</p><div id="fishing-fields" class="fields"></div></section>
-            <section><h2>Universalis</h2><p>启用后可把已观察的市场价格提交给 Universalis。API 密钥由你提供，未保存时不会开始上传。</p><div id="universalis-fields" class="fields"></div></section>
-            <section><h2>FATE 与 NPC 数据上报</h2><p>默认关闭。自定义地址必须使用 HTTPS，且所属域名已由插件包声明并获得网络授权。仅填写地址不会扩大网络权限。</p><div id="telemetry-fields" class="fields"></div></section>
+            <p class="panel-intro">在线服务默认关闭，修改后保存生效。</p>
+            <section><h2>鱼漂社区统计</h2><p>开启后查询社区咬钩区间并上传钓鱼数据；关闭后仍保留本地记录和手工区间。</p><div id="fishing-fields" class="fields"></div></section>
+            <section><h2>Universalis</h2><p>开启后查询在线物价并上传已观察的市场价格。上传需要 API 密钥和上传者标识。</p><div id="universalis-fields" class="fields"></div></section>
             <section><h2>Webhook</h2><p>每条配置会向指定服务发送所选事件。自定义域名必须已在插件包中声明并授权；关闭或删除不需要新增网络权限。</p><div id="webhook-rows"></div><p id="webhook-empty">尚未配置 Webhook。</p><button type="button" id="webhook-add">添加 Webhook</button></section>
           </div>
           <div role="tabpanel" id="panel-data" aria-labelledby="tab-data" hidden>
