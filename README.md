@@ -4,6 +4,7 @@ The Mojito plugin SDK, package codec, author examples and official plugins.
 Use Node 24, pnpm 12.13.0 and stable Rust. Clone this repository on its own:
 
 ```sh
+git submodule update --init --recursive
 pnpm install --frozen-lockfile
 pnpm build:official
 pnpm typecheck
@@ -21,6 +22,7 @@ Their source archives and licenses are included beside the generated runtime tre
 ## Packages
 
 - `packages/plugin-sdk`: `@ffcafe/mojito-plugin-sdk` and its public exports.
+- `packages/matcha`: Matcha worker, settings and bundled UI from `vendor/matcha-overlay`.
 - `packages/combat-statistics`: combat statistics and its overlay service.
 - `packages/overlay-plugins`: Kagerou, Skyline and MopiMopi2 plugins.
 - `packages/raidboss`: the fixed Raidboss runtime and rule corpus.
@@ -62,7 +64,7 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 ```
 
 The command packs and verifies the existing `dist` trees, reads their signed manifests,
-and writes five `.mojito` packages, `SHA256SUMS` and template source archives under
+and writes seven `.mojito` packages, `SHA256SUMS` and template source archives under
 `dist/official`. Plugin versions come from their manifests.
 
 The `official-v*` tag workflow builds without secrets, transfers the runtime trees and

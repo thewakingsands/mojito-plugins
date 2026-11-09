@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -22,6 +24,8 @@ jobs:
           if-no-files-found: error
           path: |
             packages/plugin-sdk/dist
+            packages/matcha/dist
+            packages/plugin-skill-display/dist
             packages/combat-statistics/dist
             packages/plugin-raidboss/dist
             packages/overlay-plugins/dist
@@ -33,6 +37,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

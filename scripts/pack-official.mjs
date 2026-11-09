@@ -12,6 +12,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const cli = path.join(root, 'target/release', `mojito-package${process.platform === 'win32' ? '.exe' : ''}`)
 const output = path.join(root, 'dist/official')
 const plugins = [
+  ['Cafe.Matcha', 'packages/matcha/dist'],
   ['MojitoSkillDisplay', 'packages/plugin-skill-display/dist'],
   ['CombatStatistics', 'packages/combat-statistics/dist'],
   ['MojitoRaidbossOfficial', 'packages/plugin-raidboss/dist'],

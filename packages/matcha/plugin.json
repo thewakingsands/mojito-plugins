@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "Cafe.Matcha",
+  "name": "Matcha",
+  "version": "4.0.0-mojito.7",
+  "apiVersion": "^1.6.0",
+  "entry": {
+    "kind": "worker",
+    "path": "entry.mjs"
+  },
+  "capabilities": {
+    "required": ["session.read", "packets.read", "ui.register"],
+    "optional": ["data.read", "game.read", "memory.read", "audio.play", "http.request", "host.files"]
+  },
+  "networkOrigins": [
+    "https://xivapi-v2.xivcdn.com",
+    "https://universalis.app",
+    "https://api.ffxiv.cyou",
+    "https://map-cdn.wakingsands.com",
+    "https://cafemaker.wakingsands.com",
+    "https://map.ffcafe.cn",
+    "https://map-v2.ffcafe.cn"
+  ],
+  "author": "FFCafe",
+  "description": "Matcha 的 Mojito 版本：通知、市场、装备、挖宝、仙人微彩、潜水艇和钓鱼。",
+  "license": "AGPL-3.0-only"
+}

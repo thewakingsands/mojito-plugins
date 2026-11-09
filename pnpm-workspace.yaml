@@ -1,7 +1,15 @@
 packages:
   - packages/*
   - examples/*
+  - vendor/matcha-overlay
 
 allowBuilds:
   esbuild: true
   '@parcel/watcher': false
+
+minimumReleaseAgeExclude:
+  - '@thewakingsands/eorzea-interactive-map@2.0.0'
+  - '@thewakingsands/xivapi-v2@1.1.0'
+
+overrides:
+  'matcha-overlay>@ffcafe/mojito-plugin-sdk': 'workspace:*'

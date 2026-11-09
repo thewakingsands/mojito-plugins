@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/host/mojito-base.css" />
+    <title>Matcha 设置</title>
+  </head>
+  <body>
+    <main>
+      <header><div><p class="eyebrow">抹茶 · Matcha</p><h1>插件设置</h1></div><span id="connection">正在连接…</span></header>
+      <p class="intro">通知、关注列表和联网服务分别设置。联网查询与上传默认关闭，修改后点击保存。</p>
+      <form id="settings-form">
+        <fieldset id="controls" disabled>
+          <section><h2>语言与通知</h2><div id="general-fields" class="fields"></div><button type="button" id="test-notification">测试已保存的通知设置</button></section>
+          <section><h2>通知内容</h2><div id="formatter-fields" class="fields"></div></section>
+          <section>
+            <h2>关注的 FATE</h2><p>只对列表中的 FATE 发送开始或进度提醒。</p>
+            <div class="toolbar"><label>检索名称或 ID<input id="fate-search" type="search" placeholder="例如 驰骋 或 120" /></label><label>预设<select id="fate-template"><option value="">选择预设…</option></select></label><button type="button" id="apply-template">加入预设</button></div>
+            <ul id="fate-results" class="fate-results" aria-label="检索结果"></ul>
+            <p id="fate-count"></p><ul id="fate-selected" class="selected-list" aria-label="已关注的 FATE"></ul>
+            <div class="toolbar"><button type="button" id="watch-import">导入关注列表</button><button type="button" id="watch-export">导出关注列表</button><button type="button" id="watch-clear">清空草稿列表</button></div>
+          </section>
+          <section><h2>鱼漂社区统计</h2><p>查询为当前钓场提供社区咬钩区间。数据上传需单独开启；关闭后仍保留本地钓鱼记录和手工区间。</p><div id="fishing-fields" class="fields"></div></section>
+          <section><h2>Universalis</h2><p>启用后可把已观察的市场价格提交给 Universalis。API 密钥由你提供，未保存时不会开始上传。</p><div id="universalis-fields" class="fields"></div></section>
+          <section><h2>FATE 与 NPC 数据上报</h2><p>默认关闭。自定义地址必须使用 HTTPS，且所属域名已由插件包声明并获得网络授权。仅填写地址不会扩大网络权限。</p><div id="telemetry-fields" class="fields"></div></section>
+          <section><h2>Webhook</h2><p>每条配置会向指定服务发送所选事件。自定义域名必须已在插件包中声明并授权；关闭或删除不需要新增网络权限。</p><div id="webhook-rows"></div><button type="button" id="webhook-add">添加 Webhook</button></section>
+          <section><h2>备份与数据</h2><p>完整设置备份包含 API 密钥和 Webhook 请求头，请妥善保存。导入后先检查设置，再点击保存。钓鱼区间及鱼获备份在悬浮窗的钓鱼页管理。</p><div class="toolbar"><button type="button" id="settings-import">导入完整设置</button><button type="button" id="settings-export">导出当前设置草稿</button><button type="button" id="notebook-export">导出钓鱼图鉴</button></div><div id="logging-fields" class="fields"></div></section>
+          <footer class="actions"><button type="submit" data-variant="primary">保存设置</button><button type="button" id="reload">放弃草稿并重载</button><span id="dirty"></span></footer>
+        </fieldset>
+      </form>
+      <p id="message" role="status" aria-live="polite"></p>
+      <section><div class="section-heading"><h2>运行状态与诊断</h2><button type="button" id="diagnostics-refresh" disabled>刷新</button></div><p id="session">尚未读取</p><ol id="diagnostics"></ol></section>
+    </main>
+    <script type="module" src="./src/settings-page.ts"></script>
+  </body>
+</html>
