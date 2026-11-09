@@ -114,7 +114,7 @@ describe('DamageAttributor', () => {
     // Fugetsu came from the owner, and stays with the owner
     expect(split.contributions.map((item) => [item.sourceId, item.statusId])).toEqual([[ASTROLOGIAN, DIVINATION]])
     expect(split.contributions[0].amount + split.retained).toBeCloseTo(10000, 9)
-    expect(split.contributions[0].amount).toBeLessThan(10000 * DIVINATION_SHARE)
+    expect(split.contributions[0].amount).toBeCloseTo(10000 * DIVINATION_SHARE, 9)
   })
 
   it('keeps a modifier another player gave that is no raid buff with the attacker', () => {
@@ -124,7 +124,7 @@ describe('DamageAttributor', () => {
     const split = harness.lastSplit()
     expect(split.contributions.map((item) => [item.sourceId, item.statusId])).toEqual([[ASTROLOGIAN, DIVINATION]])
     expect(split.contributions[0].amount + split.retained).toBeCloseTo(10000, 9)
-    expect(split.contributions[0].amount).toBeLessThan(10000 * DIVINATION_SHARE)
+    expect(split.contributions[0].amount).toBeCloseTo(10000 * DIVINATION_SHARE, 9)
   })
 
   it('leaves a modifier of a source that is not a player with the attacker when no player gave anything', () => {

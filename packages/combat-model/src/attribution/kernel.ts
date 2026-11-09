@@ -2,8 +2,8 @@ import type { DamageContribution } from '../events.js'
 
 /**
  * Whose modifier it is, from the attacker: the attacker, or another player whose modifier is not a raid buff; another
- * player, for a raid buff of theirs; or a source that is not a player. The part of other goes to the attacker and the
- * players in proportion to what they have of the damage.
+ * player, for a raid buff of theirs; or a source that is not a player. The modifiers of self and other are conditions
+ * of the damage and stay with the attacker; only those of player are split.
  */
 export type EffectOwner = 'self' | 'player' | 'other'
 
@@ -37,10 +37,7 @@ export interface AttributionResult {
 
 const DIRECT_MULTIPLIER = 1.25
 
-/**
- * A factor of the split, and the effects its part goes to by their weights; the part of a factor without effects
- * stays with the attacker
- */
+/** A factor of the split, and the effects its part goes to by their weights */
 interface Factor {
   value: number
   effects: readonly AttributionEffect[]
@@ -49,39 +46,39 @@ interface Factor {
 
 /** The critical or the direct hit rate modifiers, from the attacker */
 interface RateGroup {
-  /** The rate the modifiers of the attacker add */
+  /** The rate the modifiers of self and other add; below 0 for a rate down */
   own: number
-  /** The modifiers of the others, and the share of each in what they add */
+  /** The raid buffs, and the share of each in what they add */
   external: AttributionEffect[]
   weights: number[]
-  /** The rate with the modifiers of the attacker, and with all modifiers; at most 1 */
+  /** The rate without the raid buffs, and with them; from 0 to 1 */
   unbuffed: number
   buffed: number
 }
 
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0)
+const clamp = (rate: number) => Math.min(1, Math.max(0, rate))
 
 function rateGroup(effects: readonly AttributionEffect[], type: 'critical' | 'direct', natural: number): RateGroup {
-  const own = sum(effects.filter((item) => item.type === type && item.owner === 'self').map((item) => item.value))
-  const external = effects.filter((item) => item.type === type && item.owner !== 'self' && item.value > 0)
+  const own = sum(effects.filter((item) => item.type === type && item.owner !== 'player').map((item) => item.value))
+  const external = effects.filter((item) => item.type === type && item.owner === 'player' && item.value > 0)
   const added = sum(external.map((item) => item.value))
-  // Past the cap, the others share what is left of the rate as they would share what they add
+  // Past the cap, the raid buffs share what is left of the rate as they would share what they add
   return {
     own,
     external,
     weights: external.map((item) => item.value / added),
-    unbuffed: Math.min(1, natural + own),
-    buffed: Math.min(1, natural + own + added),
+    unbuffed: clamp(natural + own),
+    buffed: clamp(natural + own + added),
   }
 }
 
-/** A factor of the others in a rate group */
+/** A factor of the raid buffs in a rate group */
 const groupFactor = (group: RateGroup, value: number): Factor => ({
   value,
   effects: group.external,
   weights: group.weights,
 })
-const ownFactor = (value: number): Factor => ({ value, effects: [], weights: [] })
 
 /** The factors of a rate group for each way the hit may have come about, with the weight of the way */
 function hitWays(
@@ -93,12 +90,12 @@ function hitWays(
   const gain = multiplier - 1
   if (forced) {
     // A forced result turns the rates into a multiplier of the damage
-    const own = 1 + gain * group.own
-    const all = 1 + gain * (group.own + sum(group.external.map((item) => item.value)))
-    return [{ weight: 1, factors: [ownFactor(own), groupFactor(group, all / own)] }]
+    const own = Math.max(0, group.own)
+    const added = sum(group.external.map((item) => item.value))
+    return [{ weight: 1, factors: [groupFactor(group, (1 + gain * (own + added)) / (1 + gain * own))] }]
   }
   if (!happened || group.buffed === 0) return [{ weight: 1, factors: [] }]
-  // The chance that the others made it happen
+  // The chance that the raid buffs made it happen
   const chance = (group.buffed - group.unbuffed) / group.buffed
   return [
     { weight: chance, factors: [groupFactor(group, multiplier)] },
@@ -106,14 +103,10 @@ function hitWays(
   ].filter((way) => way.weight > 0)
 }
 
-/** The factors of the expected damage of a rate group, against the natural rate */
-function expectedFactors(group: RateGroup, natural: number, multiplier: number): Factor[] {
-  const gain = multiplier - 1
-  const expected = (rate: number) => 1 + rate * gain
-  return [
-    ownFactor(expected(group.unbuffed) / expected(natural)),
-    groupFactor(group, expected(group.buffed) / expected(group.unbuffed)),
-  ]
+/** The factor the raid buffs of a rate group give the expected damage */
+function expectedFactor(group: RateGroup, multiplier: number): Factor {
+  const expected = (rate: number) => 1 + rate * (multiplier - 1)
+  return groupFactor(group, expected(group.buffed) / expected(group.unbuffed))
 }
 
 /** The part of the bonus of amount each factor gives: the bonus split by the logarithms of the factors */
@@ -126,16 +119,15 @@ function logShares(amount: number, factors: readonly Factor[]): number[] {
 }
 
 /**
- * Splits a damage among the attacker and the modifiers of the other players, as design.md describes; retained and the
- * contributions add up to amount
+ * Splits a damage between the attacker and the raid buffs of the other players: the raid buffs get what the damage
+ * would lose without them, shared among them by the logarithms of their factors, and the rest stays with the attacker;
+ * retained and the contributions add up to amount
  */
 export function attribute(input: AttributionInput): AttributionResult {
   const { amount, effects, rates, outcome } = input
   const multipliers: Factor[] = effects
-    .filter((item) => item.type === 'multiplier' && item.value > 1)
-    .map((item) =>
-      item.owner === 'self' ? ownFactor(item.value) : { value: item.value, effects: [item], weights: [1] },
-    )
+    .filter((item) => item.type === 'multiplier' && item.owner === 'player' && item.value > 1)
+    .map((item) => ({ value: item.value, effects: [item], weights: [1] }))
   const critical = rateGroup(effects, 'critical', rates.critical)
   const direct = rateGroup(effects, 'direct', rates.direct)
 
@@ -144,10 +136,7 @@ export function attribute(input: AttributionInput): AttributionResult {
     ways = [
       {
         weight: 1,
-        factors: [
-          ...expectedFactors(critical, rates.critical, rates.criticalMultiplier),
-          ...expectedFactors(direct, rates.direct, DIRECT_MULTIPLIER),
-        ],
+        factors: [expectedFactor(critical, rates.criticalMultiplier), expectedFactor(direct, DIRECT_MULTIPLIER)],
       },
     ]
   } else {
@@ -171,23 +160,13 @@ export function attribute(input: AttributionInput): AttributionResult {
   }
 
   const contributions = new Map<string, DamageContribution>()
-  let other = 0
   for (const [effect, part] of parts) {
     if (part === 0) continue
-    if (effect.owner === 'other') {
-      other += part
-      continue
-    }
     const key = `${effect.sourceId}:${effect.statusId}`
     const contribution = contributions.get(key)
     if (contribution) contribution.amount += part
     else contributions.set(key, { statusId: effect.statusId, sourceId: effect.sourceId, amount: part })
   }
   const sorted = [...contributions.values()].sort((a, b) => a.sourceId - b.sourceId || a.statusId - b.statusId)
-  // The bonus of all modifiers is below amount, so the scale is finite and at least 1
-  if (other > 0) {
-    const scale = amount / (amount - other)
-    for (const item of sorted) item.amount *= scale
-  }
   return { retained: amount - sum(sorted.map((item) => item.amount)), contributions: sorted }
 }
