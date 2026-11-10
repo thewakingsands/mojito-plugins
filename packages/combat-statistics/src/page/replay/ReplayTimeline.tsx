@@ -3,7 +3,7 @@ import type { ReplayAction, ReplayData, ReplayEvent } from '../../view-model.js'
 import { duration as tickText } from '../format.js'
 import { JobIcon, SkillIcon } from '../icons.js'
 import type { Span } from './aggregate.js'
-import { DpsLabel, DpsLane, PotencyLabel, PotencyLane, type RegionHover, useCurves } from './CurveLanes.js'
+import { DpsLabel, DpsLane, PotencyLabel, PotencyLane, useCurves } from './CurveLanes.js'
 import { eventLines } from './EventList.js'
 import { cutscenesOf, isFightEvent } from './events.js'
 import type { FilterMember } from './filter.js'
@@ -128,7 +128,6 @@ interface LaneProps {
   /** The members in the order of the filter bar */
   members: readonly FilterMember[]
   mergePets: boolean
-  onRegion: (hover: RegionHover | null) => void
 }
 
 /**
@@ -231,8 +230,8 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
         <span className="label" />
         {props.expanded && (
           <>
-            <DpsLabel data={data} members={props.members} chosen={props.chosen} />
-            <PotencyLabel data={data} curves={curves} />
+            <DpsLabel />
+            <PotencyLabel data={data} curves={curves} names={props.names} />
           </>
         )}
         <span className="label">敌人读条</span>
@@ -260,7 +259,7 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
         {props.expanded && (
           <>
             <DpsLane {...curveProps} />
-            <PotencyLane {...curveProps} onRegion={props.onRegion} />
+            <PotencyLane {...curveProps} />
           </>
         )}
         {lane(

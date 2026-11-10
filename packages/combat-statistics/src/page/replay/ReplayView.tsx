@@ -7,7 +7,6 @@ import { duration, entered, percent, zoneName } from '../format.js'
 import { JobIcon } from '../icons.js'
 import type { Scope, Span } from './aggregate.js'
 import { CastPopover } from './CastPopover.js'
-import type { RegionHover } from './CurveLanes.js'
 import { DamageTable, type HealGroup, HealingTable, type TakenGroup, TakenTable, UptimeTable } from './DetailTables.js'
 import { EventList, EventPopover } from './EventList.js'
 import { listedEvents } from './events.js'
@@ -16,7 +15,6 @@ import { bottomHeight, bottomLimit, panelWidth } from './layout.js'
 import { PanelMeasure } from './PanelMeasure.js'
 import { actorName } from './parts.js'
 import { type Clock, nextSpeed, play, playhead } from './playback.js'
-import { RegionPopover } from './RegionPopover.js'
 import { ReplayMap, useSize } from './ReplayMap.js'
 import { OverviewStrip, PlaybackControls, Timeline, usesOf } from './ReplayTimeline.js'
 import { clockText, follow, scrollWindow, windowAround, type Zoom } from './timeline.js'
@@ -230,23 +228,6 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
   /** The cast of the timeline whose details are open, and where they show */
   const [castOpen, setCastOpen] = useState<{ index: number; left: number; bottom: number } | null>(null)
   const [timelineOpen, setTimelineOpen] = useState(false)
-  /** The region of the damage per potency under the pointer, and where its card shows */
-  const [regionOpen, setRegionOpen] = useState<{ hover: RegionHover; left: number; bottom: number } | null>(null)
-  const showRegion = useCallback((hover: RegionHover | null) => {
-    if (!hover) {
-      setRegionOpen(null)
-      return
-    }
-    const box = hover.anchor.getBoundingClientRect()
-    const { clientWidth, clientHeight } = document.documentElement
-    setRegionOpen({
-      hover,
-      left: Math.max(POPOVER_GAP, Math.min(box.left, clientWidth - POPOVER_WIDTH - POPOVER_GAP)),
-      bottom: clientHeight - box.top + POPOVER_GAP,
-    })
-  }, [])
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the card belongs to the data, the members and the open timeline it was shown for
-  useEffect(() => setRegionOpen(null), [data, chosen, timelineOpen])
   // The sizes the user dragged the panels to; they last as long as this review is open
   const [panelDragged, setPanelDragged] = useState<number | null>(null)
   /** The width the expanded panel needs for its widest table, measured for one filter */
@@ -631,14 +612,12 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
             onScroll={scroll}
             members={members}
             mergePets={scope.mergePets}
-            onRegion={showRegion}
           />
         </section>
       </div>
       {selected && popoverAt && (
         <EventPopover data={data} event={selected} top={popoverAt.top} right={popoverAt.right} popover={popover} />
       )}
-      {regionOpen && <RegionPopover hover={regionOpen.hover} left={regionOpen.left} bottom={regionOpen.bottom} />}
       {castOpen && (
         <CastPopover
           data={data}

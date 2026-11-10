@@ -8,6 +8,7 @@ import type { Command, PotencySample, ReplayEvent, StatisticsState } from '../..
 import { Bridge } from '../bridge.js'
 import { enemy, member, replayData, track } from './data.test-helper.js'
 import { ReplayView } from './ReplayView.js'
+import { clockText } from './timeline.js'
 
 const hit = (t: number) => ({
   t,
@@ -522,12 +523,16 @@ it('draws no shade and lists no cutscene for a fight without any', async () => {
   expect(screen.queryByRole('button', { name: /过场动画/ })).toBeNull()
 })
 
-/** r 50 every 2.5 seconds for the knight, 55 under the buff 100 of the white mage from 20 seconds; a few for the bard */
+/**
+ * r 50 every 2.5 seconds for the knight on the boss 3, 55 under the buff 100 of the white mage from 20 seconds, and on
+ * no target from 58.5 seconds; a few for the bard. The knight has 坚守 over the fight and two 战意 that overlap, the
+ * boss 易伤 over the fight.
+ */
 const potencyData = (() => {
-  const sample = (t: number, actor: number, r: number, buffed = false): PotencySample => ({
+  const sample = (t: number, actor: number, r: number, buffed = false, target = 3): PotencySample => ({
     t,
     actor,
-    target: 3,
+    target,
     actionId: 9,
     amount: r * 200,
     potency: 200,
@@ -537,17 +542,61 @@ const potencyData = (() => {
     direct: false,
   })
   const potency: PotencySample[] = []
-  for (let t = 0; t < 60_000; t += 2500) {
+  for (let t = 0; t < 58_000; t += 2500) {
     const buffed = t >= 20_000 && t < 30_000
     potency.push(sample(t, 0, buffed ? 55 : 50, buffed))
   }
+  potency.push(sample(58_500, 0, 50, false, -1), sample(59_000, 0, 50, false, -1), sample(59_500, 0, 50, false, -1))
   potency.push(sample(1000, 2, 40), sample(2000, 2, 40), sample(3000, 2, 40))
-  return { ...data, potency: potency.sort((a, b) => a.t - b.t) }
+  const status = (actor: number, statusId: number, from: number, to: number) => ({
+    actor,
+    statusId,
+    source: null,
+    from,
+    to,
+    stacks: null,
+  })
+  return {
+    ...data,
+    potency: potency.sort((a, b) => a.t - b.t),
+    statuses: [
+      ...data.statuses,
+      status(0, 300, 0, 60_000),
+      status(0, 302, 10_000, 30_000),
+      status(0, 301, 5_000, 40_000),
+      status(3, 400, 0, 60_000),
+    ],
+    statusInfo: [
+      ...data.statusInfo,
+      { statusId: 300, name: '坚守', category: 'buff' as const, raidBuff: false },
+      { statusId: 301, name: '战意', category: 'buff' as const, raidBuff: false },
+      { statusId: 302, name: '战意', category: 'buff' as const, raidBuff: false },
+      { statusId: 400, name: '易伤', category: 'debuff' as const, raidBuff: false },
+    ],
+  }
 })()
-const potencySelect = () => screen.getByRole('combobox', { name: '每威力伤害的角色' }) as HTMLSelectElement
+const POTENCY_NOTE = '基准值和每威力伤害根据角色威力表和已知 buff 效果估算，仅供参考。'
+/** The job icon buttons that pick the member of the damage per potency */
+const potencyMembers = () =>
+  [...document.querySelectorAll<HTMLButtonElement>('.potency-members button')].map((button) => ({
+    name: button.getAttribute('aria-label'),
+    pressed: button.getAttribute('aria-pressed'),
+  }))
+const potencyMember = (name: string) =>
+  within(document.querySelector<HTMLElement>('.potency-members')!).getByRole('button', { name })
+const potencyLane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
+const potencyTip = () => document.querySelector<HTMLElement>('.floating-tip.potency-tip')
 const expandTimeline = () => press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
 const chip = (name: string) =>
   within(document.querySelector<HTMLElement>('.filter-bar')!).getByRole('button', { name: new RegExp(name) })
+/** 100 ms a pixel over the fight of 60 seconds */
+function mockLaneRect() {
+  const rect = HTMLElement.prototype.getBoundingClientRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (!this.classList.contains('curve')) return rect.call(this)
+    return { ...rect.call(this), left: 0, width: 600 }
+  })
+}
 
 it('shows the curves only while the timeline is expanded', async () => {
   await open(potencyData)
@@ -556,31 +605,67 @@ it('shows the curves only while the timeline is expanded', async () => {
   expandTimeline()
   expect(document.querySelectorAll('.lane.curve')).toHaveLength(2)
   fireEvent.pointerEnter(document.querySelector('.potency-region')!)
-  expect(screen.getByRole('dialog', { name: '每威力伤害区域' })).toBeTruthy()
+  expect(screen.queryByRole('dialog')).toBeNull()
   press(screen.getByRole('button', { name: '▼ 收起技能轴' }))
   expect(document.querySelector('.lane.curve')).toBeNull()
-  expect(screen.queryByRole('dialog')).toBeNull()
 })
 
 it('draws the damage per second and the damage per potency, for the members that have samples', async () => {
   await open(potencyData)
   expandTimeline()
-  expect(screen.getByText('每秒伤害')).toBeTruthy()
+  const [dpsLabel] = document.querySelectorAll<HTMLElement>('.label.curve-label')
+  expect(dpsLabel.textContent).toBe('每秒伤害')
+  expect(document.querySelector('.curve-legend')).toBeNull()
   expect(screen.getByText('每威力伤害')).toBeTruthy()
   expect(document.querySelectorAll('.lane.curve path.curve-line')).toHaveLength(4)
-  expect([...potencySelect().options].map((option) => option.textContent)).toEqual(['骑士', '诗人'])
-  expect(potencySelect().value).toBe('0')
+  expect(potencyMembers()).toEqual([
+    { name: '骑士', pressed: 'true' },
+    { name: '诗人', pressed: 'false' },
+  ])
   expect(screen.getByText('基准 50.0')).toBeTruthy()
-  fireEvent.change(potencySelect(), { target: { value: '2' } })
-  expect(potencySelect().value).toBe('2')
+  press(potencyMember('诗人'))
+  expect(potencyMembers()).toEqual([
+    { name: '骑士', pressed: 'false' },
+    { name: '诗人', pressed: 'true' },
+  ])
   // Only the white mage: no samples
   press(chip('白魔'))
-  expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
+  expect(document.querySelector('.potency-members')).toBeNull()
   expect(screen.getByText('没有每威力数据：记录时宿主没有提供，或选中的角色没有可推断威力的命中')).toBeTruthy()
   // The bard was picked; chosen with the knight again, the knight is the default
   press(chip('骑士'))
   press(chip('诗人'))
-  expect(potencySelect().value).toBe('0')
+  expect(potencyMembers()).toEqual([
+    { name: '骑士', pressed: 'true' },
+    { name: '诗人', pressed: 'false' },
+  ])
+})
+
+it('names the member of a job icon in a tip of its own, not the browser one', async () => {
+  await open(potencyData)
+  expandTimeline()
+  const bard = potencyMember('诗人')
+  expect(bard.hasAttribute('title')).toBe(false)
+  fireEvent.pointerEnter(bard)
+  expect(screen.getByRole('tooltip').textContent).toBe('诗人')
+  fireEvent.pointerLeave(bard)
+  expect(screen.queryByRole('tooltip')).toBeNull()
+})
+
+it('tells how the damage per potency is estimated in the tip of the question mark', async () => {
+  await open(potencyData)
+  expandTimeline()
+  const help = document.querySelector<HTMLElement>('.potency-help')!
+  expect(help.hasAttribute('title')).toBe(false)
+  expect(help.querySelector('title')).toBeNull()
+  fireEvent.pointerEnter(help)
+  expect(screen.getByRole('tooltip').textContent).toBe(POTENCY_NOTE)
+  fireEvent.pointerLeave(help)
+  expect(screen.queryByRole('tooltip')).toBeNull()
+  fireEvent.focus(help)
+  expect(screen.getByRole('tooltip').textContent).toBe(POTENCY_NOTE)
+  fireEvent.blur(help)
+  expect(screen.queryByRole('tooltip')).toBeNull()
 })
 
 it('says so when no member is chosen', async () => {
@@ -596,11 +681,7 @@ it('says so when no member is chosen', async () => {
 })
 
 it('seeks on a click and selects a span on a drag over the curves', async () => {
-  const rect = HTMLElement.prototype.getBoundingClientRect
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    if (!this.classList.contains('curve')) return rect.call(this)
-    return { ...rect.call(this), left: 0, width: 600 }
-  })
+  mockLaneRect()
   try {
     await open(potencyData)
     expandTimeline()
@@ -617,105 +698,47 @@ it('seeks on a click and selects a span on a drag over the curves', async () => 
   }
 })
 
-it('tells the critical bonus, the critical hits left out and how the nearest sample was converted', async () => {
-  // Every other hit of the knight is critical with a bonus of 1.6, the third one direct; one of the bard is critical
-  const sample = (t: number, actor: number, critical: boolean, direct = false): PotencySample => ({
-    t,
-    actor,
-    target: 3,
-    actionId: 9,
-    amount: 10_000 * (critical ? 1.6 : 1) * (direct ? 1.25 : 1),
-    potency: 200,
-    multiplier: 1,
-    factors: [],
-    critical,
-    direct,
-  })
-  const potency: PotencySample[] = []
-  for (let index = 0; index < 24; index++) potency.push(sample(index * 2500, 0, index % 2 === 1, index === 2))
-  potency.push(sample(1000, 2, false), sample(2000, 2, true), sample(3000, 2, false))
-  const rect = HTMLElement.prototype.getBoundingClientRect
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    if (!this.classList.contains('curve')) return rect.call(this)
-    return { ...rect.call(this), left: 0, width: 600 }
-  })
+it('tells the time, the damage per potency, the baseline and the statuses of the member and the boss', async () => {
+  mockLaneRect()
   try {
-    await open({ ...data, potency: potency.sort((a, b) => a.t - b.t) })
+    await open(potencyData)
     expandTimeline()
-    const lane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
-    // 100 ms a pixel: the critical hit at 2.5 seconds, then the direct one at 5 seconds
-    fireEvent.pointerMove(lane(), { clientX: 25 })
-    expect(lane().textContent).toContain('每威力 50.0 · 暴击换算')
-    expect(lane().textContent).toContain('暴击倍率 1.60（本场实测）')
-    expect(lane().textContent).not.toContain('暴击样本不足')
-    fireEvent.pointerMove(lane(), { clientX: 50 })
-    expect(lane().textContent).toContain('每威力 50.0 · 直击换算')
+    fireEvent.pointerMove(potencyLane(), { clientX: 150 })
+    const tip = potencyTip()!
+    const text = tip.textContent!
+    expect(text).toContain(clockText(15_000))
+    expect(text).toContain('每威力伤害 50.0')
+    expect(text).toContain('基准值 50.0')
+    expect(text).toContain('角色状态')
+    expect(text).toContain('首领状态 · 敌人3')
+    const [own, boss] = [...tip.querySelectorAll('.status-chips')].map((chips) =>
+      [...chips.querySelectorAll('.status-chip')].map((item) => item.getAttribute('aria-label')),
+    )
+    // 战意 counts once; 增益 ended at 10 seconds
+    expect(own).toEqual(['坚守', '战意'])
+    expect(boss).toEqual(['易伤'])
+    for (const name of ['坚守', '战意', '易伤']) expect(text).not.toContain(name)
+    for (const gone of ['换算', '窗口', '暴击倍率', '暴击样本不足', '偏离']) expect(text).not.toContain(gone)
 
-    fireEvent.change(potencySelect(), { target: { value: '2' } })
-    fireEvent.pointerMove(lane(), { clientX: 20 })
-    expect(lane().textContent).toContain('暴击样本不足，未计入 1 个暴击命中')
-    expect(lane().textContent).not.toContain('暴击倍率')
+    // The samples from 58.5 seconds hit no target
+    fireEvent.pointerMove(potencyLane(), { clientX: 590 })
+    expect(potencyTip()!.textContent).not.toContain('首领状态')
+    fireEvent.pointerLeave(potencyLane())
+    expect(potencyTip()).toBeNull()
   } finally {
     vi.restoreAllMocks()
   }
 })
 
-it('tells the window value with the samples in the window, without saying the samples are too few', async () => {
-  const sample = (t: number, actor: number, amount = 10_000): PotencySample => ({
-    t,
-    actor,
-    target: 3,
-    actionId: 9,
-    amount,
-    potency: 200,
-    multiplier: 1,
-    factors: [],
-    critical: false,
-    direct: false,
-  })
-  const potency: PotencySample[] = []
-  for (let index = 0; index < 24; index++) potency.push(sample(index * 2500, 0))
-  // The bard is alone in its window at 0, 10 and 20 seconds, and has two samples in it at 30 and 33 seconds
-  potency.push(sample(0, 2), sample(10_000, 2), sample(20_000, 2), sample(30_000, 2, 8000), sample(33_000, 2, 12_000))
-  const rect = HTMLElement.prototype.getBoundingClientRect
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    if (!this.classList.contains('curve')) return rect.call(this)
-    return { ...rect.call(this), left: 0, width: 600 }
-  })
-  try {
-    await open({ ...data, potency: potency.sort((a, b) => a.t - b.t) })
-    expandTimeline()
-    const lane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
-    fireEvent.pointerMove(lane(), { clientX: 25 })
-    expect(lane().textContent).toContain('窗口值 50.0')
-    expect(lane().textContent).not.toContain('窗口内')
-    expect(lane().textContent).not.toContain('样本不足')
-
-    fireEvent.change(potencySelect(), { target: { value: '2' } })
-    fireEvent.pointerMove(lane(), { clientX: 100 })
-    expect(lane().textContent).toContain('窗口内只有这一个样本，不参与区域判定')
-    expect(lane().textContent).toContain('偏离')
-    expect(lane().textContent).not.toContain('样本不足')
-    fireEvent.pointerMove(lane(), { clientX: 300 })
-    expect(lane().textContent).toContain('窗口值 50.0（窗口内 2 个样本，不参与区域判定）')
-    expect(lane().textContent).not.toContain('样本不足')
-  } finally {
-    vi.restoreAllMocks()
-  }
-})
-
-it('shows why a region strays only in its card while the pointer is on it', async () => {
+it('keeps the background and the arrow of a region, with the tip of the lane over it', async () => {
   await open(potencyData)
   expandTimeline()
   const region = document.querySelector<HTMLElement>('.potency-region')!
   expect(region.className).toContain('up')
   expect(region.textContent).toBe('↑')
-  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(region.querySelector('.potency-arrow')!.hasAttribute('title')).toBe(false)
   fireEvent.pointerEnter(region)
-  const card = screen.getByRole('dialog', { name: '每威力伤害区域' })
-  expect(card.textContent).toContain('每威力伤害高于基准')
-  expect(card.textContent).toContain('+10%')
-  expect(card.textContent).toContain('团辅增益')
-  fireEvent.pointerLeave(region)
+  fireEvent.pointerMove(region)
   expect(screen.queryByRole('dialog')).toBeNull()
+  expect(potencyTip()!.textContent).toContain('基准值 50.0')
 })

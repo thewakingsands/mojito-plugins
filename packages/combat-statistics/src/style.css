@@ -1359,16 +1359,55 @@ table.uptime td:nth-child(2) {
   gap: 2px;
   padding: 3px 6px 0 0;
 }
-.label.curve-label select {
-  max-width: 100%;
-  font-size: var(--mojito-text-xs);
-}
-.curve-legend {
+.potency-title {
   display: flex;
   align-items: center;
   gap: 4px;
-  max-width: 100%;
+}
+.potency-help {
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mojito-fg-tertiary);
+  cursor: help;
+}
+.potency-help:hover,
+.potency-help:focus-visible {
   color: var(--mojito-fg-secondary);
+}
+.potency-help circle {
+  fill: none;
+  stroke: currentColor;
+}
+.potency-help text {
+  fill: currentColor;
+  font-size: 10px;
+  font-weight: 600;
+}
+.potency-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+.potency-member {
+  display: inline-flex;
+  padding: 1px;
+  border: none;
+  border-radius: var(--mojito-radius-small);
+  background: transparent;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.potency-member:hover {
+  opacity: 1;
+}
+.potency-member[aria-pressed="true"] {
+  opacity: 1;
+  outline: 2px solid var(--mojito-accent);
 }
 .curve-swatch {
   flex: none;
@@ -1416,6 +1455,10 @@ table.uptime td:nth-child(2) {
   flex-direction: column;
   gap: 1px;
   max-width: 180px;
+  white-space: nowrap;
+}
+.curve-tip,
+.floating-tip {
   padding: 4px 6px;
   border: 1px solid var(--mojito-border);
   border-radius: var(--mojito-radius-small);
@@ -1423,11 +1466,38 @@ table.uptime td:nth-child(2) {
   box-shadow: var(--mojito-shadow-raised);
   font-size: 11px;
   color: var(--mojito-fg-secondary);
-  white-space: nowrap;
   pointer-events: none;
 }
-.curve-tip b {
+.curve-tip b,
+.floating-tip b {
   color: var(--mojito-fg);
+}
+/* Fixed to the viewport, so that the lanes and labels, which hide their overflow, do not cut it */
+.floating-tip {
+  position: fixed;
+  z-index: 20;
+}
+.floating-tip.potency-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 320px;
+}
+.floating-tip.label-tip {
+  max-width: 240px;
+  white-space: normal;
+}
+.tip-none {
+  color: var(--mojito-fg-tertiary);
+}
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.status-chip .icon {
+  width: 17px;
+  height: 17px;
 }
 .curve-tip-row {
   display: flex;

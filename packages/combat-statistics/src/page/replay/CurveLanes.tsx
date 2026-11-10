@@ -1,17 +1,12 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react'
 import type { ReplayData } from '../../view-model.js'
+import { JobIcon, SkillIcon } from '../icons.js'
 import type { Span } from './aggregate.js'
 import { dpsCurves } from './curves.js'
+import { FloatingTip, useLabelTip } from './FloatingTip.js'
 import type { FilterMember } from './filter.js'
 import { actorName } from './parts.js'
-import {
-  analyzePotency,
-  GAP_MS,
-  MIN_WINDOW_SAMPLES,
-  type PotencyAnalysis,
-  type PotencyPoint,
-  type PotencyRegion,
-} from './potency.js'
+import { analyzePotency, GAP_MS, type PotencyAnalysis, type PotencyPoint, statusesAt } from './potency.js'
 import { clockText } from './timeline.js'
 
 export const DPS_HEIGHT = 96
@@ -23,15 +18,6 @@ const INSET = 4
 /** Past this x the hover tip opens to the left of the pointer */
 const TIP_WIDTH = 180
 
-/** What the card of a region shows, and the region block it opens above */
-export interface RegionHover {
-  region: PotencyRegion
-  baseline: number
-  /** The sample nearest the pointer */
-  point: PotencyPoint | null
-  anchor: HTMLElement
-}
-
 /** The color of a member follows its place in the filter bar, so choosing others does not repaint it */
 export const curveColor = (members: readonly FilterMember[], actor: number) =>
   `var(--curve-${
@@ -42,7 +28,6 @@ export const curveColor = (members: readonly FilterMember[], actor: number) =>
       CURVE_COLORS) +
     1
   })`
-export const signedPercent = (value: number) => `${value > 0 ? '+' : ''}${Math.round(value * 100)}%`
 const nearest = (points: readonly PotencyPoint[], t: number) =>
   points.reduce<PotencyPoint | null>(
     (best, point) => (!best || Math.abs(point.t - t) < Math.abs(best.t - t) ? point : best),
@@ -116,18 +101,10 @@ const timeAt = (down: { clientX: number; currentTarget: HTMLElement }, window: S
   return window.from + ((down.clientX - rect.left) / (rect.width || 1)) * (window.to - window.from)
 }
 
-export function DpsLabel(props: { data: ReplayData; members: readonly FilterMember[]; chosen: ReadonlySet<number> }) {
+export function DpsLabel() {
   return (
     <span className="label curve-label" style={{ height: DPS_HEIGHT }}>
       <span>每秒伤害</span>
-      {props.members
-        .filter((member) => props.chosen.has(member.index))
-        .map((member) => (
-          <span key={member.index} className="curve-legend">
-            <i className="curve-swatch" style={{ background: curveColor(props.members, member.index) }} />
-            <span className="ellipsis">{actorName(props.data.actors[member.index])}</span>
-          </span>
-        ))}
     </span>
   )
 }
@@ -188,47 +165,135 @@ export function DpsLane(props: LaneBase) {
   )
 }
 
-export function PotencyLabel(props: { data: ReplayData; curves: Curves }) {
+const POTENCY_NOTE = '基准值和每威力伤害根据角色威力表和已知 buff 效果估算，仅供参考。'
+
+/** Drawn rather than typed, so that the question mark sits in the middle of the circle in any font */
+function HelpIcon() {
+  const { trigger, tip } = useLabelTip(POTENCY_NOTE)
+  return (
+    <>
+      {/* A button only to take the focus; no title or <title>, which would bring the browser's own tip as well */}
+      <button type="button" className="potency-help" aria-label="说明" {...trigger}>
+        <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true">
+          <circle cx="7" cy="7" r="6.5" />
+          <text x="7" y="7" textAnchor="middle" dominantBaseline="central">
+            ?
+          </text>
+        </svg>
+      </button>
+      {tip}
+    </>
+  )
+}
+
+function PotencyMember(props: {
+  data: ReplayData
+  actor: number
+  names: Record<string, string>
+  pressed: boolean
+  onPick: () => void
+}) {
+  const actor = props.data.actors[props.actor]
+  const name = actorName(actor)
+  const { trigger, tip } = useLabelTip(name)
+  const job = actor?.job ?? null
+  return (
+    <>
+      <button
+        type="button"
+        className="potency-member"
+        aria-label={name}
+        aria-pressed={props.pressed}
+        onClick={props.onPick}
+        {...trigger}
+      >
+        <JobIcon job={job} abbreviation={props.names[`job:${job}`]} />
+      </button>
+      {tip}
+    </>
+  )
+}
+
+export function PotencyLabel(props: { data: ReplayData; curves: Curves; names: Record<string, string> }) {
   const { curves } = props
   return (
     <span className="label curve-label" style={{ height: POTENCY_HEIGHT }}>
-      <span>每威力伤害</span>
-      {curves.actor !== null && (
-        <select
-          aria-label="每威力伤害的角色"
-          value={curves.actor}
-          onChange={(change) => curves.pick(Number(change.currentTarget.value))}
-        >
+      <span className="potency-title">
+        <span>每威力伤害</span>
+        <HelpIcon />
+      </span>
+      {curves.options.length > 0 && (
+        <span className="potency-members">
           {curves.options.map((actor) => (
-            <option key={actor} value={actor}>
-              {actorName(props.data.actors[actor])}
-            </option>
+            <PotencyMember
+              key={actor}
+              data={props.data}
+              actor={actor}
+              names={props.names}
+              pressed={actor === curves.actor}
+              onPick={() => curves.pick(actor)}
+            />
           ))}
-        </select>
+        </span>
       )}
     </span>
   )
 }
 
-/** How the damage per potency of a sample was brought back to that of a hit neither critical nor direct */
-function conversionOf(point: PotencyPoint): string {
-  if (point.critical && point.direct) return ' · 暴击直击换算'
-  if (point.critical) return ' · 暴击换算'
-  if (point.direct) return ' · 直击换算'
-  return ''
+function StatusIcons(props: { statuses: { statusId: number; name: string }[] }) {
+  if (!props.statuses.length) return <span className="tip-none">无</span>
+  // The tip takes no pointer events, so a title would never show; the name is for screen readers
+  return (
+    <span className="status-chips">
+      {props.statuses.map((status) => (
+        <span key={status.statusId} className="status-chip" role="img" aria-label={status.name}>
+          <SkillIcon skill={`status:${status.statusId}`} />
+        </span>
+      ))}
+    </span>
+  )
 }
 
-/** The window value of a sample; one alone in its window has no value of its own to show */
-export function windowNote(point: PotencyPoint): string {
-  if (point.n === 1) return '窗口内只有这一个样本，不参与区域判定'
-  const value = `窗口值 ${point.w.toFixed(1)}`
-  return point.n < MIN_WINDOW_SAMPLES ? `${value}（窗口内 ${point.n} 个样本，不参与区域判定）` : value
+function PotencyTip(props: {
+  data: ReplayData
+  actor: number
+  analysis: PotencyAnalysis
+  point: PotencyPoint
+  t: number
+  /** The pointer in the lane */
+  x: number
+  /** The lane in the viewport */
+  rect: DOMRect
+}) {
+  const { data, point, t } = props
+  const line = props.rect.left + props.x
+  return (
+    <>
+      <i className="curve-cursor" style={{ left: props.x, height: POTENCY_HEIGHT }} />
+      <FloatingTip
+        side="beside"
+        className="potency-tip"
+        anchor={{ left: line, right: line, top: props.rect.top, bottom: props.rect.bottom }}
+      >
+        <b className="number">{clockText(t)}</b>
+        <span className="number">每威力伤害 {point.w.toFixed(1)}</span>
+        <span className="number">基准值 {props.analysis.baseline.toFixed(1)}</span>
+        <span>角色状态</span>
+        <StatusIcons statuses={statusesAt(data, props.actor, t)} />
+        {point.targetId !== null && (
+          <>
+            <span>首领状态 · {actorName(data.actors[point.targetId])}</span>
+            <StatusIcons statuses={statusesAt(data, point.targetId, t)} />
+          </>
+        )}
+      </FloatingTip>
+    </>
+  )
 }
 
-export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | null) => void }) {
-  const { window, width, curves, onRegion } = props
-  const [hover, setHover] = useState<number | null>(null)
-  const [inRegion, setInRegion] = useState(false)
+export function PotencyLane(props: LaneBase) {
+  const { window, width, curves } = props
+  const [hover, setHover] = useState<{ t: number; rect: DOMRect } | null>(null)
   const analysis = curves.actor === null ? null : (curves.analyses.get(curves.actor) ?? null)
   const range = useMemo(() => {
     if (!analysis) return null
@@ -241,10 +306,6 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
     const pad = (high - low || high || 1) * 0.05
     return { low: low - pad, high: high + pad }
   }, [analysis])
-  // The card goes with the member and the data it came from
-  useEffect(() => {
-    if (!analysis) onRegion(null)
-  }, [analysis, onRegion])
 
   const length = window.to - window.from || 1
   const x = (t: number) => ((t - window.from) / length) * width
@@ -264,18 +325,6 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
         break: index > 0 && point.t - shown[index - 1].t > GAP_MS,
       })),
     )
-    const regionHover = (region: PotencyRegion, event: ReactPointerEvent<HTMLElement>) => {
-      setInRegion(true)
-      onRegion({
-        region,
-        baseline: analysis.baseline,
-        point: nearest(
-          analysis.points,
-          timeAt({ clientX: event.clientX, currentTarget: event.currentTarget.parentElement! }, window),
-        ),
-        anchor: event.currentTarget,
-      })
-    }
     body = (
       <>
         {analysis.regions
@@ -286,16 +335,8 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
               className={`potency-region ${region.deviation > 0 ? 'up' : 'down'}`}
               data-region
               style={{ left: x(region.from), width: Math.max(2, x(region.to) - x(region.from)) }}
-              onPointerEnter={(enter) => regionHover(region, enter)}
-              onPointerMove={(move) => regionHover(region, move)}
-              onPointerLeave={() => {
-                setInRegion(false)
-                onRegion(null)
-              }}
             >
-              <span className="potency-arrow" title={region.deviation > 0 ? '高于基准' : '低于基准'}>
-                {region.deviation > 0 ? '↑' : '↓'}
-              </span>
+              <span className="potency-arrow">{region.deviation > 0 ? '↑' : '↓'}</span>
             </span>
           ))}
         <svg width={width} height={POTENCY_HEIGHT} aria-label="每威力伤害曲线">
@@ -314,36 +355,28 @@ export function PotencyLane(props: LaneBase & { onRegion: (hover: RegionHover | 
       </>
     )
   }
-  const point = analysis && hover !== null ? nearest(analysis.points, hover) : null
+  const point = analysis && hover ? nearest(analysis.points, hover.t) : null
   return (
+    // The pointer events of the regions bubble here, so the tip shows over them as well
     <div
       className="lane curve"
       style={{ height: POTENCY_HEIGHT }}
       onPointerDown={props.onPress}
-      onPointerMove={(move) => setHover(timeAt(move, window))}
+      onPointerMove={(move) => setHover({ t: timeAt(move, window), rect: move.currentTarget.getBoundingClientRect() })}
       onPointerLeave={() => setHover(null)}
     >
       {props.shades}
       {body}
-      {analysis && point && hover !== null && !inRegion && (
-        <Tip x={x(hover)} width={width} height={POTENCY_HEIGHT}>
-          <b className="number">{clockText(hover)}</b>
-          <span className="number">
-            最近样本 {clockText(point.t)} · 每威力 {point.r.toFixed(1)}
-            {conversionOf(point)}
-          </span>
-          <span className="number">{windowNote(point)}</span>
-          <span className="number">
-            基准 {analysis.baseline.toFixed(1)}
-            {` · 偏离 ${signedPercent(point.w / analysis.baseline - 1)}`}
-          </span>
-          {analysis.critical !== null && (
-            <span className="number">暴击倍率 {analysis.critical.toFixed(2)}（本场实测）</span>
-          )}
-          {analysis.droppedCritical > 0 && (
-            <span className="number">暴击样本不足，未计入 {analysis.droppedCritical} 个暴击命中</span>
-          )}
-        </Tip>
+      {analysis && point && hover && (
+        <PotencyTip
+          data={props.data}
+          actor={curves.actor!}
+          analysis={analysis}
+          point={point}
+          t={hover.t}
+          x={x(hover.t)}
+          rect={hover.rect}
+        />
       )}
     </div>
   )
