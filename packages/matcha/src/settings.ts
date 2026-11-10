@@ -23,7 +23,8 @@ export interface MatchaSettings {
     treasure: { result: boolean }
   }
   fishing: { enabled: boolean }
-  universalis: { enabled: boolean; apiKey: string; uploaderId: string }
+  /** The API key and uploader ID come with the build (see build-config.ts), not from the user */
+  universalis: { enabled: boolean }
   webhooks: Webhook[]
   logging: boolean
 }
@@ -40,10 +41,30 @@ export const defaultSettings: MatchaSettings = {
     treasure: { result: true },
   },
   fishing: { enabled: false },
-  universalis: { enabled: false, apiKey: '', uploaderId: '' },
+  universalis: { enabled: false },
   webhooks: [],
   logging: false,
 }
+/** The events a webhook can be sent for, with the names the settings page shows */
+export const webhookEvents: readonly [event: string, label: string][] = [
+  ['Fate', 'FATE'],
+  ['FateWatchListChanged', 'FATE 关注列表变化'],
+  ['DynamicEvent', '临界遭遇'],
+  ['MatchAlert', '副本匹配'],
+  ['Queue', '排队'],
+  ['InitZone', '切换区域'],
+  ['FishBite', '鱼咬钩'],
+  ['Fishing', '钓鱼'],
+  ['TreasureSpot', '宝藏位置'],
+  ['TreasureResult', '寻宝结果'],
+  ['MiniCactpot', '仙人微彩'],
+  ['Gearset', '配装'],
+  ['MarketBoardItemListing', '市场板价格'],
+  ['MarketBoardItemListingCount', '市场板数量'],
+  ['SubmarineStatus', '潜水艇状态'],
+  ['SubmarineParts', '潜水艇部件'],
+  ['CompanyVoyageStatus', '部队探索'],
+]
 export function httpsEndpoint(value: string): string {
   if (value.length > 4096) throw new Error('服务地址过长')
   const url = new URL(value)

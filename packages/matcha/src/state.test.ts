@@ -144,6 +144,6 @@ it('normalizes old split switches and discards removed telemetry configuration',
     telemetry: { enabled: true, root: 'https://old-service.test', clientId: 'old-id' },
   })
   expect(value.fishing).toEqual({ enabled: true })
-  expect(value.universalis).toEqual({ enabled: false, apiKey: '', uploaderId: '' })
+  expect(value.universalis).toEqual({ enabled: false })
   expect(value).not.toHaveProperty('telemetry')
 })

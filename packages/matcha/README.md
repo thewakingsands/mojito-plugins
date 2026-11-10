@@ -19,7 +19,9 @@ mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.7.
 mojito-package verify Matcha-4.0.0-mojito.7.mojito
 ```
 
-在 Mojito 的插件页安装生成的 `.mojito` 包，按需授予可选权限，然后启用。启动后提供 **Matcha**、**Matcha 设置**两个功能页及 **Matcha** 悬浮窗。
+在 Mojito 的插件页安装生成的 `.mojito` 包，按需授予可选权限，然后启用。启动后提供 **Matcha** 悬浮窗，以及“设置 › 插件设置”里的 **Matcha 设置**页。主窗口里没有 Matcha 的功能页，全部功能都在悬浮窗里。
+
+悬浮窗的界面来自 `vendor/matcha-overlay`，和 ACT 版共用同一套界面：固定的深色半透明底，配色、字号和控件沿用 Mojito 的深色主题。设置页使用宿主的 `/host/mojito-base.css`，修改立即生效。
 
 包格式与 worker 状态发布使用当前 Mojito SDK。可选能力以宿主报告的支持情况和授权为准；通知使用 SDK 的 context.notifications.send，需要 Plugin API 1.6.0。
 
@@ -31,7 +33,7 @@ mojito-package verify Matcha-4.0.0-mojito.7.mojito
 - 钓鱼状态、鱼获归档、社区鱼漂分布、可选匿名数据上传，以及登录数据中的钓鱼笔记导出。
 - Webhook、设置备份和导入导出。
 
-一个 worker 收集数据并维护共享状态。打开多个功能页或悬浮窗不会重复抓包或上报；新视图恢复当前状态。切换会话、角色、回放时间或抓包订阅中断时清除旧状态。正常换地图保留角色的钓鱼笔记。
+一个 worker 收集数据并维护共享状态。打开设置页或多个悬浮窗不会重复抓包或上报；新视图恢复当前状态。切换会话、角色、回放时间或抓包订阅中断时清除旧状态。正常换地图保留角色的钓鱼笔记。
 
 ## 双数据源
 
@@ -45,7 +47,7 @@ Mojito 模式通过宿主本地数据接口读取物品、地图及图标，不�
 
 必需权限为会话、数据包和 UI。内存、角色信息、音频、HTTP 与文件访问是可选权限。未授权的功能显示不可用或不执行；文件选择始终由宿主确认。
 
-鱼漂与 Universalis 各使用一个开关，同时控制查询和上传，默认关闭。回放不会触发通知、Webhook 或上报。Universalis 上传需要用户配置 API key 与匿名 uploader ID，不会从源仓库复制凭据。
+鱼漂与 Universalis 各使用一个开关，同时控制查询和上传，默认关闭。回放不会触发通知、Webhook 或上报。Universalis 的 API key 和 uploader ID 在打包时由环境变量 `MATCHA_UNIVERSALIS_API_KEY`、`MATCHA_UNIVERSALIS_UPLOADER_ID` 注入，用户不能自行填写；打包时没有这两个值，Universalis 的查询和上传都不可用，设置页里的开关也不可用。
 
 默认允许的网络源限于游戏资料、地图及图标资源、Universalis 和鱼漂查询。使用自建 Webhook 服务时，需要在打包时明确加入对应 HTTPS origin，再重新安装并授权：
 
@@ -53,7 +55,7 @@ Mojito 模式通过宿主本地数据接口读取物品、地图及图标，不�
 node packages/matcha/scripts/package.mjs --origin=https://your-service.example
 ```
 
-自定义源不会通过设置绕过宿主限制；HTTP 请求仍受公网地址、超时和响应大小限制。设置备份包含用户填写的 API key 和 Webhook 请求头，请自行保管。文件导入导出、归档和请求响应遵守宿主大小配额；超限会显示错误。
+自定义源不会通过设置绕过宿主限制；HTTP 请求仍受公网地址、超时和响应大小限制。设置备份包含 Webhook 请求头，请自行保管。文件导入导出、归档和请求响应遵守宿主大小配额；超限会显示错误。
 
 ## 数据与兼容性
 

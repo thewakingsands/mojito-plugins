@@ -9,6 +9,7 @@ import type {
   Value,
   ViewIdentity,
 } from '@ffcafe/mojito-plugin-sdk'
+import { universalisCredentials } from './build-config.js'
 import fates from './data/fate.json'
 import patches from './data/patch.json'
 import templates from './data/template.json'
@@ -204,8 +205,9 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const market = createUniversalisClient({
     http,
     getSettings: () => ({
-      ...settings.universalis,
-      enabled: settings.universalis.enabled && live(),
+      enabled: settings.universalis.enabled && universalisCredentials !== null && live(),
+      apiKey: universalisCredentials?.apiKey,
+      uploaderId: universalisCredentials?.uploaderId,
     }),
     dataCenters: Object.fromEntries(Object.entries(worlds).map(([id, world]) => [id, world.dc_en])),
     worldNames: Object.fromEntries(
@@ -219,7 +221,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const packets = new MatchaPacketHandlers({ emit, now, market, onDiagnostic: diagnostic })
   const publicSettings = () => {
     const value = structuredClone(settings)
-    value.universalis.apiKey = ''
     value.webhooks = value.webhooks.map((hook) => ({ ...hook, headers: {} }))
     return settingsJson(value)
   }
@@ -478,7 +479,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         requireSettings()
         return saveSettings(input.settings)
       case 'catalog':
-        return asJson({ fates, templates, patches, territories })
+        return asJson({ fates, templates, patches, territories, universalis: universalisCredentials !== null })
       case 'watch.import': {
         requireSettings()
         const file = await readFile(['json'])
@@ -590,7 +591,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const current = await context.session.get()
     if (revision === sessionRevision) observeSession(current)
     if (!packetSubscription) connectPackets()
-    disposers.push(await context.ui.registerFeature({ id: 'main', name: 'Matcha', entry: 'ui/index.html' }))
     disposers.push(
       await context.ui.registerFeature({
         id: 'settings',
@@ -604,7 +604,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         id: 'matcha',
         name: 'Matcha',
         entry: 'ui/index.html',
-        defaultSize: { width: 720, height: 520 },
+        defaultSize: { width: 440, height: 400 },
       }),
     )
     const interval = setInterval(() => {

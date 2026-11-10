@@ -28,141 +28,176 @@ beforeEach(() => {
         patches: { 2: { chs: '重生之境' }, 3: { chs: '苍穹之禁城' } },
         territories: { 148: { chs: '黑衣森林' }, 149: { chs: '萨纳兰' }, 400: { chs: '高原' } },
         templates: [{ name: { chs: '预设一' }, fate: [121, 130] }],
+        universalis: true,
       }
     if (request.action === 'settings.get') return structuredClone(defaultSettings)
+    if (request.action === 'settings.set') return structuredClone(request.settings)
     return null
   })
   bridge.snapshot.mockResolvedValue({ session: { state: 'idle' }, diagnostics: [] })
 })
 
+const saved = () =>
+  bridge.command.mock.calls
+    .filter(([, request]) => request.action === 'settings.set')
+    .map(([, request]) => request.settings)
+const lastSaved = () => saved().at(-1)
+const fateInput = (id: string) => document.getElementById(id) as HTMLInputElement
+const change = (element: HTMLInputElement | HTMLSelectElement) => element.dispatchEvent(new Event('change'))
+
 it('keeps one visible panel and supports arrow, home and end navigation', async () => {
   await load()
-  const first = button('tab-reminders')
+  const first = button('tab-notify')
   expect(document.querySelectorAll('[role="tabpanel"]:not([hidden])')).toHaveLength(1)
   first.focus()
   first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
-  expect(document.activeElement).toBe(button('tab-diagnostics'))
-  expect(button('tab-diagnostics').getAttribute('aria-selected')).toBe('true')
-  expect(document.getElementById('panel-reminders')?.hidden).toBe(true)
-  button('tab-diagnostics').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+  expect(document.activeElement).toBe(button('tab-data'))
+  expect(button('tab-data').getAttribute('aria-selected')).toBe('true')
+  expect(document.getElementById('panel-notify')?.hidden).toBe(true)
+  button('tab-data').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
   expect(document.activeElement).toBe(first)
   first.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
-  expect(document.activeElement).toBe(button('tab-diagnostics'))
+  expect(document.activeElement).toBe(button('tab-data'))
 })
 
-it('preserves drafts across categories and saves fields from hidden panels', async () => {
+it('saves each change at once, with no draft or save button', async () => {
   await load()
+  expect(document.querySelector('[type="submit"]')?.closest('#controls')).toBeNull()
   input('output.tts').checked = false
-  input('output.tts').dispatchEvent(new Event('change'))
-  button('tab-services').click()
-  input('universalis.apiKey').value = 'local-test-key'
-  input('universalis.apiKey').dispatchEvent(new Event('input'))
-  button('tab-data').click()
-  button('tab-reminders').click()
-  expect(input('output.tts').checked).toBe(false)
-  expect(input('universalis.apiKey').value).toBe('local-test-key')
-  expect(document.getElementById('dirty')?.textContent).toBe('有未保存的修改')
-  document.getElementById('settings-form')!.dispatchEvent(new Event('submit', { cancelable: true }))
-  await vi.waitFor(() =>
-    expect(bridge.command).toHaveBeenCalledWith('matcha.command', {
-      action: 'settings.set',
-      settings: expect.objectContaining({
-        output: { tts: false, toast: true },
-        universalis: expect.objectContaining({ apiKey: 'local-test-key' }),
-      }),
-    }),
-  )
+  change(input('output.tts'))
+  await vi.waitFor(() => expect(lastSaved()).toEqual(expect.objectContaining({ output: { tts: false, toast: true } })))
+  const language = document.getElementById('field-language') as HTMLSelectElement
+  language.value = 'en'
+  change(language)
+  await vi.waitFor(() => expect(lastSaved()).toEqual(expect.objectContaining({ language: 'en' })))
+  expect(lastSaved().output.tts).toBe(false)
 })
 
-it('shows webhook empty state again after deleting the final draft', async () => {
+it('puts the saved value back and shows the reason when a change is rejected', async () => {
   await load()
-  button('tab-services').click()
-  expect(document.getElementById('webhook-empty')?.hidden).toBe(false)
-  button('webhook-add').click()
-  await vi.waitFor(() => expect(document.getElementById('webhook-empty')?.hidden).toBe(true))
-  const remove = [...document.querySelectorAll('button')].find((item) => item.textContent === '删除此 Webhook')!
-  remove.click()
-  expect(document.getElementById('webhook-empty')?.hidden).toBe(false)
-})
-
-it('keeps save failures visible outside the selected category', async () => {
-  await load()
-  button('tab-data').click()
   bridge.command.mockRejectedValueOnce(new Error('保存失败，请重试'))
-  document.getElementById('settings-form')!.dispatchEvent(new Event('submit', { cancelable: true }))
+  input('formatter.fate.level').checked = true
+  change(input('formatter.fate.level'))
   await vi.waitFor(() => expect(document.getElementById('message')?.textContent).toBe('保存失败，请重试'))
+  expect(input('formatter.fate.level').checked).toBe(false)
   expect(document.getElementById('message')?.closest('[role="tabpanel"]')).toBeNull()
-  expect(document.getElementById('message')?.className).toBe('error')
 })
 
 it('leaves fields disabled and reports initialization failure', async () => {
   bridge.command.mockRejectedValueOnce(new Error('连接不可用'))
   await import('./settings-page.js')
-  await vi.waitFor(() => expect(document.getElementById('connection')?.textContent).toBe('连接失败'))
+  await vi.waitFor(() => expect(document.getElementById('message')?.textContent).toBe('无法连接 Matcha：连接不可用'))
   expect((document.getElementById('controls') as HTMLFieldSetElement).disabled).toBe(true)
-  expect(document.getElementById('message')?.textContent).toBe('连接不可用')
 })
 
-it('has one switch per online service and no FATE or NPC upload settings', async () => {
+it('has one switch per online service and no credential or upload fields', async () => {
   await load()
   expect(input('fishing.enabled')).not.toBeNull()
-  expect(input('universalis.enabled')).not.toBeNull()
+  expect(input('universalis.enabled').disabled).toBe(false)
+  expect(input('universalis.apiKey')).toBeNull()
+  expect(input('universalis.uploaderId')).toBeNull()
   expect(input('fishing.uploadEnabled')).toBeNull()
-  expect(input('universalis.uploadEnabled')).toBeNull()
   expect(input('telemetry.enabled')).toBeNull()
 })
 
-const fateInput = (id: string) => document.getElementById(id) as HTMLInputElement
-it('selects versions and regions in bulk, preserves other groups and shows partial selection', async () => {
+it('turns Universalis off when the build has no credentials', async () => {
+  const original = bridge.command.getMockImplementation()
+  bridge.command.mockImplementation(async (channel, request) => {
+    const result = await original?.(channel, request)
+    return request.action === 'catalog' ? { ...result, universalis: false } : result
+  })
   await load()
-  button('tab-fates').click()
-  fateInput('fate-140').click()
-  fateInput('fate-version-2-select').click()
-  expect(fateInput('fate-120').checked).toBe(true)
-  expect(fateInput('fate-121').checked).toBe(true)
-  expect(fateInput('fate-122').checked).toBe(true)
-  expect(fateInput('fate-130').checked).toBe(false)
-  fateInput('fate-region-2-148-select').click()
-  expect(fateInput('fate-120').checked).toBe(false)
-  expect(fateInput('fate-122').checked).toBe(false)
-  expect(fateInput('fate-121').checked).toBe(true)
-  expect(fateInput('fate-140').checked).toBe(true)
-  expect(fateInput('fate-version-2-select').indeterminate).toBe(true)
-  fateInput('fate-region-3-400-select').click()
-  document.getElementById('settings-form')!.dispatchEvent(new Event('submit', { cancelable: true }))
-  await vi.waitFor(() =>
-    expect(bridge.command).toHaveBeenCalledWith('matcha.command', {
-      action: 'settings.set',
-      settings: expect.objectContaining({ watch: { fates: [140, 121, 130] } }),
-    }),
-  )
+  expect(input('universalis.enabled').disabled).toBe(true)
+  expect(document.getElementById('universalis-note')?.textContent).toContain('未配置 Universalis')
 })
 
-it('synchronizes search choices with the tree and applies a preset independently', async () => {
+it('selects versions and zones in bulk and shows partial selection', async () => {
+  await load()
+  button('tab-fates').click()
+  fateInput('fate-version-0').click()
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([140]))
+  fateInput('fate-version-2').click()
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([140, 120, 122, 121]))
+  button('fate-version-2-toggle').click()
+  fateInput('fate-zone-2-148').click()
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([140, 121]))
+  expect(fateInput('fate-version-2').indeterminate).toBe(true)
+  expect(fateInput('fate-zone-2-149').checked).toBe(true)
+  button('fate-zone-2-148-open').click()
+  expect(document.getElementById('fate-list-title')?.textContent).toBe('黑衣森林')
+  expect(fateInput('fate-120').checked).toBe(false)
+  fateInput('fate-120').focus()
+  fateInput('fate-120').click()
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([140, 121, 120]))
+  expect(document.activeElement?.id).toBe('fate-120')
+})
+
+it('lists search results, applies bulk choices to them and adds a preset', async () => {
   await load()
   button('tab-fates').click()
   const search = document.getElementById('fate-search') as HTMLInputElement
   search.value = '森林'
   search.dispatchEvent(new Event('input'))
-  button('fate-search-select').click()
-  expect(fateInput('fate-region-2-148-select').checked).toBe(true)
-  expect(fateInput('fate-result-120').closest('li')?.hasAttribute('data-selected')).toBe(true)
-  fateInput('fate-result-120').focus()
-  fateInput('fate-result-120').click()
-  expect(document.activeElement?.id).toBe('fate-result-120')
-  expect(fateInput('fate-120').checked).toBe(false)
-  expect(fateInput('fate-region-2-148-select').indeterminate).toBe(true)
+  expect(document.getElementById('fate-list-title')?.textContent).toBe('搜索结果 2 项')
+  button('fate-select-all').click()
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([120, 122]))
   const preset = document.getElementById('fate-template') as HTMLSelectElement
   preset.value = '0'
-  preset.dispatchEvent(new Event('change'))
-  expect(fateInput('fate-121').checked).toBe(false)
-  button('apply-template').click()
-  expect(fateInput('fate-121').checked).toBe(true)
-  expect(fateInput('fate-130').checked).toBe(true)
-  expect(fateInput('fate-122').checked).toBe(true)
-  expect(search.value).toBe('森林')
-  button('fate-search-clear').click()
-  expect(fateInput('fate-122').checked).toBe(false)
-  expect(fateInput('fate-121').checked).toBe(true)
-  expect(fateInput('fate-130').checked).toBe(true)
+  change(preset)
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([120, 122, 121, 130]))
+  expect(preset.value).toBe('')
+  button('fate-clear-all').click()
+  await vi.waitFor(() => expect(lastSaved()?.watch.fates).toEqual([121, 130]))
+})
+
+it('adds, edits and deletes webhooks through the dialog and checks the headers', async () => {
+  await load()
+  button('tab-services').click()
+  expect(document.getElementById('webhook-rows')?.textContent).toBe('没有 Webhook')
+  const dialog = document.getElementById('webhook-dialog') as HTMLDialogElement
+  dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''))
+  dialog.close = vi.fn(() => dialog.removeAttribute('open'))
+  button('webhook-add').click()
+  ;(document.getElementById('webhook-name') as HTMLInputElement).value = '部队群'
+  ;(document.getElementById('webhook-endpoint') as HTMLInputElement).value = 'https://hooks.example.com/fate'
+  ;(document.getElementById('webhook-headers') as HTMLTextAreaElement).value = '{ broken'
+  document.getElementById('webhook-form')?.dispatchEvent(new Event('submit', { cancelable: true }))
+  await vi.waitFor(() => expect(document.getElementById('webhook-error')?.hidden).toBe(false))
+  expect(saved()).toHaveLength(0)
+  ;(document.getElementById('webhook-headers') as HTMLTextAreaElement).value = '{ "Authorization": "Bearer x" }'
+  document.querySelector<HTMLButtonElement>('#webhook-type [data-value="FORM"]')?.click()
+  document.getElementById('webhook-form')?.dispatchEvent(new Event('submit', { cancelable: true }))
+  await vi.waitFor(() =>
+    expect(lastSaved()?.webhooks).toEqual([
+      expect.objectContaining({
+        name: '部队群',
+        event: 'Fate',
+        type: 'FORM',
+        endpoint: 'https://hooks.example.com/fate',
+        headers: { Authorization: 'Bearer x' },
+      }),
+    ]),
+  )
+  const remove = [...document.querySelectorAll('#webhook-rows button')].find((item) => item.textContent === '删除')
+  ;(remove as HTMLButtonElement).click()
+  await vi.waitFor(() => expect(lastSaved()?.webhooks).toEqual([]))
+})
+
+it('replaces the settings on import and can undo it', async () => {
+  await load()
+  const imported = { ...structuredClone(defaultSettings), language: 'ja', logging: true }
+  const original = bridge.command.getMockImplementation()
+  bridge.command.mockImplementation(async (channel, request) =>
+    request.action === 'file.read'
+      ? { name: 'matcha-settings.json', bytes: Uint8Array.from(new TextEncoder().encode(JSON.stringify(imported))) }
+      : original?.(channel, request),
+  )
+  button('tab-data').click()
+  expect(button('settings-undo').hidden).toBe(true)
+  button('settings-import').click()
+  await vi.waitFor(() => expect(lastSaved()).toEqual(expect.objectContaining({ language: 'ja', logging: true })))
+  expect(button('settings-undo').hidden).toBe(false)
+  button('settings-undo').click()
+  await vi.waitFor(() => expect(lastSaved()).toEqual(expect.objectContaining({ language: 'chs', logging: false })))
+  expect(button('settings-undo').hidden).toBe(true)
 })

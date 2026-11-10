@@ -7,69 +7,151 @@
     <title>Matcha 设置</title>
   </head>
   <body>
-    <main>
-      <header><h1>Matcha 设置</h1><span id="connection">正在连接…</span></header>
-      <div class="mojito-tabs" role="tablist" aria-label="设置分类">
-        <button type="button" role="tab" id="tab-reminders" aria-controls="panel-reminders" aria-selected="true">提醒设置</button>
-        <button type="button" role="tab" id="tab-fates" aria-controls="panel-fates" aria-selected="false" tabindex="-1">FATE 关注</button>
-        <button type="button" role="tab" id="tab-services" aria-controls="panel-services" aria-selected="false" tabindex="-1">联网服务</button>
-        <button type="button" role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1">数据备份</button>
-        <button type="button" role="tab" id="tab-diagnostics" aria-controls="panel-diagnostics" aria-selected="false" tabindex="-1">运行诊断</button>
+    <div class="mojito-tabs" role="tablist" aria-label="设置分类">
+      <button type="button" role="tab" id="tab-notify" aria-controls="panel-notify" aria-selected="true">通知</button>
+      <button type="button" role="tab" id="tab-fates" aria-controls="panel-fates" aria-selected="false" tabindex="-1">FATE 关注</button>
+      <button type="button" role="tab" id="tab-services" aria-controls="panel-services" aria-selected="false" tabindex="-1">联网服务</button>
+      <button type="button" role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1">数据与诊断</button>
+    </div>
+    <p id="message" role="status" aria-live="polite" hidden></p>
+    <fieldset id="controls" disabled>
+      <div role="tabpanel" id="panel-notify" aria-labelledby="tab-notify">
+        <section class="group">
+          <h3>输出</h3>
+          <div class="mojito-panel" id="output-fields">
+            <div class="mojito-field">
+              <div><label for="field-language">数据语言</label><small>提醒和悬浮窗里的名称使用的语言。</small></div>
+              <select id="field-language" data-path="language">
+                <option value="chs">简体中文</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="de">Deutsch</option>
+                <option value="fr">Français</option>
+              </select>
+            </div>
+            <div class="mojito-field">
+              <div><label for="test-notification">测试通知</label><small>用当前设置发送一条提醒。</small></div>
+              <button type="button" id="test-notification">发送</button>
+            </div>
+          </div>
+        </section>
+        <section class="group">
+          <h3>FATE</h3>
+          <div class="mojito-panel" id="formatter-fate"></div>
+        </section>
+        <section class="group">
+          <h3>副本与区域</h3>
+          <div class="mojito-panel" id="formatter-world"></div>
+        </section>
+        <section class="group">
+          <h3>钓鱼与寻宝</h3>
+          <div class="mojito-panel" id="formatter-other"></div>
+        </section>
       </div>
-      <form id="settings-form">
-        <fieldset id="controls" disabled>
-          <div role="tabpanel" id="panel-reminders" aria-labelledby="tab-reminders">
-            <section>
-              <h2>语言与通知</h2>
-              <div class="notification-settings"><div id="general-fields" class="fields"></div><div id="output-fields" class="fields"></div></div>
-              <button type="button" id="test-notification">测试已保存的通知</button>
-            </section>
-            <section>
-              <h2>提醒内容</h2>
-              <div class="reminder-groups">
-                <fieldset><legend>FATE</legend><div id="formatter-fate" class="fields"></div></fieldset>
-                <fieldset><legend>副本与区域</legend><div id="formatter-world" class="fields"></div></fieldset>
-                <fieldset><legend>钓鱼</legend><div id="formatter-fish" class="fields"></div></fieldset>
-                <fieldset><legend>寻宝</legend><div id="formatter-treasure" class="fields"></div></fieldset>
+
+      <div role="tabpanel" id="panel-fates" aria-labelledby="tab-fates" hidden>
+        <div class="toolbar">
+          <input id="fate-search" type="search" placeholder="搜索 FATE 名称或 ID" aria-label="搜索 FATE" autocomplete="off" />
+          <span class="mojito-chip" data-mark="none" id="fate-count">已关注 0 项</span>
+          <span class="spacer"></span>
+          <select id="fate-template" aria-label="从预设加入"><option value="">从预设加入…</option></select>
+          <button type="button" id="fate-more" data-icon aria-label="更多" aria-haspopup="menu" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
+          </button>
+          <div class="menu" id="fate-menu" role="menu" hidden>
+            <button type="button" role="menuitem" id="watch-import">导入关注列表</button>
+            <button type="button" role="menuitem" id="watch-export">导出关注列表</button>
+            <hr />
+            <button type="button" role="menuitem" id="watch-clear" data-tone="danger">清空关注列表</button>
+          </div>
+        </div>
+        <div class="fate-split">
+          <div class="mojito-panel fate-tree" id="fate-tree"></div>
+          <div class="mojito-panel fate-list">
+            <header>
+              <h3 id="fate-list-title">选择左侧的区域</h3>
+              <div class="actions">
+                <button type="button" id="fate-select-all" disabled>全部关注</button>
+                <button type="button" id="fate-clear-all" disabled>全部取消</button>
               </div>
-            </section>
+            </header>
+            <ul id="fate-list" class="fate-rows" aria-labelledby="fate-list-title"></ul>
           </div>
-          <div role="tabpanel" id="panel-fates" aria-labelledby="tab-fates" hidden>
-            <section>
-              <h2>搜索 FATE</h2>
-              <div class="fate-search-box">
-                <label>名称或 ID<input id="fate-search" type="search" placeholder="例如 驰骋 或 120" /></label>
-                <p id="fate-search-count"></p>
-                <div id="fate-search-actions" class="toolbar" hidden><button type="button" id="fate-search-select">关注搜索结果</button><button type="button" id="fate-search-clear">取消关注搜索结果</button></div>
-                <ul id="fate-results" class="fate-results" aria-label="搜索结果"></ul>
-              </div>
-            </section>
-            <section><h2>按版本与区域选择</h2><div id="fate-tree" class="fate-tree"></div></section>
-            <section>
-              <h2>导入预设</h2>
-              <div class="toolbar"><label>预设<select id="fate-template"><option value="">选择预设…</option></select></label><button type="button" id="apply-template">加入关注</button></div>
-              <div class="toolbar fate-import"><button type="button" id="watch-import">导入关注列表</button><button type="button" id="watch-export">导出关注列表</button></div>
-            </section>
-            <section><div class="section-heading"><h2 id="fate-count">已关注 0 项</h2><button type="button" id="watch-clear">清空草稿列表</button></div><details><summary>查看已关注的 FATE</summary><ul id="fate-selected" class="selected-list" aria-label="已关注的 FATE"></ul></details></section>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="panel-services" aria-labelledby="tab-services" hidden>
+        <section class="group">
+          <h3>鱼漂社区统计</h3>
+          <div class="mojito-panel" id="fishing-fields">
           </div>
-          <div role="tabpanel" id="panel-services" aria-labelledby="tab-services" hidden>
-            <p class="panel-intro">在线服务默认关闭，修改后保存生效。</p>
-            <section><h2>鱼漂社区统计</h2><p>开启后查询社区咬钩区间并上传钓鱼数据；关闭后仍保留本地记录和手工区间。</p><div id="fishing-fields" class="fields"></div></section>
-            <section><h2>Universalis</h2><p>开启后查询在线物价并上传已观察的市场价格。上传需要 API 密钥和上传者标识。</p><div id="universalis-fields" class="fields"></div></section>
-            <section><h2>Webhook</h2><p>每条配置会向指定服务发送所选事件。自定义域名必须已在插件包中声明并授权；关闭或删除不需要新增网络权限。</p><div id="webhook-rows"></div><p id="webhook-empty">尚未配置 Webhook。</p><button type="button" id="webhook-add">添加 Webhook</button></section>
+        </section>
+        <section class="group">
+          <h3>Universalis</h3>
+          <div class="mojito-panel" id="universalis-fields">
           </div>
-          <div role="tabpanel" id="panel-data" aria-labelledby="tab-data" hidden>
-            <section><h2>设置备份</h2><p>完整设置备份包含 API 密钥和 Webhook 请求头，请妥善保存。导入后先检查设置，再点击保存。</p><div class="toolbar"><button type="button" id="settings-import">导入完整设置</button><button type="button" id="settings-export">导出当前设置草稿</button></div></section>
-            <section><h2>钓鱼数据</h2><p>钓鱼区间及鱼获备份在悬浮窗的钓鱼页管理。</p><button type="button" id="notebook-export">导出钓鱼图鉴</button></section>
+        </section>
+        <section class="group">
+          <div class="group-head"><h3>Webhook</h3><button type="button" id="webhook-add">添加</button></div>
+          <div class="mojito-panel" id="webhook-rows"></div>
+        </section>
+      </div>
+
+      <div role="tabpanel" id="panel-data" aria-labelledby="tab-data" hidden>
+        <section class="group">
+          <h3>备份</h3>
+          <div class="mojito-panel">
+            <div class="mojito-field">
+              <div><label for="settings-export">导出设置</label><small>包含 Webhook 请求头，请妥善保存。</small></div>
+              <button type="button" id="settings-export">导出</button>
+            </div>
+            <div class="mojito-field">
+              <div><label for="settings-import">导入设置</label><small id="import-note">替换当前的全部设置。</small></div>
+              <span class="row"><button type="button" id="settings-undo" data-variant="ghost" hidden>撤销导入</button><button type="button" id="settings-import">导入</button></span>
+            </div>
+            <div class="mojito-field">
+              <div><label for="notebook-export">导出钓鱼图鉴</label></div>
+              <button type="button" id="notebook-export">导出</button>
+            </div>
           </div>
-          <div role="tabpanel" id="panel-diagnostics" aria-labelledby="tab-diagnostics" hidden>
-            <section><h2>诊断日志</h2><div id="logging-fields" class="fields"></div></section>
-            <section><div class="section-heading"><h2>运行状态</h2><button type="button" id="diagnostics-refresh" disabled>刷新</button></div><details><summary>会话详情</summary><pre id="session">尚未读取</pre></details><ol id="diagnostics"></ol></section>
+        </section>
+        <section class="group">
+          <h3>诊断</h3>
+          <div class="mojito-panel" id="diagnostics-fields">
+            <div class="mojito-field">
+              <div><label for="diagnostics-refresh">运行状态</label></div>
+              <button type="button" id="diagnostics-refresh">刷新</button>
+            </div>
+            <ol id="diagnostics" class="diagnostics"></ol>
+            <details class="session"><summary>会话详情</summary><pre id="session">尚未读取</pre></details>
           </div>
-          <footer class="actions"><div class="save-controls"><button type="submit" data-variant="primary">保存设置</button><button type="button" id="reload">放弃草稿</button><span id="dirty"></span></div><p id="message" role="status" aria-live="polite">正在载入设置…</p></footer>
-        </fieldset>
+        </section>
+      </div>
+    </fieldset>
+
+    <dialog id="webhook-dialog" aria-labelledby="webhook-title">
+      <form id="webhook-form" method="dialog">
+        <h2 id="webhook-title">编辑 Webhook</h2>
+        <label>名称<input id="webhook-name" autocomplete="off" /></label>
+        <label>事件<select id="webhook-event"></select></label>
+        <label>地址<input id="webhook-endpoint" type="url" placeholder="https://" autocomplete="off" /></label>
+        <div class="field-group">
+          <span class="field-label" id="webhook-type-label">请求格式</span>
+          <div class="mojito-segmented" id="webhook-type">
+            <button type="button" data-value="GET">GET</button>
+            <button type="button" data-value="JSON">JSON</button>
+            <button type="button" data-value="FORM">FORM</button>
+            <button type="button" data-value="MULTIPART">MULTIPART</button>
+          </div>
+        </div>
+        <label>请求头<textarea id="webhook-headers" rows="3" spellcheck="false" placeholder='{ "Authorization": "Bearer …" }'></textarea></label>
+        <p id="webhook-error" class="field-error" role="alert" hidden></p>
+        <footer>
+          <button type="button" id="webhook-cancel">取消</button>
+          <button type="submit" data-variant="primary">保存</button>
+        </footer>
       </form>
-    </main>
+    </dialog>
     <script type="module" src="./src/settings-page.ts"></script>
   </body>
 </html>

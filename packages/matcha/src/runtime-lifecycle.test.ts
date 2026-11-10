@@ -340,14 +340,14 @@ describe('Matcha runtime lifecycle', () => {
     await expect(f.command({ action: 'settings.get' }, view('feature', 'settings'))).resolves.toBeDefined()
   })
 
-  it('shares one collector across feature and overlay commands and hooks up notebook and submarine state', async () => {
+  it('shares one collector across the settings page and overlay commands and hooks up notebook and submarine state', async () => {
     const f = fixture()
     await start(f)
     expect(latest(f).version).toBe(f.context.identity.version)
     await f.command({ action: 'config.get', key: 'overlay.config:app-minified' }, view())
     await f.command({ action: 'config.get', key: 'overlay.config:app-minified' }, view('overlay', 'matcha'))
     expect(f.context.packets.subscribe).toHaveBeenCalledTimes(1)
-    expect(f.context.ui.registerFeature).toHaveBeenCalledTimes(2)
+    expect(f.context.ui.registerFeature).toHaveBeenCalledTimes(1)
     expect(f.context.ui.registerFeature).toHaveBeenCalledWith({
       id: 'settings',
       name: 'Matcha 设置',
@@ -443,7 +443,7 @@ describe('Matcha runtime lifecycle', () => {
     expect(f.sessionDispose).toHaveBeenCalledTimes(1)
     expect(f.streams[0].subscription.dispose).toHaveBeenCalledTimes(1)
     expect(f.commandDispose).toHaveBeenCalledTimes(1)
-    expect(f.featureDispose).toHaveBeenCalledTimes(2)
+    expect(f.featureDispose).toHaveBeenCalledTimes(1)
     expect(f.overlayDispose).toHaveBeenCalledTimes(1)
     const publications = f.publications.length
     await f.packet('EventPlay', fishingData(1))
