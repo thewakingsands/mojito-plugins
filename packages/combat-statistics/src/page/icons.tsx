@@ -5,9 +5,10 @@ import { useBridge } from './bridge.js'
 // Icons stay for the life of the page. `cache` shares one request per key; `loaded` holds the settled ones so a
 // component that mounts or switches to them draws the icon in its first render instead of an empty frame, which a
 // scrolling timeline would show as flicker. A review asks for a few hundred icons at once, more than the host lets a
-// plugin have in flight, so at most ICON_REQUESTS commands go to the Worker at a time and the rest wait in turn. A
+// plugin have in flight, so at most ICON_REQUESTS commands go to the Worker at a time and the rest wait in turn; 32
+// leaves room within the host's limit for the other commands of the page and the other host requests of the Worker. A
 // failed request is kept in neither map; a component still showing its key asks again every RETRY_MS.
-const ICON_REQUESTS = 8
+const ICON_REQUESTS = 32
 const RETRY_MS = 5000
 const cache = new Map<string, Promise<string | null | undefined>>()
 const loaded = new Map<string, string | null>()

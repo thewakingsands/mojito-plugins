@@ -113,12 +113,10 @@ export async function activate(ctx: PluginContext) {
     /** Whether this pause was reported; connecting pauses briefly every time, so only a lasting pause is */
     pauseNotified = false,
     retryTimer: ReturnType<typeof setInterval> | null = null
-  const gameCache = new GameDataCache(
-    ctx.storage,
-    ctx.data,
-    ctx.log,
-    ctx.limits.values['data.rowIds'] ?? Number.POSITIVE_INFINITY,
-  )
+  const gameCache = new GameDataCache(ctx.storage, ctx.data, ctx.log, {
+    rowIds: ctx.limits.values['data.rowIds'] ?? Number.POSITIVE_INFINITY,
+    fileBytes: ctx.limits.values['storage.fileBytes'] ?? 3 * 1024 * 1024,
+  })
   /** The duty name of each territory, null for one without a duty */
   const dutyNames = new Map<number, string | null>()
   const jobNames = new Map<number, string | null>()

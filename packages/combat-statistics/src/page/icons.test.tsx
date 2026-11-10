@@ -84,7 +84,7 @@ function scripted(...outcomes: ('icon' | 'none' | string)[]) {
 }
 const shown = (view: { container: HTMLElement }) => view.container.querySelectorAll('img.icon').length
 
-it('sends at most eight icon commands at a time', async () => {
+it('sends at most 32 icon commands at a time', async () => {
   let running = 0
   let most = 0
   const run = vi.fn(async (_input: Command): Promise<Value> => {
@@ -100,7 +100,8 @@ it('sends at most eight icon commands at a time', async () => {
     ),
   )
   await waitFor(() => expect(shown(view)).toBe(300), { timeout: 3000 })
-  expect(most).toBeLessThanOrEqual(8)
+  // A review asks for more icons than that at once, so it runs exactly that many.
+  expect(most).toBe(32)
   expect(run).toHaveBeenCalledTimes(300)
 })
 

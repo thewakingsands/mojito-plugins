@@ -1446,7 +1446,7 @@ it('shows the icons and names an earlier activation read while no game data is o
   expect(await icon(first, 'action:10')).toMatchObject({ data: Uint8Array.of(405 % 256) })
   await first.dispose()
   expect([...first.files.keys()].filter((name) => name.startsWith('game-data/')).sort()).toEqual([
-    'game-data/icons/405.png',
+    'game-data/icons.bin',
     'game-data/index.json',
   ])
   const second = await setup(false, false, [], 'unavailable', first.files)

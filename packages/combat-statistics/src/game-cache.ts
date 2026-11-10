@@ -1,12 +1,11 @@
 import type { DataService, LogService, StorageService } from '@ffcafe/mojito-plugin-sdk'
 
 /** The storage the cache may take; the combat log keeps out of it */
-export const GAME_CACHE_BYTES = 4 * 1024 * 1024
+export const GAME_CACHE_BYTES = 16 * 1024 * 1024
 /** Names kept of each kind; the oldest go first */
 const NAME_LIMIT = 8000
-const ICON_BYTES = 3 * 1024 * 1024
-/** Few enough icon files that the host can still list the directory */
-const ICON_LIMIT = 800
+/** The size of the icon file at most; the icons asked for longest ago are left out */
+const ICON_BYTES = 12 * 1024 * 1024
 /** How long after the last change the index and the names are written */
 const FLUSH_MS = 2000
 /** A name, icon row or column that could not be read is asked for again after this long */
@@ -14,7 +13,10 @@ const RETRY_MS = 60_000
 const DIRECTORY = 'game-data'
 const INDEX = `${DIRECTORY}/index.json`
 const namesFile = (language: string) => `${DIRECTORY}/names-${language}.json`
-const iconFile = (id: number) => `${DIRECTORY}/icons/${id}.png`
+/** Every icon in one file, so a review costs the host a few writes and one read instead of one per icon */
+const ICONS = `${DIRECTORY}/icons.bin`
+/** Where an older version kept one file per icon */
+const OLD_ICONS = `${DIRECTORY}/icons`
 const ICON_COLUMN = 2
 /** The column each value is read from, Action's CooldownGroup and Status's StatusCategory */
 const COLUMNS = {
@@ -28,14 +30,15 @@ export type NameKind = 'action' | 'status' | 'territoryType'
 export type ColumnKind = keyof typeof COLUMNS
 export type CachedIcon = { mime: string; data: Uint8Array }
 interface Index {
+  format: 2
   version: string | null
   language: string | null
   iconIds: [string, number | null][]
   cooldownGroup: [number, number][]
   statusCategory: [number, number][]
-  icons: [number, number][]
 }
 type Names = Record<NameKind, [number, string][]>
+type StoredIcon = { id: number; data: Uint8Array; lastUsed: number }
 
 /** The host has no game data open, as opposed to a row or icon the open data lacks. */
 function unavailable(error: unknown) {
@@ -54,6 +57,53 @@ const pairs = (value: unknown): [unknown, unknown][] =>
 const isId = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0
 const numbers = (value: unknown) =>
   new Map(pairs(value).filter((item): item is [number, number] => isId(item[0]) && typeof item[1] === 'number'))
+
+/**
+ * The icon file: a u32 little-endian length of the directory, the directory as UTF-8 JSON of
+ * `[id, offset, length, lastUsed]` with the offset from the start of the data, then the data of each icon.
+ */
+function encodeIcons(entries: StoredIcon[]): Uint8Array {
+  let offset = 0
+  const directory = entries.map(({ id, data, lastUsed }) => {
+    const entry = [id, offset, data.length, lastUsed]
+    offset += data.length
+    return entry
+  })
+  const head = new TextEncoder().encode(JSON.stringify(directory))
+  const bytes = new Uint8Array(4 + head.length + offset)
+  new DataView(bytes.buffer).setUint32(0, head.length, true)
+  bytes.set(head, 4)
+  let at = 4 + head.length
+  for (const { data } of entries) {
+    bytes.set(data, at)
+    at += data.length
+  }
+  return bytes
+}
+/** The icons of a file, null when any part of it does not hold together */
+function decodeIcons(bytes: Uint8Array): StoredIcon[] | null {
+  if (bytes.length < 4) return null
+  const length = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, true)
+  if (length > bytes.length - 4) return null
+  let directory: unknown
+  try {
+    directory = JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + length)))
+  } catch {
+    return null
+  }
+  if (!Array.isArray(directory)) return null
+  const data = bytes.subarray(4 + length)
+  const icons: StoredIcon[] = []
+  for (const entry of directory) {
+    if (!Array.isArray(entry) || entry.length !== 4) return null
+    const [id, offset, size, lastUsed] = entry as unknown[]
+    if (!isId(id) || !isId(offset) || !isId(size) || typeof lastUsed !== 'number' || !Number.isFinite(lastUsed))
+      return null
+    if (offset + size > data.length) return null
+    icons.push({ id, data: data.subarray(offset, offset + size), lastUsed })
+  }
+  return icons
+}
 
 /**
  * Names, icons and columns read from the game data, kept in the plugin storage so a review shows them without asking
@@ -78,14 +128,19 @@ export class GameDataCache {
     cooldownGroup: new Map(),
     statusCategory: new Map(),
   }
-  /** The stored icon files and their sizes, oldest first */
-  private stored = new Map<number, number>()
-  /** Icons read in this activation; null for one the game data lacks */
+  /** Icons of the icon file and those read in this activation; null for one the game data lacks */
   private icons = new Map<number, CachedIcon | null>()
+  /** When each icon was last asked for, by which the file keeps the most recent ones */
+  private lastUsed = new Map<number, number>()
+  /** Reading the icon file, done once and only when an icon is first wanted */
+  private iconsLoaded: Promise<void> | null = null
+  /** Icons read from the game data that the icon file lacks */
+  private iconsDirty = false
   /** When something could not be read, by `${kind}:${id}`; never stored */
   private missing = new Map<string, number>()
   private indexDirty = false
   private namesDirty = false
+  private readonly iconBytes: number
   private timer: ReturnType<typeof setTimeout> | null = null
   private warned = false
   private checking: Promise<void> = Promise.resolve()
@@ -96,29 +151,34 @@ export class GameDataCache {
     private readonly storage: StorageService,
     private readonly data: GameData,
     private readonly log: Pick<LogService, 'warn'>,
-    private readonly rowIds: number,
+    private readonly limits: { rowIds: number; fileBytes: number },
     private readonly now: () => number = Date.now,
-  ) {}
+  ) {
+    this.iconBytes = Math.min(ICON_BYTES, limits.fileBytes)
+  }
 
   /** Reads what an earlier activation stored */
   async load() {
     const index = await this.readJson(INDEX)
     if (!index || typeof index !== 'object') return
-    const value = index as Partial<Record<keyof Index, unknown>>
+    // `icons` is what an older version listed of its icon files.
+    const value = index as Partial<Record<keyof Index | 'icons', unknown>>
     this.version = typeof value.version === 'string' ? value.version : null
     this.language = typeof value.language === 'string' ? value.language : null
     for (const [key, id] of pairs(value.iconIds))
       if (typeof key === 'string' && (id === null || isId(id))) this.iconIds.set(key, id)
     for (const kind of Object.keys(COLUMNS) as ColumnKind[]) this.columnValues[kind] = numbers(value[kind])
-    for (const [id, size] of numbers(value.icons)) this.stored.set(id, size)
+    if (value.format !== 2) {
+      // An older version kept one file per icon. Deleting hundreds of them takes a while, so it runs behind the
+      // activation, and the icons are read from the game data again.
+      this.indexDirty = true
+      const old = [...numbers(value.icons).keys()].map((id) => `${OLD_ICONS}/${id}.png`)
+      void this.exclusive(async () => {
+        const listed = await this.storage.list(OLD_ICONS).catch(() => [])
+        for (const name of new Set([...old, ...listed])) await this.storage.delete(name).catch(() => {})
+      })
+    }
     if (this.language) await this.loadNames(this.language)
-    // Icon files written after the index was last saved are not counted, so they go.
-    await this.exclusive(async () => {
-      for (const name of await this.storage.list(`${DIRECTORY}/icons`).catch(() => [])) {
-        const id = Number(/(\d+)\.png$/.exec(name)?.[1])
-        if (!this.stored.has(id)) await this.storage.delete(name).catch(() => {})
-      }
-    })
   }
 
   /**
@@ -243,7 +303,7 @@ export class GameDataCache {
     if (language === null) return { values, complete: false }
     const { sheet, index } = COLUMNS[kind]
     let complete = true
-    const size = Math.max(1, this.rowIds)
+    const size = Math.max(1, this.limits.rowIds)
     for (let start = 0; start < wanted.length; start += size) {
       const batch = wanted.slice(start, start + size)
       try {
@@ -269,16 +329,11 @@ export class GameDataCache {
   /** An icon by ID, null when the game data lacks it; any other failure is thrown and nothing is kept, as in iconId */
   async icon(id: number): Promise<CachedIcon | null> {
     await this.checking
-    if (this.icons.has(id)) return this.icons.get(id)!
-    if (this.stored.has(id)) {
-      try {
-        const icon = { mime: 'image/png', data: await this.storage.read(iconFile(id)) }
-        this.icons.set(id, icon)
-        return icon
-      } catch {
-        this.stored.delete(id)
-        this.indexDirty = true
-      }
+    await this.loadIcons()
+    if (this.icons.has(id)) {
+      const icon = this.icons.get(id)!
+      if (icon) this.lastUsed.set(id, this.now())
+      return icon
     }
     if (this.open === null) throw Object.assign(new Error('Game data is not open'), { code: 'unavailable' })
     let result: CachedIcon | null
@@ -290,15 +345,39 @@ export class GameDataCache {
       result = null
     }
     this.icons.set(id, result)
-    if (result && this.writable) await this.store(id, result.data)
+    if (result) {
+      this.lastUsed.set(id, this.now())
+      // The write waits for the debounce, so the page gets the icon at once.
+      this.iconsDirty = true
+      this.schedule()
+    }
     return result
   }
 
-  /** Writes the index and the names when they changed */
+  /** Writes the icons, the index and the names when they changed */
   async flush() {
     if (this.timer !== null) clearTimeout(this.timer)
     this.timer = null
     if (!this.writable) return
+    if (this.iconsDirty) {
+      // The file is rewritten whole, so what it held must be in memory first.
+      await this.loadIcons()
+      const entries: StoredIcon[] = []
+      for (const [id, icon] of this.icons)
+        if (icon) entries.push({ id, data: icon.data, lastUsed: this.lastUsed.get(id) ?? 0 })
+      entries.sort((a, b) => b.lastUsed - a.lastUsed)
+      // 6 bytes for the length and the brackets of the directory; an entry of it takes 48 at most, with its comma.
+      let used = 6
+      const kept: StoredIcon[] = []
+      for (const entry of entries) {
+        if (entry.data.length + 54 > this.iconBytes) continue
+        if (used + entry.data.length + 48 > this.iconBytes) break
+        used += entry.data.length + 48
+        kept.push(entry)
+      }
+      this.iconsDirty = false
+      if (!(await this.writeBytes(ICONS, encodeIcons(kept)))) this.iconsDirty = true
+    }
     if (this.namesDirty && this.language) {
       this.namesDirty = false
       const names = Object.fromEntries(
@@ -309,12 +388,12 @@ export class GameDataCache {
     if (this.indexDirty) {
       this.indexDirty = false
       const index: Index = {
+        format: 2,
         version: this.version,
         language: this.language,
         iconIds: [...this.iconIds],
         cooldownGroup: [...this.columnValues.cooldownGroup],
         statusCategory: [...this.columnValues.statusCategory],
-        icons: [...this.stored],
       }
       await this.write(INDEX, index)
     }
@@ -324,17 +403,18 @@ export class GameDataCache {
   async clear() {
     if (this.timer !== null) clearTimeout(this.timer)
     this.timer = null
-    const known = [INDEX, ...[...this.stored.keys()].map(iconFile)]
+    const known = [INDEX, ICONS]
     if (this.language) known.push(namesFile(this.language))
     this.version = null
     this.writable = false
     this.names = { action: new Map(), status: new Map(), territoryType: new Map() }
     this.iconIds.clear()
     this.columnValues = { cooldownGroup: new Map(), statusCategory: new Map() }
-    this.stored.clear()
     this.icons.clear()
+    this.lastUsed.clear()
+    this.iconsLoaded = Promise.resolve()
     this.missing.clear()
-    this.indexDirty = this.namesDirty = false
+    this.indexDirty = this.namesDirty = this.iconsDirty = false
     await this.exclusive(async () => {
       // The listing fails once there are more files than the host lists, so the known files go as well.
       const listed = await this.storage.list(DIRECTORY).catch(() => [])
@@ -346,26 +426,38 @@ export class GameDataCache {
     return this.now() - (this.missing.get(key) ?? -Infinity) < RETRY_MS
   }
   private schedule() {
-    if (!this.writable || (!this.indexDirty && !this.namesDirty) || this.timer !== null) return
+    if (!this.writable || (!this.indexDirty && !this.namesDirty && !this.iconsDirty) || this.timer !== null) return
     this.timer = setTimeout(() => {
       this.timer = null
       void this.flush()
     }, FLUSH_MS)
   }
-  /** Writes an icon file and drops the oldest ones over the limits */
-  private async store(id: number, data: Uint8Array) {
-    if (data.length > ICON_BYTES) return
-    let used = data.length
-    for (const size of this.stored.values()) used += size
-    while (this.stored.size && (used > ICON_BYTES || this.stored.size >= ICON_LIMIT)) {
-      const [oldest, size] = this.stored.entries().next().value!
-      this.stored.delete(oldest)
-      used -= size
-      await this.exclusive(() => this.storage.delete(iconFile(oldest)).catch(() => {}))
+  /** Reads the icon file once; a file that cannot be read is left for the next write to replace */
+  private loadIcons(): Promise<void> {
+    if (this.iconsLoaded) return this.iconsLoaded
+    const loading: Promise<void> = this.readIcons().then((icons) => {
+      // A clear while reading leaves the file from before it.
+      if (!icons || this.iconsLoaded !== loading) return
+      for (const { id, data, lastUsed } of icons) {
+        if (this.icons.has(id)) continue
+        this.icons.set(id, { mime: 'image/png', data })
+        this.lastUsed.set(id, lastUsed)
+      }
+    })
+    this.iconsLoaded = loading
+    return loading
+  }
+  private async readIcons(): Promise<StoredIcon[] | null> {
+    let bytes: Uint8Array
+    try {
+      bytes = await this.storage.read(ICONS)
+    } catch (error) {
+      if (!notFound(error)) this.warn('游戏数据缓存读取失败', error)
+      return null
     }
-    this.indexDirty = true
-    if (await this.writeBytes(iconFile(id), data)) this.stored.set(id, data.length)
-    this.schedule()
+    const icons = decodeIcons(bytes)
+    if (!icons) this.warn('游戏数据缓存读取失败', new Error(`${ICONS} is damaged`))
+    return icons
   }
   private async loadNames(language: string) {
     const value = await this.readJson(namesFile(language))
