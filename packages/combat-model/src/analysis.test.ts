@@ -54,8 +54,22 @@ describe('analyzePotency', () => {
     const samples = Array.from({ length: 15 }, (_, index) => sample(index * 6000, index % 2 ? 80 : 40))
     const analysis = analyze(samples)!
     expect(analysis.points.every((point) => point.w === point.r && point.n === 1)).toBe(true)
-    expect(analysis.points[1]).toEqual({ t: 6000, r: 80, w: 80, n: 1, critical: false, direct: false })
+    expect(analysis.points[1]).toEqual({
+      t: 6000,
+      r: 80,
+      w: 80,
+      n: 1,
+      critical: false,
+      direct: false,
+      targetId: 2,
+    })
     expect(analysis.regions).toEqual([])
+  })
+
+  it('gives each point the target of its sample', () => {
+    const samples = series(0, 20_000, 50).map((item, index) => ({ ...item, targetId: index % 3 ? index : null }))
+    const analysis = analyze(samples)!
+    expect(analysis.points.map((point) => point.targetId)).toEqual(samples.map((item) => item.targetId))
   })
 
   it('takes the median of two samples within five seconds', () => {
@@ -151,6 +165,18 @@ describe('analyzePotency', () => {
       expect(analysis.points).toHaveLength(30)
       expect(analysis.points.every((point) => !point.critical)).toBe(true)
       for (const point of analysis.points) expect(point.r).toBeCloseTo(50, 9)
+    })
+
+    it('keeps the target of each sample left when it leaves the critical hits out', () => {
+      const samples = series(0, 100_000, 50).map((item, index) =>
+        hit(item.t, 50, { critical: index % 5 === 1 }, { targetId: 100 + index }),
+      )
+      const analysis = analyze(samples)!
+      expect(analysis.critical).toBeNull()
+      const kept = samples.filter((item) => !item.critical)
+      expect(analysis.points.map((point) => [point.t, point.targetId])).toEqual(
+        kept.map((item) => [item.t, item.targetId]),
+      )
     })
 
     it('leaves the critical hits out when fewer than ten are neither critical nor direct', () => {

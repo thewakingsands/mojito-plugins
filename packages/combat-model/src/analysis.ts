@@ -50,6 +50,8 @@ export interface PotencyPoint {
   w: number
   /** The samples within WINDOW_MS, the sample itself included; below MIN_WINDOW_SAMPLES the point judges no region */
   n: number
+  /** The target this sample hit, with the ids of the samples the caller passed */
+  targetId: number | null
 }
 export type ReasonKind = 'raid' | 'self' | 'target' | 'down'
 export interface PotencyRegion {
@@ -125,7 +127,7 @@ export function analyzePotency(samples: readonly AnalysisSample[], context: Anal
       sample.potency /
       (sample.direct ? DIRECT_MULTIPLIER : 1) /
       (sample.critical ? (critical as number) : 1)
-    return { t: sample.t, r, critical: sample.critical, direct: sample.direct, w: r, n: 1 }
+    return { t: sample.t, r, critical: sample.critical, direct: sample.direct, w: r, n: 1, targetId: sample.targetId }
   })
   for (const point of points) {
     const near = points.filter((other) => Math.abs(other.t - point.t) <= WINDOW_MS).map((other) => other.r)
