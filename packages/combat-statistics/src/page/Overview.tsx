@@ -5,7 +5,7 @@ import type { Selection, StatisticsState, VisitView } from '../view-model.js'
 import { useBridge } from './bridge.js'
 import { fightFacts, ResultLabel } from './fight.js'
 import { duration, entered, percent, zoneName } from './format.js'
-import { JobIcon, LimitBreakIcon, SkillIcon } from './icons.js'
+import { JobIcon, SkillIcon } from './icons.js'
 import { showBanner, toggle } from './state.js'
 import {
   type Cell,
@@ -251,7 +251,11 @@ function ActorRows(props: {
         <td title={name}>
           <span className="name">
             {limitBreak ? (
-              <LimitBreakIcon />
+              props.skills.length > 0 ? (
+                <SkillIcon skill={props.skills[0].key} />
+              ) : (
+                <span className="icon" />
+              )
             ) : (
               <JobIcon job={row.actor.job} abbreviation={names[`job:${row.actor.job}`]} />
             )}
