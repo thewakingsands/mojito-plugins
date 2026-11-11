@@ -132,7 +132,6 @@ export class RpcClient {
 
   private id(): number {
     if (this.stopped) throw pluginError('plugin_stopped')
-    if (this.pending.size >= this.limits.values['requests.pluginConcurrent']) throw pluginError('quota_exceeded')
     if (this.nextId === Number.MAX_SAFE_INTEGER) throw pluginError('quota_exceeded', 'Activation request IDs exhausted')
     return this.nextId++
   }
@@ -185,9 +184,6 @@ export class RpcClient {
     try {
       if (this.stopped) throw pluginError('plugin_stopped')
       if (signal.aborted) throw pluginError('cancelled')
-      if (this.subscriptions.size + this.registering.size >= this.limits.values['subscriptions.pluginCount']) {
-        throw pluginError('quota_exceeded')
-      }
       state.requestId = this.id()
       state.cleanup = () => signal.removeEventListener('abort', dispose)
       this.registering.add(state)
@@ -231,12 +227,8 @@ export class RpcClient {
         this.lastIncomingId = id
         const method = text(input.method)
         const handler = this.handlers.get(method)
-        if (!handler || this.incoming.size >= this.limits.values['requests.pluginConcurrent']) {
-          this.send('response', {
-            id,
-            ok: false,
-            error: { ...pluginError(handler ? 'quota_exceeded' : 'unavailable').toJSON() },
-          })
+        if (!handler) {
+          this.send('response', { id, ok: false, error: { ...pluginError('unavailable').toJSON() } })
           return
         }
         const controller = new AbortController()

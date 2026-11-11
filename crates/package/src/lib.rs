@@ -9,9 +9,6 @@ use sha2::{Digest, Sha256};
 pub type Result<T> = std::result::Result<T, String>;
 pub const MAGIC: &[u8; 8] = b"MJPKG01\0";
 pub const MAX_PACKAGE: usize = 256 * 1024 * 1024;
-pub const MAX_FILE: u64 = 32 * 1024 * 1024;
-pub const MAX_EXPANDED: u64 = 256 * 1024 * 1024;
-pub const MAX_ENTRIES: usize = 4096;
 #[cfg(feature = "ffi")]
 mod ffi;
 const MAX_JWS: usize = 128 * 1024;

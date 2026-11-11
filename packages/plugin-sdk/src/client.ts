@@ -17,9 +17,9 @@ import type {
 import { ViewSender } from './view-sender.js'
 
 export interface Hello {
-  apiVersion: '1.0.0'
+  apiVersion: '2.0.0'
   identity: PluginIdentity
-  capabilities: { supported: Record<string, Capability>; granted: string[] }
+  capabilities: Record<string, Capability>
   clock: ReturnType<ClientClock['state']>
 }
 
@@ -32,7 +32,7 @@ export function decodeHello(message: Envelope): Hello {
   const identity = object(message.identity)
   if (
     message.kind !== 'hello' ||
-    message.apiVersion !== '1.0.0' ||
+    message.apiVersion !== '2.0.0' ||
     identity.activationId !== message.activationId ||
     typeof identity.id !== 'string' ||
     typeof identity.version !== 'string' ||
@@ -44,7 +44,7 @@ export function decodeHello(message: Envelope): Hello {
   limitsSnapshot(message.limits)
   const capabilities = decodeCapabilities(message.capabilities)
   return {
-    apiVersion: '1.0.0',
+    apiVersion: '2.0.0',
     identity: identity as unknown as PluginIdentity,
     capabilities,
     clock: clockState(message.clock),
@@ -53,13 +53,11 @@ export function decodeHello(message: Envelope): Hello {
 
 function decodeCapabilities(input: Value): Hello['capabilities'] {
   const value = object(input)
-  const supported = object(value.supported)
-  if (!Array.isArray(value.granted) || value.granted.some((item) => typeof item !== 'string'))
-    throw pluginError('invalid_argument')
-  for (const entry of Object.values(supported)) {
+  for (const entry of Object.values(value)) {
     const capability = object(entry)
     if (
       capability.state !== 'available' &&
+      capability.state !== 'denied' &&
       !(capability.state === 'unavailable' && typeof capability.reason === 'string')
     )
       throw pluginError('invalid_argument')
@@ -204,12 +202,7 @@ export function createPluginContext(client: RpcClient, hello: Hello): PluginCont
       say: (text, opts) => call('audio.say', { text, ...options(opts) }, opts),
       play: (resource, opts) => call('audio.play', { ...resource, ...options(opts) }, opts),
     },
-    host: {
-      chooseFile: (selection, opts) => call('host.chooseFile', selection, opts),
-      readFile: (token, opts) => call('host.readFile', { token }, opts),
-      writeFile: (token, bytes, opts) => call('host.writeFile', { token, bytes }, opts),
-      openExternal: (url, opts) => call('host.openExternal', { url }, opts),
-    },
+    host: { openExternal: (url, opts) => call('host.openExternal', { url }, opts) },
     http: { request: (url, opts) => call('http.request', { url, ...options(opts) }, opts) },
     config: {
       get: (key, opts) => call('config.get', { key }, opts),
@@ -270,24 +263,20 @@ export function createPluginContext(client: RpcClient, hello: Hello): PluginCont
         }
       },
       publish: (name, event, payload, opts) => call('services.publish', { name, event, payload }, opts),
-      connect: (name, versionRange, opts) => call('services.connect', { name, versionRange }, opts),
-      request: (providerId, name, method, payload, opts) =>
-        call('services.request', { providerId, name, method, payload }, opts),
+      connect: (service, versionRange, opts) => call('services.connect', { service, versionRange }, opts),
+      request: (service, method, payload, opts) => call('services.request', { service, method, payload }, opts),
       subscribe: (selector, listener, opts) => client.subscribe('services', selector as Value, listener, opts),
     },
   }
   client.handle('services.call', async (params, signal) => {
     const request = object(params)
     const handler = providers.get(String(request.name))
-    if (!handler || typeof request.callId !== 'string') throw pluginError('not_found')
-    const callId = request.callId
-    // Host routes every operation under this opaque callId through the permission intersection.
-    const scoped = readers(
-      (method, params, opts) => call('services.callRequest', { callId, method, params }, opts ?? { signal }),
-      (topic, params, listener, opts) =>
-        subscribe('services.callSubscribe', { callId, topic, params }, listener, opts ?? { signal }),
+    if (!handler) throw pluginError('not_found')
+    if (typeof request.consumerId !== 'string') throw pluginError('invalid_argument')
+    return handler(
+      { method: String(request.method), payload: request.payload },
+      { signal, consumerId: request.consumerId },
     )
-    return handler({ method: String(request.method), payload: request.payload }, { ...scoped, signal })
   })
   client.signal.addEventListener(
     'abort',

@@ -7,9 +7,9 @@ import { createTestContext } from './testing.js'
 import type { Value } from './types.js'
 
 const hello: Hello = {
-  apiVersion: '1.0.0',
+  apiVersion: '2.0.0',
   identity: { id: 'Fixture', version: '1.0.0', activationId: 'test', mode: 'worker', environment: 'development' },
-  capabilities: { supported: { 'data.read': { state: 'available' } }, granted: ['data.read'] },
+  capabilities: { 'data.read': { state: 'available' }, 'memory.read': { state: 'denied' } },
   clock: { now: null, base: null, source: null, generation: 0, paused: false },
 }
 const limits = limitsSnapshot({
@@ -30,7 +30,7 @@ it.each(['views', 'services'] as const)(
     const register = () =>
       kind === 'views'
         ? fixture.context.views.onCommand('slot', () => null)
-        : fixture.context.services.provide({ name: 'slot', version: '1.0.0', dataPermissions: [] }, () => null)
+        : fixture.context.services.provide({ name: 'slot', version: '1.0.0' }, () => null)
     const old = await register()
     await expect(old()).rejects.toMatchObject({ code: 'quota_exceeded' })
     await old()
@@ -65,8 +65,8 @@ it('a fake subscription exercises the real ready/ack/disposal logic', async () =
 })
 it('capability snapshots and identity cannot mutate the activation authority', () => {
   const fixture = createTestContext(hello, limits)
-  fixture.context.capabilities.get().granted.push('memory.read')
-  expect(fixture.context.capabilities.get().granted).toEqual(['data.read'])
+  fixture.context.capabilities.get()['memory.read'] = { state: 'available' }
+  expect(fixture.context.capabilities.get()['memory.read']).toEqual({ state: 'denied' })
   expect(Object.isFrozen(fixture.context.identity)).toBe(true)
   fixture.close()
 })

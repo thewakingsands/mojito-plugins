@@ -27,6 +27,8 @@ export interface PlayerFields {
   contentId: bigint
   name: string
   classJob: number
+  /** `Race` row: 1 Hyur … 8 Viera; players only */
+  race: number
   level: number
   hpCur: number
   hpMax: number
@@ -55,6 +57,8 @@ export interface CombatantFields {
   /** `GameObject.SubKind`; a `BattleNpcSubKind` when `objectKind` is 2. */
   subKind: number
   classJob: number
+  /** `Race` row: 1 Hyur … 8 Viera; players only */
+  race: number
   level: number
   hpCur: number
   hpMax: number
@@ -194,12 +198,7 @@ export interface AudioService {
   play(resource: { path: string }, options?: SubscribeOptions & { volume?: number }): Promise<void>
 }
 export interface HostService {
-  chooseFile(
-    selection: { purpose: 'read' | 'write'; extensions?: string[] },
-    options?: SubscribeOptions,
-  ): Promise<{ token: string; name: string } | null>
-  readFile(token: string, options?: SubscribeOptions): Promise<Uint8Array>
-  writeFile(token: string, bytes: Uint8Array, options?: SubscribeOptions): Promise<void>
+  /** Asks the user, showing the whole address, before opening an http: or https: link in the browser */
   openExternal(url: string, options?: SubscribeOptions): Promise<'opened' | 'cancelled'>
 }
 export interface HttpOptions extends SubscribeOptions {
@@ -247,26 +246,34 @@ export interface CallContext {
   readonly data: DataService
 }
 export interface ServiceDefinition {
+  /** What the service does, without the plugin ID; others use it as `pluginId/name` */
   name: string
   version: string
-  dataPermissions: string[]
 }
 export interface ServiceProvider {
-  pluginId: string
-  name: string
+  /** The full name, `pluginId/name` */
+  service: string
   version: string
+}
+/** One call to a service this plugin provides; the provider answers with its own capabilities */
+export interface ServiceRequestContext {
+  readonly signal: AbortSignal
+  /** The plugin that made the call */
+  readonly consumerId: string
 }
 export interface ServicesService {
   provide(
     definition: ServiceDefinition,
-    handler: (request: { method: string; payload: Value }, context: CallContext) => Value | Promise<Value>,
+    handler: (request: { method: string; payload: Value }, context: ServiceRequestContext) => Value | Promise<Value>,
     options?: SubscribeOptions,
   ): Promise<Disposer>
+  /** name is the local name given to provide */
   publish(name: string, event: string, payload: Value, options?: SubscribeOptions): Promise<void>
-  connect(name: string, versionRange: string, options?: SubscribeOptions): Promise<ServiceProvider[]>
-  request(providerId: string, name: string, method: string, payload: Value, options?: SubscribeOptions): Promise<Value>
+  /** The provider of a service this plugin declares in services.consumes, or null when it is not running or too old */
+  connect(service: string, versionRange: string, options?: SubscribeOptions): Promise<ServiceProvider | null>
+  request(service: string, method: string, payload: Value, options?: SubscribeOptions): Promise<Value>
   subscribe(
-    selector: { providerId: string; name: string; event: string },
+    selector: { service: string; event: string },
     listener: BatchListener<Value>,
     options?: SubscribeOptions,
   ): Subscription
@@ -274,7 +281,8 @@ export interface ServicesService {
 export interface PluginContext extends CallContext {
   readonly identity: Readonly<PluginIdentity>
   readonly limits: Limits
-  readonly capabilities: { get(): { supported: Record<string, Capability>; granted: string[] } }
+  /** The state of each capability the plugin declares; capabilitiesChanged updates it when the user changes a choice */
+  readonly capabilities: { get(): Record<string, Capability> }
   readonly ui: UiService
   readonly views: ViewsService
   readonly audio: AudioService

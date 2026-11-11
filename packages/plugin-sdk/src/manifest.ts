@@ -5,11 +5,15 @@ export interface Manifest {
   version: string
   apiVersion: string
   entry: { kind: 'worker'; path: string } | { kind: 'native'; path: string; os: 'win32'; arch: 'x64'; abiVersion: 1 }
-  capabilities: { required: string[]; optional: string[] }
+  /** The ordinary and sensitive capabilities the plugin uses */
+  capabilities: string[]
+  /** http: or https: origins the worker may request and its pages may load from */
   networkOrigins: string[]
   storage?: { totalBytes?: number; fileBytes?: number }
   services?: {
-    provides?: { name: string; version: string; dataPermissions: string[] }[]
+    /** name describes the function only; the host adds the plugin ID, so the full name is `pluginId/name` */
+    provides?: { name: string; version: string }[]
+    /** The full name `pluginId/name` of each service used */
     consumes?: { name: string; versionRange: string; optional: boolean }[]
   }
   author?: string
