@@ -10,7 +10,7 @@
   },
   "capabilities": {
     "required": ["session.read", "packets.read", "ui.register"],
-    "optional": ["data.read", "game.read", "memory.read", "audio.play", "http.request", "host.files"]
+    "optional": ["data.read", "game.read", "memory.read", "audio.play", "http.request"]
   },
   "networkOrigins": [
     "https://xivapi-v2.xivcdn.com",

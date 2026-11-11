@@ -383,17 +383,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     await publish('matcha.settings', publicSettings())
     return settingsJson(settings)
   }
-  const writeFile = async (bytes: Uint8Array) => {
-    const selection = await context.host.chooseFile({ purpose: 'write', extensions: ['json'] })
-    if (!selection) return false
-    await context.host.writeFile(selection.token, bytes)
-    return true
-  }
-  const readFile = async (extensions?: string[]) => {
-    const selection = await context.host.chooseFile({ purpose: 'read', extensions })
-    if (!selection) return null
-    return { name: selection.name, bytes: await context.host.readFile(selection.token) }
-  }
   const command = async (value: Value, view: ViewIdentity): Promise<Value> => {
     const input = record(value)
     const admin = view.kind === 'feature' && view.definitionId === 'settings'
@@ -466,12 +455,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         await context.audio.say(text, { language: languageTag[settings.language] })
         return null
       }
-      case 'file.read':
-        return readFile(Array.isArray(input.extensions) ? input.extensions.map(String) : undefined)
-      case 'file.write': {
-        if (!(input.bytes instanceof Uint8Array)) throw new Error('无效文件内容')
-        return writeFile(input.bytes)
-      }
       case 'settings.get':
         requireSettings()
         return settingsJson(settings)
@@ -480,26 +463,24 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         return saveSettings(input.settings)
       case 'catalog':
         return asJson({ fates, templates, patches, territories, universalis: universalisCredentials !== null })
+      // The page picks and saves the files itself; these only turn them into settings and back
       case 'watch.import': {
         requireSettings()
-        const file = await readFile(['json'])
-        if (!file) return null
-        const imported: unknown = JSON.parse(new TextDecoder().decode(file.bytes))
+        if (!(input.bytes instanceof Uint8Array)) throw new Error('无效文件内容')
+        const imported: unknown = JSON.parse(new TextDecoder().decode(input.bytes))
         const ids = Array.isArray(imported) ? imported : record(imported).fates
         return settingsFrom({ ...settings, watch: { fates: ids } }).watch.fates
       }
       case 'watch.export':
         requireSettings()
-        return writeFile(
-          encoder.encode(
-            JSON.stringify(
-              settingsFrom({ ...settings, watch: { fates: input.fates ?? settings.watch.fates } }).watch.fates,
-            ),
+        return encoder.encode(
+          JSON.stringify(
+            settingsFrom({ ...settings, watch: { fates: input.fates ?? settings.watch.fates } }).watch.fates,
           ),
         )
       case 'notebook.export':
         requireSettings()
-        return writeFile(encoder.encode(initial.exportJson()))
+        return encoder.encode(initial.exportJson())
       case 'test.notification': {
         requireSettings()
         const results = await Promise.allSettled([

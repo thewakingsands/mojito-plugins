@@ -193,9 +193,6 @@ function fixture(
     notifications: { send: vi.fn(async () => {}) },
     audio: { say: vi.fn(async () => {}), play: vi.fn(async () => {}) },
     host: {
-      chooseFile: vi.fn(async () => null),
-      readFile: vi.fn(async () => new Uint8Array()),
-      writeFile: vi.fn(async () => {}),
       openExternal: vi.fn(async () => 'cancelled'),
     },
     views: {
@@ -360,7 +357,8 @@ describe('Matcha runtime lifecycle', () => {
     expect(latest(f).notebook?.characterName).toBe('角色一')
     expect(latest(f).events.filter((event) => event.type === 'SubmarineStatus')).toHaveLength(4)
     await expect(f.command({ action: 'notebook.export' }, view('overlay', 'matcha'))).rejects.toThrow('设置页面')
-    await expect(f.command({ action: 'notebook.export' }, view('feature', 'settings'))).resolves.toBe(false)
+    const notebook = (await f.command({ action: 'notebook.export' }, view('feature', 'settings'))) as Uint8Array
+    expect(JSON.parse(new TextDecoder().decode(notebook))).toBeTruthy()
   })
   it('clears character state on generation changes and rejects old callbacks and old metadata', async () => {
     const f = fixture()

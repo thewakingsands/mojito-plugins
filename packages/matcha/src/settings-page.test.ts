@@ -186,12 +186,13 @@ it('adds, edits and deletes webhooks through the dialog and checks the headers',
 it('replaces the settings on import and can undo it', async () => {
   await load()
   const imported = { ...structuredClone(defaultSettings), language: 'ja', logging: true }
-  const original = bridge.command.getMockImplementation()
-  bridge.command.mockImplementation(async (channel, request) =>
-    request.action === 'file.read'
-      ? { name: 'matcha-settings.json', bytes: Uint8Array.from(new TextEncoder().encode(JSON.stringify(imported))) }
-      : original?.(channel, request),
-  )
+  // The page's own file picker; the test picks the file as the user would
+  const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function (this: HTMLInputElement) {
+    Object.defineProperty(this, 'files', {
+      value: [new File([JSON.stringify(imported)], 'matcha-settings.json', { type: 'application/json' })],
+    })
+    this.dispatchEvent(new Event('change'))
+  })
   button('tab-data').click()
   expect(button('settings-undo').hidden).toBe(true)
   button('settings-import').click()
@@ -200,4 +201,5 @@ it('replaces the settings on import and can undo it', async () => {
   button('settings-undo').click()
   await vi.waitFor(() => expect(lastSaved()).toEqual(expect.objectContaining({ language: 'chs', logging: false })))
   expect(button('settings-undo').hidden).toBe(true)
+  click.mockRestore()
 })

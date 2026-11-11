@@ -46,6 +46,31 @@ function show(message: string, error = false) {
 async function command(action: string, data: Record<string, Value> = {}) {
   return bridge.command('matcha.command', { action, ...data })
 }
+/** A JSON file the user picks with the page's own file picker; null when the picker is closed */
+function pickFile(): Promise<Uint8Array | null> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json,application/json'
+    input.addEventListener('change', () => {
+      const file = input.files?.[0]
+      if (!file) resolve(null)
+      else file.arrayBuffer().then((buffer) => resolve(new Uint8Array(buffer)), reject)
+    })
+    input.addEventListener('cancel', () => resolve(null))
+    input.click()
+  })
+}
+/** Offers bytes as a download; Mojito asks where to save it */
+function download(name: string, bytes: Value) {
+  if (!(bytes instanceof Uint8Array)) throw new Error('文件响应无效')
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/json' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
 async function perform(task: () => Promise<void>) {
   try {
     await task()
@@ -547,16 +572,16 @@ async function initialize() {
     void save(next)
   })
   click('watch-import', async () => {
-    const result = await command('watch.import')
-    if (result === null) return
+    const bytes = await pickFile()
+    if (bytes === null) return
+    const result = await command('watch.import', { bytes })
     const next = structuredClone(settings)
     next.watch.fates = settingsFrom({ watch: { fates: result } }).watch.fates
     await save(next)
     show('关注列表已导入')
   })
   click('watch-export', async () => {
-    const saved = await command('watch.export', { fates: settings.watch.fates })
-    if (saved) show('关注列表已导出')
+    download('matcha-watch.json', await command('watch.export', { fates: settings.watch.fates }))
   })
   click('test-notification', async () => {
     await command('test.notification')
@@ -575,11 +600,9 @@ async function initialize() {
     void submitWebhook()
   })
   click('settings-import', async () => {
-    const result = await command('file.read', { extensions: ['json'] })
-    if (result === null) return
-    if (!result || typeof result !== 'object' || !('bytes' in result) || !(result.bytes instanceof Uint8Array))
-      throw new Error('文件响应无效')
-    const imported = settingsFrom(JSON.parse(new TextDecoder().decode(result.bytes)))
+    const bytes = await pickFile()
+    if (bytes === null) return
+    const imported = settingsFrom(JSON.parse(new TextDecoder().decode(bytes)))
     const previous = structuredClone(settings)
     await save(imported)
     beforeImport = previous
@@ -594,16 +617,11 @@ async function initialize() {
     element('import-note').textContent = '替换当前的全部设置。'
     show('已撤销导入')
   })
-  click('settings-export', async () => {
-    const saved = await command('file.write', {
-      name: 'matcha-settings.json',
-      bytes: new TextEncoder().encode(JSON.stringify(settings, null, 2)),
-    })
-    if (saved) show('设置已导出')
+  click('settings-export', () => {
+    download('matcha-settings.json', new TextEncoder().encode(JSON.stringify(settings, null, 2)))
   })
   click('notebook-export', async () => {
-    const saved = await command('notebook.export')
-    if (saved) show('钓鱼图鉴已导出')
+    download('matcha-notebook.json', await command('notebook.export'))
   })
 }
 void initialize().catch((error: unknown) => {
