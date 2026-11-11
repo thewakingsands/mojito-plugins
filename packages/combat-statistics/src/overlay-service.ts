@@ -3,11 +3,8 @@ import { pluginError } from '@ffcafe/mojito-plugin-sdk/errors'
 import { type EndEncounterResult, type OverlayState, overlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { fields, object, text } from '@ffcafe/mojito-plugin-sdk/schema'
 
-export const overlayService = {
-  name: 'combat.statistics.overlay',
-  version: '1.0.0',
-  dataPermissions: ['session.read', 'game.read', 'events.read', 'data.read'],
-}
+/** Others use it as CombatStatistics/overlay */
+export const overlayService = { name: 'overlay', version: '1.0.0' }
 export async function provideOverlayService(
   ctx: PluginContext,
   enqueue: <T>(task: () => T | Promise<T>) => Promise<T>,

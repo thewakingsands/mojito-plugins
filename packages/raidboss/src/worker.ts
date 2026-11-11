@@ -83,7 +83,7 @@ export async function activateRaidboss(
             sharedDataWarning: engine.sharedDataWarning,
             sourceError,
             moduleFault,
-            audioGranted: ctx.capabilities.get().granted.includes('audio.play'),
+            audioGranted: ctx.capabilities.get()['audio.play']?.state === 'available',
             clock: ctx.clock.state(),
             realReplayVerified: false,
           }
@@ -109,13 +109,13 @@ export async function activateRaidboss(
       void publish()
     },
     say(text, signal) {
-      if (ctx.capabilities.get().granted.includes('audio.play'))
+      if (ctx.capabilities.get()['audio.play']?.state === 'available')
         void ctx.audio
           .say(text, { language: settings.language === 'cn' ? 'zh-CN' : settings.language, signal })
           .catch((error) => audioError(error, signal))
     },
     play(path, volume, signal) {
-      if (ctx.capabilities.get().granted.includes('audio.play'))
+      if (ctx.capabilities.get()['audio.play']?.state === 'available')
         void ctx.audio.play({ path }, { volume, signal }).catch((error) => audioError(error, signal))
     },
   })

@@ -42,13 +42,13 @@ function fixture() {
   const dispose = vi.fn(),
     removeOverlay = vi.fn(),
     removeCommand = vi.fn()
-  const request = vi.fn(async (_provider: string, _service: string, method: string) =>
+  const request = vi.fn(async (_service: string, method: string) =>
     method === 'getState' ? initial.promise : { result: 'ended' },
   )
   const ctx = {
     signal: new AbortController().signal,
     services: {
-      connect: async () => [{ pluginId: 'CombatStatistics' }],
+      connect: async () => ({ service: 'CombatStatistics/overlay', version: '1.0.0' }),
       request,
       subscribe: (_selector: unknown, receive: typeof listener) => {
         listener = receive
@@ -107,7 +107,7 @@ it('keeps a newer event when the initial snapshot arrives late and flushes encou
   await h.send(3, 'next')
   expect(h.calls.slice(-2)).toEqual(['flush', 'set'])
   await h.command({ kind: 'endEncounter', encounterId: 'newer' })
-  expect(h.request).toHaveBeenLastCalledWith('CombatStatistics', 'combat.statistics.overlay', 'endEncounter', {
+  expect(h.request).toHaveBeenLastCalledWith('CombatStatistics/overlay', 'endEncounter', {
     encounterId: 'newer',
   })
   await stop()

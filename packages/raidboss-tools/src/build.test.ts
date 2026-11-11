@@ -62,7 +62,7 @@ it('compiles default and Options registrations without executing input or npm sc
   expect(pkg.metadata.formatVersion).toBe(1)
   expect(pkg.signer.fingerprint).toMatch(/^[a-f0-9]{64}$/)
   expect(pkg.manifest.id).toBe('CommunitySynthetic')
-  expect(pkg.manifest.capabilities.required).not.toContain('network.http')
+  expect(pkg.manifest.capabilities).not.toContain('http.request')
   expect(pkg.files.has('manage.html')).toBe(true)
   expect(pkg.files.has('overlay.html')).toBe(true)
   expect(pkg.files.has('LICENSE-cactbot')).toBe(true)
@@ -135,7 +135,7 @@ it('loads generated registrations and closures into the runtime while keeping un
   }
   const ctx = {
     config: { get: async () => null, set: async () => {} },
-    capabilities: { get: () => ({ granted: [] }) },
+    capabilities: { get: () => ({}) },
     clock: {
       now: () => 1000,
       state: () => ({ now: 1000, generation: 1, source: 'replay', base: 'packet-unix', paused: false }),

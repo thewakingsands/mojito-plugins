@@ -3,7 +3,7 @@ import { pluginError } from '@ffcafe/mojito-plugin-sdk/errors'
 import { type OverlayCompatibility, overlayProducer, overlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { fields, object } from '@ffcafe/mojito-plugin-sdk/schema'
 
-const service = 'combat.statistics.overlay'
+const service = 'CombatStatistics/overlay'
 export async function activateOverlay(
   ctx: PluginContext,
   definition: {
@@ -50,17 +50,11 @@ export async function activateOverlay(
     return next
   }
   try {
-    const provider = (await ctx.services.connect(service, '^1.0.0')).find(
-      (item) => item.pluginId === 'CombatStatistics',
-    )
-    if (!provider) throw pluginError('unavailable', '请先安装、启用战斗统计并授权服务')
-    subscription = ctx.services.subscribe(
-      { providerId: provider.pluginId, name: service, event: 'state' },
-      async (batch) => {
-        if (!batch.complete) throw pluginError('source_incomplete')
-        for (const value of batch.items) await receive(value)
-      },
-    )
+    if (!(await ctx.services.connect(service, '^1.0.0'))) throw pluginError('unavailable', '请先安装并启用战斗统计')
+    subscription = ctx.services.subscribe({ service, event: 'state' }, async (batch) => {
+      if (!batch.complete) throw pluginError('source_incomplete')
+      for (const value of batch.items) await receive(value)
+    })
     void subscription.closed
       .then(async ({ reason }) => {
         if (!live) return
@@ -69,12 +63,12 @@ export async function activateOverlay(
       })
       .catch(() => {})
     await subscription.ready
-    await receive(await ctx.services.request(provider.pluginId, service, 'getState', null))
+    await receive(await ctx.services.request(service, 'getState', null))
     if (!live || ctx.signal.aborted) throw pluginError('cancelled')
     disposers.push(
       await producer.onEnd(async (encounterId) => {
         if (!live) throw pluginError('unavailable')
-        const result = object(await ctx.services.request(provider.pluginId, service, 'endEncounter', { encounterId }))
+        const result = object(await ctx.services.request(service, 'endEncounter', { encounterId }))
         fields(result, ['result'])
         if (!['ended', 'alreadyEnded', 'staleEncounter', 'notFound'].includes(String(result.result)))
           throw pluginError('invalid_argument')

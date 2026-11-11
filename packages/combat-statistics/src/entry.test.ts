@@ -100,7 +100,7 @@ async function setup(
   const ctx = {
     identity: { activationId: 'test' },
     limits: { values: { 'game.entities': 512 } },
-    capabilities: { get: () => ({ granted: ['data.read'], supported: {} }) },
+    capabilities: { get: () => ({ 'data.read': { state: 'available' } }) },
     log: {
       debug: (message: string, fields: unknown) => debugs.push({ message, fields }),
       error() {},

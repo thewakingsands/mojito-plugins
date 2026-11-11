@@ -263,11 +263,11 @@ export async function activate(ctx: PluginContext) {
   }
   /** The language of the game data the plugin may read, null while there is none */
   const readableLanguage = (snapshot: SessionSnapshot | null) =>
-    snapshot?.dataLanguage && ctx.capabilities.get().granted.includes('data.read') ? snapshot.dataLanguage : null
+    snapshot?.dataLanguage && ctx.capabilities.get()['data.read']?.state === 'available' ? snapshot.dataLanguage : null
   /** Job names for the combat log's member list; a failed lookup is remembered as unknown. */
   async function lookupJobs(entities: CombatantState[]) {
     const language = session?.dataLanguage
-    if (!language || !ctx.capabilities.get().granted.includes('data.read')) return
+    if (!language || ctx.capabilities.get()['data.read']?.state !== 'available') return
     const ids = [
       ...new Set(entities.map((entity) => value(entity.classJob)).filter((id): id is number => id !== null)),
     ].filter((id) => !jobNames.has(id))
@@ -419,7 +419,7 @@ export async function activate(ctx: PluginContext) {
   /** The name a visit is listed by: the duty held in its territory, otherwise the territory's place name. */
   async function visitName(territoryType: number, logged: string | null) {
     const language = session?.dataLanguage
-    if (!dutyNames.has(territoryType) && language && ctx.capabilities.get().granted.includes('data.read'))
+    if (!dutyNames.has(territoryType) && language && ctx.capabilities.get()['data.read']?.state === 'available')
       dutyNames.set(territoryType, await dutyName(ctx.data, territoryType, language))
     const duty = dutyNames.get(territoryType)
     if (duty) return duty
@@ -605,7 +605,7 @@ export async function activate(ctx: PluginContext) {
    * icon the cache lacks fails instead, so the page asks again once it is.
    */
   async function icon(key: string) {
-    if (!ctx.capabilities.get().granted.includes('data.read')) return null
+    if (ctx.capabilities.get()['data.read']?.state !== 'available') return null
     const job = /^job:(\d+)$/.exec(key)
     const skill = skillId(key)
     let id: number | null = null
@@ -759,10 +759,8 @@ export async function activate(ctx: PluginContext) {
       for (const id of found) if (id !== null) ids.add(id)
     }
     const fields = ['name', 'homeWorldId', 'classJob', 'ownerId', 'objectKind', 'subKind', 'bNpcBase'] as const
-    const list = [...ids],
-      limit = ctx.limits.values['game.entities']
-    for (let start = 0; start < list.length; start += limit) {
-      const result = await ctx.game.getCombatants({ ids: list.slice(start, start + limit), fields: [...fields] })
+    if (ids.size) {
+      const result = await ctx.game.getCombatants({ ids: [...ids], fields: [...fields] })
       if (
         !identities ||
         `${result.meta.sessionId}:${result.meta.characterGeneration}:${result.meta.clockGeneration}` !==
@@ -1191,10 +1189,7 @@ export async function activate(ctx: PluginContext) {
                 continue
               const characters = sample.value.entities.filter(isCharacterEntity)
               const present = new Set(characters.map((actor) => actor.id))
-              const missing =
-                sample.value.entities.length < ctx.limits.values['game.entities']
-                  ? [...entityIds].filter((id) => !present.has(id))
-                  : []
+              const missing = [...entityIds].filter((id) => !present.has(id))
               identities.update(characters, missing, members, allPlayers())
               entityIds = present
               encounters.updateActors(identities.actors, identities.revision)
