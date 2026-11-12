@@ -20,18 +20,21 @@ test('packs and verifies every official plugin with one temporary signer', async
     execFileSync(process.execPath, [path.join(root, 'scripts/pack-official.mjs'), key, fingerprint], { stdio: 'pipe' })
     const packages = (await readdir(output)).filter((file) => file.endsWith('.mojito'))
     assert.equal(packages.length, 7)
-    assert(packages.includes('Cafe.Matcha-4.0.0-mojito.7.mojito'))
-    assert(packages.includes('MojitoSkillDisplay-0.1.0.mojito'))
+    const matcha = JSON.parse(await readFile(path.join(root, 'packages/matcha/plugin.json'), 'utf8'))
+    const expectedDisplay = JSON.parse(
+      await readFile(path.join(root, 'packages/plugin-skill-display/plugin.json'), 'utf8'),
+    )
+    const displayFile = `${expectedDisplay.id}-${expectedDisplay.version}.mojito`
+    assert(packages.includes(`${matcha.id}-${matcha.version}.mojito`))
+    assert(packages.includes(displayFile))
     const display = JSON.parse(
       execFileSync(
         path.join(root, `target/release/mojito-package${process.platform === 'win32' ? '.exe' : ''}`),
-        ['read', path.join(output, 'MojitoSkillDisplay-0.1.0.mojito'), 'plugin.json'],
+        ['read', path.join(output, displayFile), 'plugin.json'],
         { encoding: 'utf8' },
       ),
     )
-    assert.equal(display.id, 'MojitoSkillDisplay')
-    assert.deepEqual(display.capabilities.required, ['session.read', 'events.read', 'data.read', 'ui.register'])
-    assert.deepEqual(display.networkOrigins, [])
+    assert.deepEqual(display, expectedDisplay)
     const sums = await readFile(path.join(output, 'SHA256SUMS'), 'utf8')
     for (const file of packages) {
       const digest = createHash('sha256')
