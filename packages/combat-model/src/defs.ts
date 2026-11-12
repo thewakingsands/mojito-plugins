@@ -171,7 +171,11 @@ export interface PeriodicDefs {
    * status the caster has as well, as Devilment, is a raid buff on the others: its source tells them apart.
    */
   raidBuffStatuses: ReadonlySet<number>
-  /** Action ID → how long its effect lasts in seconds, for the actions that are raid buffs */
+  /**
+   * Action ID → how long its effect lasts in seconds, for the actions that are raid buffs. Those whose effect is up
+   * through the whole rotation, as Standard Finish and the songs of the Bard, are not marked, so that the lane shows
+   * how the others overlap.
+   */
   raidBuffActions: ReadonlyMap<number, number>
   /** Action ID → how long its effect lasts in seconds, for the actions that lower the damage the party takes */
   partyMitigations: ReadonlyMap<number, number>
@@ -735,9 +739,10 @@ function readActionMark(entry: Reader, keys: Set<string>): ActionMark | null {
  * ascending ID with their category and attack type, and their calibration, forced result and sample potencies when
  * they have them; the entries leave out the job, which the classJob of the file gives. A status that is a raid buff has
  * raidBuff: true; an action that is a raid buff or a party mitigation has raidBuff: true or partyMitigation: true, and
- * the duration of its effect in seconds. A status or an action several classes and jobs have, as those of the role
- * actions, is in the file of each: the status the same in every file, the action with the same category, attack type,
- * forced result and mark. The calibrations and the sample potencies are those of the job of the file. The errors of
+ * the duration of its effect in seconds; an action whose effect is up through the whole rotation, as Standard Finish
+ * and the songs of the Bard, has no raidBuff, though the status it gives has. A status or an action several classes
+ * and jobs have, as those of the role actions, is in the file of each: the status the same in every file, the action
+ * with the same category, attack type, forced result and mark. The calibrations and the sample potencies are those of the job of the file. The errors of
  * parsePeriodicDefs in a merged entry give its path in its file. common is the file of the statuses no class or job
  * applies, as those of a duty or its area: an object with only statuses, each in no other file, none periodic.
  * @throws PeriodicDefsError

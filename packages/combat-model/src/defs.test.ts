@@ -1154,8 +1154,10 @@ describe('periodicDefs', () => {
 
   it('has the durations of the raid buffs', () => {
     const { raidBuffActions } = periodicDefs
-    const durations = [16552, 37026, 2248, 16011, 16196, 114, 16003].map((id) => raidBuffActions.get(id))
-    expect(durations).toEqual([20, 15, 20, 20, 20, 45, 60])
+    const durations = [16552, 37026, 2248, 16011, 16196].map((id) => raidBuffActions.get(id))
+    expect(durations).toEqual([20, 15, 20, 20, 20])
+    // Standard Finish and the songs of the Bard are up through the whole rotation, so the lane would never be empty
+    for (const id of [16003, 16191, 16192, 114, 116, 3559]) expect(raidBuffActions.has(id)).toBe(false)
     // Buffs of the caster or of one member, and Trick Attack, which 技能威力表 does not mark as 团辅
     for (const id of [20, 7395, 2258, 37024]) expect(raidBuffActions.has(id)).toBe(false)
   })
@@ -1171,6 +1173,8 @@ describe('periodicDefs', () => {
 
   it('marks the statuses raid buffs give the party or the target', () => {
     for (const id of [1878, 3889, 638, 1825, 2105, 1297]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(true)
+    // Standard Finish and the songs are left out of the lane only, and still count as raid buffs for the damage
+    for (const id of [2105, 2216, 2217, 2218]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(true)
     // Those the caster alone has, and the vulnerability of Trick Attack
     for (const id of [76, 3254, 1821, 1239, 1298]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(false)
   })
