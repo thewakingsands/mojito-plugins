@@ -94,6 +94,11 @@ export const localDate = (ms: number) => {
   const date = new Date(ms)
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
+/** Moves a YYYY-MM-DD date by whole days on the local calendar. */
+export const shiftDate = (date: string, days: number) => {
+  const [year, month, day] = date.split('-').map(Number)
+  return localDate(new Date(year, month - 1, day + days).getTime())
+}
 export const localTime = (ms: number) => {
   const date = new Date(ms)
   const offset = -date.getTimezoneOffset()

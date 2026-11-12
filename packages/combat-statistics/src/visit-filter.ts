@@ -1,8 +1,12 @@
 import type { Value } from '@ffcafe/mojito-plugin-sdk'
-import type { VisitEntry } from './log/types.js'
+import { localDate, shiftDate } from './log/schema.js'
+import type { DateRange, VisitEntry } from './log/types.js'
 
-/** The conditions the visit list is filtered by; an empty one does not filter. */
-export interface VisitQuery {
+/**
+ * The conditions the visit list is filtered by; an empty one does not filter. A visit's date is the local date it was
+ * entered on, so one that runs past midnight stays on its first day.
+ */
+export interface VisitQuery extends DateRange {
   /** Jobs by ClassJob ID */
   jobs: number[]
   /**
@@ -13,7 +17,7 @@ export interface VisitQuery {
   duty: string
   character: string
 }
-export const DEFAULT_QUERY: VisitQuery = { jobs: [], selfOnly: true, duty: '', character: '' }
+export const DEFAULT_QUERY: VisitQuery = { jobs: [], selfOnly: true, duty: '', character: '', from: null, to: null }
 
 export const JOB_GROUPS: { label: string; jobs: { id: number; name: string }[] }[] = [
   {
@@ -91,11 +95,15 @@ const contains = (text: string | null, part: string) => !!text?.toLowerCase().in
  * the user only when the visit did not record one.
  */
 export function matchVisit(
-  entry: Pick<VisitEntry, 'zoneName' | 'members' | 'self'>,
+  entry: Pick<VisitEntry, 'zoneName' | 'members' | 'self' | 'enteredAt'>,
   displayName: string | null,
   query: VisitQuery,
   currentActorId: number | null,
 ): boolean {
+  if (query.from !== null || query.to !== null) {
+    const date = localDate(entry.enteredAt)
+    if ((query.from !== null && date < query.from) || (query.to !== null && date > query.to)) return false
+  }
   if (query.jobs.length) {
     if (query.selfOnly) {
       const selfActorId = entry.self ?? currentActorId
@@ -115,23 +123,37 @@ export function matchVisit(
 
 /** Whether the list shows search results; "self only" alone filters nothing. */
 export const filtering = (query: VisitQuery) =>
-  query.jobs.length > 0 || query.duty.trim() !== '' || query.character.trim() !== ''
+  query.jobs.length > 0 ||
+  query.duty.trim() !== '' ||
+  query.character.trim() !== '' ||
+  query.from !== null ||
+  query.to !== null
+
+/** A real YYYY-MM-DD date; shifting by zero days rolls an overflowing one such as 2026-02-30 into the next month. */
+const isDate = (value: Value): value is string =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && shiftDate(value, 0) === value
+const isDateOrNull = (value: Value) => value === null || isDate(value)
 
 export function parseQuery(value: Value): VisitQuery | null {
   if (!value || typeof value !== 'object' || Array.isArray(value) || value instanceof Uint8Array) return null
-  const { jobs, selfOnly, duty, character } = value as Record<string, Value>
+  const { jobs, selfOnly, duty, character, from, to } = value as Record<string, Value>
   if (
     !Array.isArray(jobs) ||
     jobs.some((job) => typeof job !== 'number') ||
     typeof selfOnly !== 'boolean' ||
     typeof duty !== 'string' ||
-    typeof character !== 'string'
+    typeof character !== 'string' ||
+    !isDateOrNull(from) ||
+    !isDateOrNull(to)
   )
     return null
+  const swapped = from !== null && to !== null && from > to
   return {
     jobs: [...new Set(jobs as number[])].filter((job) => JOBS.has(job)),
     selfOnly,
     duty: duty.trim(),
     character: character.trim(),
+    from: (swapped ? to : from) as string | null,
+    to: (swapped ? from : to) as string | null,
   }
 }

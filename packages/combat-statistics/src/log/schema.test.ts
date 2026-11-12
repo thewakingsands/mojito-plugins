@@ -12,6 +12,7 @@ import {
   noteRow,
   type Row,
   rowsFor,
+  shiftDate,
   visitEndNote,
   visitId,
   visitStartNote,
@@ -493,5 +494,10 @@ describe('rows', () => {
     expect(localTime(ms)).toBe(`2026-10-26 20:05:12.345 ${sign}${hh}:${mm}`)
     expect(localDate(ms)).toBe('2026-10-26')
     expect(visitId(ms, 1263)).toBe('20261026-200512-1263')
+  })
+  it('shifts local dates across months, years and leap days', () => {
+    expect(shiftDate('2026-10-31', 1)).toBe('2026-11-01')
+    expect(shiftDate('2026-01-01', -1)).toBe('2025-12-31')
+    expect(shiftDate('2028-02-28', 1)).toBe('2028-02-29')
   })
 })

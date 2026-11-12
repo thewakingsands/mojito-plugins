@@ -491,7 +491,7 @@ export async function activate(ctx: PluginContext) {
         if (run !== fillRun) return
         reading = true
         await publishVisits()
-        const more = await log.readOlder()
+        const more = await log.readOlder({ from: query.from, to: query.to })
         if (run !== fillRun) return
         await publishVisits()
         if (!more) break

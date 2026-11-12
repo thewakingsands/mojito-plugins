@@ -133,6 +133,15 @@ body {
   align-items: center;
   gap: 8px;
 }
+.visit-filter-dates span {
+  flex: none;
+  font-size: var(--mojito-text-xs);
+  color: var(--mojito-fg-secondary);
+}
+.visit-filter-dates input {
+  flex: 1;
+  min-width: 0;
+}
 .visit-filter-self {
   display: flex;
   flex: none;

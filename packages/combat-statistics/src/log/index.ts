@@ -2,7 +2,7 @@ import type { Limits, LogService, StorageService } from '@ffcafe/mojito-plugin-s
 import { GAME_CACHE_BYTES } from '../game-cache.js'
 import { Recorder, type RecorderOptions } from './recorder.js'
 import { LogStore } from './store.js'
-import { LogIntegrityError, type LogRecord, type VisitEntry } from './types.js'
+import { type DateRange, LogIntegrityError, type LogRecord, type VisitEntry } from './types.js'
 
 export { PAGE_SIZE } from './store.js'
 export type { LogRecord, VisitEntry } from './types.js'
@@ -25,9 +25,9 @@ export class CombatLog {
     await this.store.open()
     this.recorder.reserve(this.store.index.entries.keys())
   }
-  /** Reads the next older file `open` left unread; returns whether more are left. */
-  async readOlder() {
-    const more = await this.store.readOlder()
+  /** Reads the next older file `open` left unread, within the range if given; returns whether more such are left. */
+  async readOlder(range?: DateRange) {
+    const more = await this.store.readOlder(range)
     this.recorder.reserve(this.store.index.entries.keys())
     return more
   }

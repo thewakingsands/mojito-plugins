@@ -9,11 +9,12 @@ const member = (actorId: number, job: number | null, name: string | null = `角�
   job,
   jobName: null,
 })
-const visit = (members: Member[], zoneName: string | null = '某地', self: number | null = null) => ({
-  zoneName,
-  members,
-  self,
-})
+const visit = (
+  members: Member[],
+  zoneName: string | null = '某地',
+  self: number | null = null,
+  enteredAt = new Date(2026, 9, 21, 20).getTime(),
+) => ({ zoneName, members, self, enteredAt })
 const query = (patch: Partial<VisitQuery>): VisitQuery => ({ ...DEFAULT_QUERY, ...patch })
 
 describe('jobsOf', () => {
@@ -80,6 +81,23 @@ describe('matchVisit', () => {
     expect(matchVisit(named, null, query({ jobs: [19], duty: '天穹', character: 'carol' }), 1)).toBe(false)
     expect(matchVisit(named, null, query({ jobs: [24], duty: '天穹', character: 'bob' }), 1)).toBe(false)
   })
+  it('matches the date range with both ends included', () => {
+    const party = visit([member(1, 19, 'Alice')])
+    expect(matchVisit(party, null, query({ from: '2026-10-21' }), 1)).toBe(true)
+    expect(matchVisit(party, null, query({ from: '2026-10-22' }), 1)).toBe(false)
+    expect(matchVisit(party, null, query({ to: '2026-10-21' }), 1)).toBe(true)
+    expect(matchVisit(party, null, query({ to: '2026-10-20' }), 1)).toBe(false)
+    expect(matchVisit(party, null, query({ from: '2026-10-21', to: '2026-10-21' }), 1)).toBe(true)
+  })
+  it('dates a visit by the local day it was entered on', () => {
+    const late = visit([member(1, 19)], '某地', null, new Date(2026, 9, 21, 23, 59).getTime())
+    expect(matchVisit(late, null, query({ to: '2026-10-21' }), 1)).toBe(true)
+    expect(matchVisit(late, null, query({ from: '2026-10-22' }), 1)).toBe(false)
+  })
+  it('needs the other conditions along with the date', () => {
+    const named = visit([member(1, 19, 'Alice')])
+    expect(matchVisit(named, null, query({ from: '2026-10-21', character: 'bob' }), 1)).toBe(false)
+  })
 })
 
 it('filtering ignores self only', () => {
@@ -88,16 +106,28 @@ it('filtering ignores self only', () => {
   expect(filtering(query({ jobs: [19] }))).toBe(true)
   expect(filtering(query({ duty: 'a' }))).toBe(true)
   expect(filtering(query({ character: 'a' }))).toBe(true)
+  expect(filtering(query({ from: '2026-10-21' }))).toBe(true)
+  expect(filtering(query({ to: '2026-10-21' }))).toBe(true)
 })
 
 describe('parseQuery', () => {
   it('keeps known jobs and trims the text', () => {
-    expect(parseQuery({ jobs: [19, 1, 999, 19], selfOnly: false, duty: ' a ', character: 'b ' })).toEqual({
-      jobs: [19],
-      selfOnly: false,
-      duty: 'a',
-      character: 'b',
-    })
+    expect(
+      parseQuery({ jobs: [19, 1, 999, 19], selfOnly: false, duty: ' a ', character: 'b ', from: null, to: null }),
+    ).toEqual({ jobs: [19], selfOnly: false, duty: 'a', character: 'b', from: null, to: null })
+  })
+  it('accepts real dates and swaps a reversed range', () => {
+    expect(parseQuery({ ...DEFAULT_QUERY })).toEqual(DEFAULT_QUERY)
+    expect(parseQuery({ ...DEFAULT_QUERY, from: '2026-10-07', to: '2026-10-01' })).toEqual(
+      query({ from: '2026-10-01', to: '2026-10-07' }),
+    )
+  })
+  it('refuses malformed and nonexistent dates', () => {
+    expect(parseQuery({ ...DEFAULT_QUERY, from: '2026-2-1' })).toBeNull()
+    expect(parseQuery({ ...DEFAULT_QUERY, from: '2026-02-30' })).toBeNull()
+    expect(parseQuery({ ...DEFAULT_QUERY, from: 20261021 })).toBeNull()
+    const { from: _, ...missing } = DEFAULT_QUERY
+    expect(parseQuery(missing)).toBeNull()
   })
   it('refuses fields of the wrong type', () => {
     expect(parseQuery(null)).toBeNull()

@@ -1146,6 +1146,34 @@ it('reads older log files for a search until the page is full, and tells the pag
   expect(state()).toMatchObject({ hasNext: false, reading: false })
   await h.dispose()
 }, 60_000)
+it('reads only the log files within the dates of a search', async () => {
+  const files = await storedLog()
+  const h = await setup(false, false, [], 'unavailable', files)
+  const state = () => h.snapshots.get('visits') as unknown as VisitsState
+  const until = async (done: () => boolean) => {
+    for (let i = 0; i < 100 && !done(); i++) await vi.advanceTimersByTimeAsync(10)
+    expect(done()).toBe(true)
+  }
+  const search = (from: string, to: string) =>
+    h.commands.get('statistics')!({ kind: 'visits', query: { ...DEFAULT_QUERY, from, to }, page: 0 })
+  await until(() => state().hasNext && !state().reading)
+  await search('2026-10-21', '2026-10-21')
+  await until(() => !state().reading)
+  expect(state().visits).toHaveLength(100)
+  expect(state().hasNext).toBe(false)
+  expect(state().query).toMatchObject({ from: '2026-10-21', to: '2026-10-21' })
+  expect(h.reads).not.toContain('log/2026-10-19.parquet')
+  await search('2026-10-19', '2026-10-19')
+  await until(() => !state().reading && state().visits.length > 0)
+  expect(state().visits.map((visit) => visit.territoryType)).toEqual([900])
+  expect(h.reads).toContain('log/2026-10-19.parquet')
+  await search('2026-10-20', '2026-10-19')
+  await until(() => !state().reading && state().visits.length === 2)
+  expect(state().query).toMatchObject({ from: '2026-10-19', to: '2026-10-20' })
+  expect(state().visits.map((visit) => visit.territoryType)).toEqual([901, 900])
+  await expect(search('2026-02-30', '2026-10-20')).rejects.toThrow('无效命令')
+  await h.dispose()
+}, 60_000)
 it('publishes several batches of events within the interval once, with all of their statistics', async () => {
   const h = await setup()
   await h.events([sample(effect(1), 1000)])

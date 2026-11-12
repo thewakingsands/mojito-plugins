@@ -5,11 +5,25 @@ import { JobIcon } from './icons.js'
 
 const JOB_NAMES = new Map(JOB_GROUPS.flatMap((group) => group.jobs.map((job) => [job.id, job.name] as const)))
 
-/** The conditions in effect, shown beside the title while the panel is closed. */
-export function querySummary(query: VisitQuery) {
+/**
+ * The conditions in effect, shown beside the title while the panel is closed. Dates drop the year when all of them are
+ * in `year`, so that a full range fits the side bar.
+ */
+export function querySummary(query: VisitQuery, year = new Date().getFullYear()) {
   const parts: string[] = []
   if (query.duty) parts.push(`副本：${query.duty}`)
   if (query.character) parts.push(`角色：${query.character}`)
+  const dates = [query.from, query.to].filter((date) => date !== null)
+  if (dates.length) {
+    const prefix = `${year}-`
+    const short = dates.every((date) => date.startsWith(prefix))
+    const show = (date: string) => (short ? date.slice(prefix.length) : date)
+    const { from, to } = query
+    if (from !== null && to !== null)
+      parts.push(from === to ? `日期：${show(from)}` : `日期：${show(from)} 至 ${show(to)}`)
+    else if (from !== null) parts.push(`日期：${show(from)} 起`)
+    else if (to !== null) parts.push(`日期：至 ${show(to)}`)
+  }
   if (query.jobs.length) {
     const names = query.jobs.map((job) => JOB_NAMES.get(job) ?? String(job))
     parts.push(query.selfOnly ? `自己：${names.join('/')}` : `队伍：${names.join('+')}`)
@@ -54,12 +68,17 @@ export function VisitFilter({ query }: { query: VisitQuery }) {
       ...current,
       jobs: current.jobs.includes(id) ? current.jobs.filter((job) => job !== id) : [...current.jobs, id],
     }))
+  const summary = querySummary(query)
   return (
     <section className="visit-filter">
       <button type="button" className="visit-filter-head" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="mojito-chevron" aria-hidden="true" />
         <span>筛选和搜索</span>
-        {!open && <span className="visit-filter-summary ellipsis">{querySummary(query)}</span>}
+        {!open && (
+          <span className="visit-filter-summary ellipsis" title={summary}>
+            {summary}
+          </span>
+        )}
       </button>
       {open && (
         <div className="visit-filter-body">
@@ -79,6 +98,26 @@ export function VisitFilter({ query }: { query: VisitQuery }) {
             onChange={(event) => setDraft({ ...draft, character: event.target.value })}
             onKeyDown={onEnter}
           />
+          <div className="visit-filter-row visit-filter-dates">
+            <span>从</span>
+            <input
+              type="date"
+              aria-label="开始日期"
+              value={draft.from ?? ''}
+              onChange={(event) => setDraft({ ...draft, from: event.target.value || null })}
+              onKeyDown={onEnter}
+            />
+          </div>
+          <div className="visit-filter-row visit-filter-dates">
+            <span>到</span>
+            <input
+              type="date"
+              aria-label="结束日期"
+              value={draft.to ?? ''}
+              onChange={(event) => setDraft({ ...draft, to: event.target.value || null })}
+              onKeyDown={onEnter}
+            />
+          </div>
           <div className="visit-filter-row">
             <div className="job-picker" ref={picker}>
               <button

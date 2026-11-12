@@ -12,8 +12,8 @@ import {
   parseFile,
 } from './parquet.js'
 import type { RecorderSink } from './recorder.js'
-import { Assembler, COLUMN_NAMES, COLUMNS, localDate, type Note, parseNote, type Row } from './schema.js'
-import { LogIntegrityError, type LogRecord, type VisitEntry } from './types.js'
+import { Assembler, COLUMN_NAMES, COLUMNS, localDate, type Note, parseNote, type Row, shiftDate } from './schema.js'
+import { type DateRange, LogIntegrityError, type LogRecord, type VisitEntry } from './types.js'
 
 const DIRECTORY = 'log'
 const ROW_GROUPS_KEY = 'mojito.rowGroups'
@@ -241,10 +241,12 @@ export class LogStore implements RecorderSink {
   }
   /**
    * Reads the newest file `open` left unread into the visit list; the file then counts against the budget like the
-   * others. Returns whether older files are left.
+   * others. With a range, only files named within it count, so files outside stay unread for a later wider read. A file
+   * is named by the local date it was written on, which can differ by a day from the local date the visit is matched by
+   * once the time zone changes, so the range widens by a day at each end. Returns whether such files are left.
    */
-  async readOlder(): Promise<boolean> {
-    const name = [...this.unread].sort(compareNames).at(-1)
+  async readOlder(range?: DateRange): Promise<boolean> {
+    const name = this.olderCandidates(range).at(-1)
     if (name === undefined) return false
     const clears = this.clears
     let bytes: Uint8Array
@@ -253,7 +255,7 @@ export class LogStore implements RecorderSink {
     } catch (error) {
       this.log?.warn('日志文件无法读取', { file: name, error: String(error) })
       this.unread.delete(name)
-      return this.unread.size > 0
+      return this.olderCandidates(range).length > 0
     }
     let decoded: Awaited<ReturnType<LogStore['decode']>>
     try {
@@ -263,14 +265,24 @@ export class LogStore implements RecorderSink {
         this.skipped.set(name, bytes.length)
         this.log?.warn('跳过无法识别的日志文件', { file: name, error: String(error) })
       }
-      return this.unread.size > 0
+      return this.olderCandidates(range).length > 0
     }
     // No await from here on: eviction or a clear could otherwise remove the file between the check and the index.
-    if (clears !== this.clears || !this.unread.delete(name)) return this.unread.size > 0
+    if (clears !== this.clears || !this.unread.delete(name)) return this.olderCandidates(range).length > 0
     this.known.set(name, { size: bytes.length, visits: new Set(decoded.groupVisits) })
     for (const note of decoded.notes) this.index.note(...note)
     this.index.settle()
-    return this.unread.size > 0
+    return this.olderCandidates(range).length > 0
+  }
+  private olderCandidates(range?: DateRange): string[] {
+    const last = range?.to == null ? null : shiftDate(range.to, 1)
+    const first = range?.from == null ? null : shiftDate(range.from, -1)
+    return [...this.unread]
+      .filter((name) => {
+        const { date } = fileName(name)!
+        return (last === null || date <= last) && (first === null || date >= first)
+      })
+      .sort(compareNames)
   }
   /** The notes of a file in written order; throws `ParquetFormatError` for a file that is not a log file. */
   private async decode(name: string, bytes: Uint8Array) {

@@ -68,6 +68,11 @@ export interface FightEntry {
   /** The fightEnd note carries a hash; false without fightEnd or when truncated. */
   hashed: boolean
 }
+/** Local dates as YYYY-MM-DD, both included; null leaves that end open. */
+export interface DateRange {
+  from: string | null
+  to: string | null
+}
 export interface VisitEntry {
   id: string
   territoryType: number

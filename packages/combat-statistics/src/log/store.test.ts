@@ -430,6 +430,46 @@ describe('log store opening a long log', () => {
     ])
     expect(visitDays(h)).toEqual([20, 21, 22, 23])
   })
+  it('reads only the unread files within a date range, a day wider at each end', async () => {
+    const memory = await history([17, 18, 19, 20, 21, 22, 23])
+    const h = reopen(memory)
+    await h.store.open(1)
+    const range = { from: '2026-10-19', to: '2026-10-20' }
+    expect(await h.store.readOlder(range)).toBe(true)
+    expect(await h.store.readOlder(range)).toBe(true)
+    expect(await h.store.readOlder(range)).toBe(true)
+    expect(await h.store.readOlder(range)).toBe(false)
+    expect(await h.store.readOlder(range)).toBe(false)
+    expect(h.reads).toEqual([
+      'log/2026-10-23.parquet',
+      'log/2026-10-21.parquet',
+      'log/2026-10-20.parquet',
+      'log/2026-10-19.parquet',
+      'log/2026-10-18.parquet',
+    ])
+  })
+  it('reads from the newest file a day past an end date', async () => {
+    const h = reopen(await history([17, 18, 19, 20, 21, 22, 23]))
+    await h.store.open(1)
+    expect(await h.store.readOlder({ from: null, to: '2026-10-18' })).toBe(true)
+    expect(h.reads.at(-1)).toBe('log/2026-10-19.parquet')
+  })
+  it('stops a day before a start date', async () => {
+    const h = reopen(await history([17, 18, 19, 20, 21, 22, 23]))
+    await h.store.open(1)
+    expect(await h.store.readOlder({ from: '2026-10-22', to: null })).toBe(true)
+    expect(await h.store.readOlder({ from: '2026-10-22', to: null })).toBe(false)
+    expect(h.reads).toEqual(['log/2026-10-23.parquet', 'log/2026-10-22.parquet', 'log/2026-10-21.parquet'])
+  })
+  it('leaves the files outside a range for a later read without one', async () => {
+    const h = reopen(await history([17, 18, 19, 20, 21, 22, 23]))
+    await h.store.open(1)
+    const range = { from: '2026-10-19', to: '2026-10-20' }
+    while (await h.store.readOlder(range));
+    while (await h.store.readOlder());
+    expect(h.reads.slice(-2)).toEqual(['log/2026-10-22.parquet', 'log/2026-10-17.parquet'])
+    expect(visitDays(h)).toEqual([17, 18, 19, 20, 21, 22, 23])
+  })
   it('lists a visit that spans files once the older file with its start is read', async () => {
     const memory = await history([20])
     const writer = setup(88 * KiB, undefined, memory)
