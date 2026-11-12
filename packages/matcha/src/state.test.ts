@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { emptyCatalog } from './client-data.js'
 import { Notices } from './notifications.js'
 import { OverlayStorage } from './overlay-storage.js'
 import { defaultSettings, settingsFrom } from './settings.js'
@@ -57,7 +58,9 @@ describe('settings and outbound events', () => {
     ).toThrow()
   })
   it('only notifies watched FATEs once per occurrence and resets on zone change', () => {
-    const notices = new Notices()
+    const catalog = emptyCatalog()
+    catalog.fates[480] = { name: { chs: '测试危命' }, level: 50, patch: 2, location: 1 }
+    const notices = new Notices(() => catalog)
     const settings = settingsFrom({ watch: { fates: [480] } })
     expect(notices.message('Fate', { fate: 480, type: 'start' }, 10000, settings)).toBeTruthy()
     expect(notices.message('Fate', { fate: 480, type: 'progress', progress: 30 }, 11000, settings)).toBeNull()

@@ -203,3 +203,16 @@ it('replaces the settings on import and can undo it', async () => {
   expect(button('settings-undo').hidden).toBe(true)
   click.mockRestore()
 })
+
+it('allows offline settings while reporting unavailable client tables', async () => {
+  const original = bridge.command.getMockImplementation()!
+  bridge.command.mockImplementation(async (...args) => {
+    const result = await original(...args)
+    if (args[1].action === 'catalog')
+      return { ...result, fates: {}, templates: [], patches: {}, territories: {}, dataError: '客户端游戏资料暂不可用' }
+    return result
+  })
+  await load()
+  expect(document.getElementById('message')?.textContent).toContain('客户端游戏资料暂不可用')
+  expect((document.getElementById('controls') as HTMLFieldSetElement).disabled).toBe(false)
+})

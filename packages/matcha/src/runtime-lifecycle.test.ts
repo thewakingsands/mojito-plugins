@@ -15,8 +15,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { activate } from './runtime.js'
 import { defaultSettings } from './settings.js'
 
+const { loadClientData } = vi.hoisted(() => ({ loadClientData: vi.fn() }))
+vi.mock('./client-data.js', async (original) => {
+  const actual = await original<typeof import('./client-data.js')>()
+  return {
+    ...actual,
+    ClientGameData: class {
+      load = loadClientData
+    },
+  }
+})
 const disposers: (() => void | Promise<void>)[] = []
-beforeEach(() => vi.useFakeTimers())
+beforeEach(async () => {
+  vi.useFakeTimers()
+  const { emptyCatalog } = await import('./client-data.js')
+  loadClientData.mockImplementation(async () => {
+    const result = emptyCatalog()
+    result.notebook = { fish: { 0: 0, 1: 4776 }, spearfish: { 20000: 0, 20001: 20145 } }
+    return result
+  })
+})
 afterEach(async () => {
   for (const dispose of disposers.splice(0).reverse()) await dispose()
   vi.useRealTimers()
@@ -104,7 +122,7 @@ function fixture(
 ) {
   let current = options.initial ?? source()
   let now = 100000
-  let grants = ['session.read', 'packets.read', 'ui.register', 'http.request', 'audio.play']
+  let grants = ['session.read', 'packets.read', 'ui.register', 'http.request', 'audio.play', 'data.read']
   const capabilityOverrides: Record<string, Capability> = {}
   let sessionListener!: BatchListener<SessionSnapshot>
   let command!: (value: Value, view: ViewIdentity) => Value | Promise<Value>
@@ -193,6 +211,7 @@ function fixture(
       })),
     },
     data: {
+      version: vi.fn(async () => 'test-client'),
       rows: vi.fn(async () => []),
       map: vi.fn(async () => 'mojito-plugin://runtime/map'),
       image: vi.fn(async () => 'mojito-plugin://runtime/icon'),
@@ -548,6 +567,7 @@ it('returns client map and icon URLs through the image API without HTTP', async 
 
 it('requires local data permission for item commands and rejects invalid item IDs', async () => {
   const f = fixture()
+  f.setGrants(['session.read', 'packets.read', 'ui.register'])
   await start(f)
   await expect(f.command({ action: 'item.get', ids: [42] })).rejects.toThrow('permission_denied')
   expect(f.context.data.rows).not.toHaveBeenCalled()
@@ -556,4 +576,48 @@ it('requires local data permission for item commands and rejects invalid item ID
   expect(await f.command({ action: 'item.get', ids: [42] })).toEqual([])
   expect(f.context.data.rows).toHaveBeenCalledWith('Item', [42], 'chs', expect.anything())
   expect(f.context.http.request).not.toHaveBeenCalled()
+})
+
+it('reloads client catalogs when the game data version or language changes', async () => {
+  const f = fixture()
+  await start(f)
+  expect(loadClientData).toHaveBeenCalledTimes(1)
+  await f.command({ action: 'catalog' })
+  expect(loadClientData).toHaveBeenCalledTimes(1)
+  vi.mocked(f.context.data.version).mockResolvedValue('new-client')
+  await f.advance(1000)
+  expect(loadClientData).toHaveBeenCalledTimes(2)
+  await f.session({ ...f.current, dataLanguage: 'en' })
+  await f.command({ action: 'data.catalog' })
+  expect(loadClientData).toHaveBeenLastCalledWith('en', expect.any(AbortSignal))
+})
+it('discards client catalogs that finish after a source change', async () => {
+  const f = fixture()
+  await start(f)
+  const { emptyCatalog } = await import('./client-data.js')
+  const gate = deferred<ReturnType<typeof emptyCatalog>>()
+  loadClientData.mockImplementationOnce(() => gate.promise)
+  vi.mocked(f.context.data.version).mockResolvedValue('new-client')
+  const loading = f.command({ action: 'data.catalog' })
+  const rejected = expect(loading).rejects.toThrow('stale_session')
+  await flush()
+  await f.session({ ...f.current, dataLanguage: 'en' })
+  const old = emptyCatalog()
+  old.fates[999] = { name: { chs: 'old' }, level: 1, patch: 2, location: 148 }
+  gate.resolve(old)
+  await rejected
+  const current = await f.command({ action: 'catalog' })
+  expect(current).not.toHaveProperty('fates.999')
+})
+
+it('keeps settings available when client data is unavailable and does not return stale tables', async () => {
+  const f = fixture()
+  loadClientData.mockRejectedValue(new Error('unavailable'))
+  await start(f)
+  await expect(f.command({ action: 'catalog' })).resolves.toMatchObject({
+    fates: {},
+    templates: [],
+    dataError: '客户端游戏资料暂不可用',
+  })
+  await expect(f.command({ action: 'settings.get' }, view('feature', 'settings'))).resolves.toBeDefined()
 })

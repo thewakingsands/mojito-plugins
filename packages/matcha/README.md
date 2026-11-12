@@ -15,8 +15,8 @@ pnpm --filter @ffcafe/mojito-matcha... build
 构建结果位于 `packages/matcha/dist`。用现有 Rust CLI 和自己的 Ed25519 私钥 JWK 签名：
 
 ```sh
-mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.8.mojito lzma2
-mojito-package verify Matcha-4.0.0-mojito.8.mojito
+mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.9.mojito lzma2
+mojito-package verify Matcha-4.0.0-mojito.9.mojito
 ```
 
 在 Mojito 的插件页安装生成的 `.mojito` 包，按需授予敏感权限，然后启用。启动后提供 **Matcha** 悬浮窗，以及“设置 › 插件设置”里的 **Matcha 设置**页。主窗口里没有 Matcha 的功能页，全部功能都在悬浮窗里。
@@ -41,7 +41,9 @@ mojito-package verify Matcha-4.0.0-mojito.8.mojito
 
 在 Mojito 内加载时自动使用 SDK bridge。可以用 `?source=mojito` 显式选择；此模式需要真正的 Mojito bridge。ACT 与 Mojito 模式分别使用各自的配置存储，不会共享两个宿主的个人数据。
 
-Mojito 模式通过宿主本地数据接口读取物品、地图及图标，不回退到 XIVAPI。社区服务仍通过宿主 HTTP 代理，并遵守权限和 CSP。
+Mojito 模式通过宿主本地数据接口读取物品、地图、图标、FATE、副本、世界、钓鱼和潜水艇数据。宝图坐标由游戏的藏宝点与地图表换算，FATE 和临界遭遇通过客户端场景资源关联区域；预设从 RelicNote 读取。客户端版本或数据语言变化后重新加载，读取失败时显示不可用，不回退到静态游戏表或 XIVAPI。ACT 模式单独加载原有数据，Mojito 构建不包含这批静态表。
+
+潜水艇的探索解锁前置关系属于人工规则，仍随插件提供；名称、属性、经验和坐标均取自当前客户端。首次读取会按批扫描游戏表，仅保留 Matcha 使用的字段。社区服务仍通过宿主 HTTP 代理，并遵守权限和 CSP。
 
 ## 权限和联网
 

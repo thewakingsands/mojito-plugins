@@ -1,7 +1,6 @@
 // Ported from Cafe.Matcha (AGPL-3.0), InitialDataStore and PlayerSetupHandler.
 import type { Json } from '@ffcafe/mojito-plugin-sdk'
 import type { MatchaEmitter, MatchaPacket } from '../protocol.js'
-import notebook from './fishing-notebook.json'
 
 export interface NotebookMapping {
   fish: Record<string, number>
@@ -33,12 +32,18 @@ function validMapping(value: NotebookMapping | null): value is NotebookMapping {
 
 export class InitialDataStore {
   private current: InitialDataSnapshot | null = null
+  private packet: MatchaPacket | null = null
   private generation = 0
   private active = true
-  private readonly mapping: NotebookMapping | null
+  private readonly mapping: () => NotebookMapping | null
   private readonly emit?: MatchaEmitter
-  constructor(options: { mapping?: NotebookMapping | null; emit?: MatchaEmitter } = {}) {
-    this.mapping = options.mapping === undefined ? notebook : options.mapping
+  constructor(
+    options: { mapping?: NotebookMapping | null | (() => NotebookMapping | null); emit?: MatchaEmitter } = {},
+  ) {
+    this.mapping =
+      typeof options.mapping === 'function'
+        ? options.mapping
+        : () => (options.mapping as NotebookMapping | null) ?? null
     this.emit = options.emit
   }
   get snapshot(): InitialDataSnapshot | null {
@@ -52,13 +57,18 @@ export class InitialDataStore {
     this.generation++
     this.active = true
     this.current = null
+    this.packet = null
     this.publish()
   }
   dispose(): void {
     this.generation++
     this.active = false
     this.current = null
+    this.packet = null
     this.publish()
+  }
+  reloadMapping(): void {
+    if (this.packet) this.handle(this.packet)
   }
   handle(packet: MatchaPacket, generation = this.generation): boolean {
     if (
@@ -70,6 +80,7 @@ export class InitialDataStore {
     )
       return false
     if (this.current && packet.timestamp < this.current.receivedAt) return false
+    this.packet = { ...packet, data: packet.data.slice() }
     const bytes = packet.data
     const next: InitialDataSnapshot = {
       characterName: '',
@@ -84,20 +95,21 @@ export class InitialDataStore {
       const name = bytes.subarray(0x34c, 0x34c + 32)
       const end = name.indexOf(0)
       next.characterName = new TextDecoder().decode(end < 0 ? name : name.subarray(0, end))
-      if (!validMapping(this.mapping)) next.error = '鱼种映射数据不可用，请更新插件数据。'
+      const mapping = this.mapping()
+      if (!validMapping(mapping)) next.error = '鱼种映射数据不可用，请检查客户端游戏数据。'
       else {
         const read = (offset: number, length: number, first: number, map: Record<string, number>, result: number[]) => {
           const items = new Set<number>()
           for (let bit = 0; bit < length * 8; bit++) {
             if ((bytes[offset + (bit >> 3)] & (1 << (bit % 8))) === 0) continue
             const id = map[String(first + bit)]
-            if (id === undefined) next.error = '部分已完成鱼种缺少物品映射，请更新插件数据后重新登录游戏。'
+            if (id === undefined) next.error = '部分已完成鱼种缺少物品映射，请检查客户端游戏数据后重新登录游戏。'
             else if (id !== 0) items.add(id)
           }
           result.push(...[...items].sort((a, b) => a - b))
         }
-        read(0x771, 191, 0, this.mapping.fish, next.fish)
-        read(0x85b, 38, 20000, this.mapping.spearfish, next.spearfish)
+        read(0x771, 191, 0, mapping.fish, next.fish)
+        read(0x85b, 38, 20000, mapping.spearfish, next.spearfish)
       }
     }
     next.canExport = next.error === null

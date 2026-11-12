@@ -78,7 +78,8 @@ async function perform(task: () => Promise<void>) {
     show(error instanceof Error ? error.message : String(error), true)
   }
 }
-const name = (value: Names | undefined) => value?.[settings.language] || value?.chs || value?.en || ''
+const name = (value: Names | undefined) =>
+  value?.[settings.language] || value?.chs || value?.en || Object.values(value ?? {}).find(Boolean) || ''
 
 /** Every change takes effect at once, as in Mojito's own settings; a rejected change puts the saved value back */
 let saving = Promise.resolve()
@@ -537,6 +538,7 @@ async function initialize() {
     patches: typeof patches
     territories: typeof territories
     universalis?: boolean
+    dataError?: string | null
   }
   fates = catalog.fates
   templates = catalog.templates
@@ -545,6 +547,7 @@ async function initialize() {
   await reload()
   await diagnostics()
   element<HTMLFieldSetElement>('controls').disabled = false
+  if (catalog.dataError) show(catalog.dataError, true)
   if (!catalog.universalis) {
     const toggle = element<HTMLInputElement>('field-universalis.enabled')
     toggle.disabled = true

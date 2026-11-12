@@ -68,10 +68,24 @@ describe('initial fishing notebook', () => {
     unavailable.handle(setup(1, 2951, [], []))
     expect(() => unavailable.exportJson()).toThrow('映射')
   })
-  it('supports empty notebooks, extended payloads and the bundled offline mapping', () => {
-    const store = new InitialDataStore()
+  it('supports empty notebooks and extended payloads with client mappings', () => {
+    const store = new InitialDataStore({ mapping })
     store.handle(setup(1, 3200, [], []))
     expect(store.snapshot?.canExport).toBe(true)
     expect(JSON.parse(store.exportJson()).completed).toEqual([])
   })
+})
+
+it('reprocesses retained login data when client mappings arrive and clears it on reset', () => {
+  let current: typeof mapping | null = null
+  const store = new InitialDataStore({ mapping: () => current })
+  store.handle(setup())
+  expect(store.snapshot?.canExport).toBe(false)
+  current = mapping
+  store.reloadMapping()
+  expect(store.snapshot?.canExport).toBe(true)
+  expect(JSON.parse(store.exportJson()).completed).toEqual([10, 20, 30])
+  store.reset()
+  store.reloadMapping()
+  expect(store.snapshot).toBeNull()
 })

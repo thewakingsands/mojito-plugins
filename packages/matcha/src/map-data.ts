@@ -61,6 +61,7 @@ export class ClientMapData {
     private readonly batchSize: number,
     private readonly authorized: () => boolean,
     private readonly signal: () => AbortSignal,
+    private readonly language: () => string = () => 'chs',
   ) {}
   reset(): void {
     this.revision++
@@ -92,7 +93,7 @@ export class ClientMapData {
   private async placeNames(ids: number[], fresh: () => void): Promise<void> {
     const missing = [...new Set(ids)].filter((id) => id !== 0 && !this.names.has(id))
     if (missing.length) {
-      const result = this.rows('PlaceName', missing, 'chs', fresh).then(
+      const result = this.rows('PlaceName', missing, this.language(), fresh).then(
         (rows) => new Map(rows.map((row) => [row.rowId, text(row.subrows[0]?.cells ?? [], 0)])),
       )
       for (const id of missing) {

@@ -2,7 +2,6 @@
 import type { Json } from '@ffcafe/mojito-plugin-sdk'
 import type { MatchaEmitter } from '../protocol.js'
 import { FishingApiError } from './api.js'
-import places from './places.json'
 import {
   type FishingApi,
   type FishingAttributes,
@@ -13,11 +12,10 @@ import {
 } from './types.js'
 import { type CborValue, createUpload, encodeUpload } from './upload.js'
 
-const knownPlaces = new Set(places)
 export interface FishingServiceOptions {
   api: FishingApi | null
   now: () => number
-  knownPlace?: (place: number) => boolean
+  knownPlace: (place: number) => boolean
   attributes: () => FishingAttributes | null
   emit: MatchaEmitter
   live: () => boolean
@@ -124,7 +122,7 @@ export class FishingService {
     this.publish()
   }
   private known(place: number | null | undefined): place is number {
-    return !!place && place !== 950 && (this.options.knownPlace?.(place) ?? knownPlaces.has(place))
+    return !!place && place !== 950 && this.options.knownPlace(place)
   }
   private queryIfNeeded(): void {
     if (

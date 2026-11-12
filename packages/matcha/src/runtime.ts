@@ -10,11 +10,7 @@ import type {
   ViewIdentity,
 } from '@ffcafe/mojito-plugin-sdk'
 import { universalisCredentials } from './build-config.js'
-import fates from './data/fate.json'
-import patches from './data/patch.json'
-import templates from './data/template.json'
-import territories from './data/territory.json'
-import worlds from './data/world.json'
+import { ClientGameData, emptyCatalog } from './client-data.js'
 import { createFishingApi, createFishingMemoryReader, FishingHandler, FishingService } from './fishing/index.js'
 import { InitialDataStore } from './initial-data/index.js'
 import { readClientItems } from './item-data.js'
@@ -67,7 +63,42 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   }
   const state = new MatchaSnapshot()
   const storage = new OverlayStorage(context)
-  const notices = new Notices()
+  let catalog = emptyCatalog()
+  const clientData = new ClientGameData(context.data)
+  let catalogKey: string | null = null
+  let gameDataVersion: string | null = null
+  let catalogLoading: Promise<void> | undefined
+  const dataKey = () =>
+    `${session.dataLanguage ?? settings.language}:${session.build}:${gameDataVersion}:${granted('data.read')}`
+  const loadCatalog = async () => {
+    if (!granted('data.read')) throw new Error('客户端游戏资料暂不可用')
+    const version = await context.data.version({ signal: context.signal })
+    if (version !== gameDataVersion) {
+      gameDataVersion = version
+      catalog = emptyCatalog()
+      mapData.reset()
+    }
+    if (catalogKey === dataKey()) return
+    if (catalogLoading) return catalogLoading
+    const key = dataKey(),
+      signal = AbortSignal.any([context.signal, cancellation.signal])
+    catalogLoading = (async () => {
+      const loaded = await clientData.load(session.dataLanguage ?? settings.language, signal)
+      if (key !== dataKey() || signal.aborted) throw new Error('stale_session')
+      catalog = loaded
+      catalogKey = key
+      initialBatch = true
+      try {
+        initial.reloadMapping()
+      } finally {
+        initialBatch = false
+      }
+    })().finally(() => {
+      catalogLoading = undefined
+    })
+    return catalogLoading
+  }
+  const notices = new Notices(() => catalog)
   const diagnostics: Diagnostic[] = []
   const pendingEvents: MatchaEvent[] = []
   const pendingNotices: string[] = []
@@ -78,6 +109,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     256,
     () => granted('data.read'),
     () => cancellation.signal,
+    () => session.dataLanguage ?? settings.language,
   )
   const live = () => !stopped && !initialBatch && session.state === 'live' && session.login === 'logged-in'
   const now = () => context.clock.now() ?? Date.now()
@@ -185,6 +217,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   })
   const fishingService = new FishingService({
     api: createFishingApi(http),
+    knownPlace: (id) => Object.hasOwn(catalog.fishing.places, id),
     now,
     attributes: () => memory.snapshot,
     emit,
@@ -197,7 +230,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     now,
     observe: (value) => fishingService.observe(value),
   })
-  const initial = new InitialDataStore({ emit })
+  const initial = new InitialDataStore({ emit, mapping: () => (catalogKey === dataKey() ? catalog.notebook : null) })
   const submarines = new SubmarineHandler(emit)
   const market = createUniversalisClient({
     http,
@@ -206,13 +239,17 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       apiKey: universalisCredentials?.apiKey,
       uploaderId: universalisCredentials?.uploaderId,
     }),
-    dataCenters: Object.fromEntries(Object.entries(worlds).map(([id, world]) => [id, world.dc_en])),
-    worldNames: Object.fromEntries(
-      Object.entries(worlds).flatMap(([id, world]) => [
-        [world.name, Number(id)],
-        [world.name_en, Number(id)],
-      ]),
-    ),
+    get dataCenters() {
+      return Object.fromEntries(Object.entries(catalog.worlds).map(([id, world]) => [id, world.dcName]))
+    },
+    get worldNames() {
+      return Object.fromEntries(
+        Object.entries(catalog.worlds).flatMap(([id, world]) => [
+          [world.name, Number(id)],
+          [world.en, Number(id)],
+        ]),
+      )
+    },
     onDiagnostic: diagnostic,
   })
   const packets = new MatchaPacketHandlers({ emit, now, market, onDiagnostic: diagnostic })
@@ -263,6 +300,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     cancellation.abort()
     cancellation = new AbortController()
     mapData.reset()
+    if (catalogKey !== dataKey()) catalog = emptyCatalog()
     quiet = true
     packets.reset()
     fishing.reset()
@@ -354,8 +392,9 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const observeSession = (next: SessionSnapshot) => {
     sessionRevision++
     const changed = identity(next) !== identity(session)
-    const dataChanged = next.dataLanguage !== session.dataLanguage
+    const dataChanged = next.dataLanguage !== session.dataLanguage || next.build !== session.build
     session = next
+    if (catalogKey !== dataKey()) catalog = emptyCatalog()
     dirty = true
     const capabilitiesChanged = reconcileCapabilities()
     if (changed && !capabilitiesChanged) {
@@ -474,8 +513,33 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       case 'settings.set':
         requireSettings()
         return saveSettings(input.settings)
-      case 'catalog':
-        return asJson({ fates, templates, patches, territories, universalis: universalisCredentials !== null })
+      case 'catalog': {
+        let available = true
+        try {
+          await loadCatalog()
+        } catch {
+          available = false
+        }
+        return asJson({
+          fates: available ? catalog.fates : {},
+          templates: available ? catalog.templates : [],
+          patches: available ? catalog.patches : {},
+          territories: available ? catalog.territories : {},
+          universalis: universalisCredentials !== null,
+          dataError: available ? null : '客户端游戏资料暂不可用',
+        })
+      }
+      case 'data.catalog':
+        await loadCatalog()
+        return asJson({
+          fishing: catalog.fishing,
+          maps: catalog.maps,
+          treasures: catalog.treasures,
+          worlds: catalog.worlds,
+          submarineMap: catalog.submarineMap,
+          submarineParts: catalog.submarineParts,
+          submarineRanks: catalog.submarineRanks,
+        })
       // The page picks and saves the files itself; these only turn them into settings and back
       case 'watch.import': {
         requireSettings()
@@ -522,6 +586,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     if (clock.generation === session.clock.generation) session = { ...session, clock }
     dirty = true
     try {
+      if (granted('data.read')) await loadCatalog()
       if (live() && granted('memory.read') && granted('game.read')) await memory.read()
       if (live() && granted('game.read') && session.character?.actorId) {
         const result = await context.game.getCombatants({
@@ -561,6 +626,13 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     await storage.drain()
   }
   try {
+    if (granted('data.read')) {
+      try {
+        await loadCatalog()
+      } catch {
+        diagnostic('客户端游戏数据暂不可用，等待客户端资料加载。')
+      }
+    }
     disposers.push(await context.views.onCommand('matcha.command', command))
     fishingService.setEnabled(settings.fishing.enabled)
     await flush()

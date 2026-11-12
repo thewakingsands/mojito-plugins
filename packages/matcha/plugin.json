@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "Cafe.Matcha",
   "name": "Matcha",
-  "version": "4.0.0-mojito.8",
+  "version": "4.0.0-mojito.9",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

@@ -1,12 +1,7 @@
 // Copyright (c) FFCafe. Ported from Cafe.Matcha Utils/Formatter.cs and Views/MainControl.xaml.cs.
 // Licensed under AGPL-3.0-only.
 import type { Json } from '@ffcafe/mojito-plugin-sdk'
-import dynamicEvents from './data/dynamic-event.json'
-import fates from './data/fate.json'
-import instances from './data/instance.json'
-import roulettes from './data/roulette.json'
-import territories from './data/territory.json'
-import types from './data/type.json'
+import { emptyCatalog, type GameCatalog } from './client-data.js'
 import type { MatchaSettings } from './settings.js'
 
 const row = (table: unknown, id: unknown): Record<string, unknown> | undefined =>
@@ -15,9 +10,12 @@ export function localized(value: unknown, language: string): string {
   if (typeof value === 'string') return value
   if (!value || typeof value !== 'object') return ''
   const name = value as Record<string, unknown>
-  return String(name[language] ?? name.chs ?? name.en ?? '')
+  return String(
+    name[language] ?? name.chs ?? name.en ?? Object.values(name).find((value) => typeof value === 'string') ?? '',
+  )
 }
 export class Notices {
+  constructor(private readonly catalog: () => GameCatalog = emptyCatalog) {}
   private readonly fates = new Set<number>()
   private readonly dynamics = new Set<string>()
   private lastZone = -Infinity
@@ -29,6 +27,7 @@ export class Notices {
   message(type: string, content: Json, at: number, settings: MatchaSettings): string | null {
     const d = content as Record<string, Json>
     if (!d || typeof d !== 'object' || Array.isArray(d)) return null
+    const { dynamicEvents, fates, instances, roulettes, territories, types } = this.catalog()
     const f = settings.formatter
     const name = (value: unknown) => localized(value, settings.language)
     const instance = (id: Json | undefined) => {
