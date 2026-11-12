@@ -52,19 +52,21 @@ it('drops enemies nobody damaged, and puts the uses of a pet under its owner', a
   expect([...data.uses.action].map((index) => data.actionIds[index])).toEqual([9, 100])
 })
 
-it('marks the uses of raid buffs and party mitigations with their lane and duration', async () => {
+it('marks the uses of raid buffs and party mitigations with their lane, duration and whether they are sustained', async () => {
   const data = complete(
     await build([
       hit(10_000, 1, [9], 1000),
       hit(10_100, 2, [9], 10, { actionId: 16536 }),
       hit(10_200, 2, [9], 10, { actionId: 7436 }),
+      hit(10_300, 2, [9], 10, { actionId: 16003 }),
     ]),
     { action: (id) => `技能${id}`, status: () => null, gcd: (id) => id === 9, category: () => null },
   )
   expect(data.actions).toEqual([
-    { actionId: 9, name: '技能9', gcd: true, lane: null, durationMs: null },
-    { actionId: 16536, name: '技能16536', gcd: false, lane: 'mitigation', durationMs: 20_000 },
-    { actionId: 7436, name: '技能7436', gcd: false, lane: 'buff', durationMs: 20_000 },
+    { actionId: 9, name: '技能9', gcd: true, lane: null, durationMs: null, sustained: false },
+    { actionId: 16536, name: '技能16536', gcd: false, lane: 'mitigation', durationMs: 20_000, sustained: false },
+    { actionId: 7436, name: '技能7436', gcd: false, lane: 'buff', durationMs: 20_000, sustained: false },
+    { actionId: 16003, name: '技能16003', gcd: false, lane: 'buff', durationMs: 60_000, sustained: true },
   ])
 })
 

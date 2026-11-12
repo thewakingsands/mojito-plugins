@@ -1279,6 +1279,10 @@ table.uptime td:nth-child(2) {
   border-radius: 3px;
   opacity: 0.6;
 }
+/* Kept up through the whole rotation: faint, so that the lane still shows how the other raid buffs overlap */
+.lane-use.sustained {
+  opacity: 0.4;
+}
 .event-mark {
   position: absolute;
   top: 2px;

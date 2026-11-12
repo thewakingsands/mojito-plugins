@@ -155,8 +155,8 @@
     },
     { "id": 112, "category": "ability", "attackType": "physical" },
     { "id": 113, "category": "weaponskill", "attackType": "physical" },
-    { "id": 114, "category": "ability", "attackType": "magic" },
-    { "id": 116, "category": "ability", "attackType": "magic" },
+    { "id": 114, "category": "ability", "attackType": "magic", "raidBuff": true, "duration": 45, "sustained": true },
+    { "id": 116, "category": "ability", "attackType": "magic", "raidBuff": true, "duration": 45, "sustained": true },
     {
       "id": 117,
       "category": "ability",
@@ -174,7 +174,7 @@
         "base": [{ "level": 1, "potency": 240 }, { "level": 94, "potency": 260 }]
       }
     },
-    { "id": 3559, "category": "ability", "attackType": "magic" },
+    { "id": 3559, "category": "ability", "attackType": "magic", "raidBuff": true, "duration": 45, "sustained": true },
     {
       "id": 3560,
       "category": "weaponskill",

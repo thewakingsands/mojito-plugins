@@ -211,11 +211,14 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
     props.uses
       .filter((use) => use.action.lane === kind && props.chosen.has(use.actor))
       .filter((use) => visible(use.t, use.t + (use.action.durationMs ?? 0)))
+      // The sustained first, so that the others are drawn over them
+      .sort((a, b) => Number(b.action.sustained) - Number(a.action.sustained))
       .map((use) => {
         const role = data.actors[use.actor].role
         const title = `${actionName(data, use.action.actionId, use.action.name)} · ${actorName(data.actors[use.actor])} · 持续 ${Math.round((use.action.durationMs ?? 0) / 1000)} 秒`
+        const className = use.action.sustained ? 'lane-use sustained' : 'lane-use'
         return (
-          <span key={use.index} className="lane-use" style={{ left: x(use.t) }} title={title}>
+          <span key={use.index} className={className} style={{ left: x(use.t) }} title={title}>
             <i
               className={`duration ${role ? ROLE_CLASS[role] : ''}`}
               style={{ width: Math.max(0, x(use.t + (use.action.durationMs ?? 0)) - x(use.t)) }}

@@ -460,7 +460,7 @@ async function pendingStatuses(excel, statuses, maxLevel) {
 }
 
 /** The fields of an action that only its file gives, which the script keeps when it rewrites the actions */
-const KEPT_FIELDS = ['raidBuff', 'partyMitigation', 'duration', 'calibration', 'forced']
+const KEPT_FIELDS = ['raidBuff', 'partyMitigation', 'duration', 'sustained', 'calibration', 'forced']
 
 /** The files of ClassJobActions, by name, each with its name without .json and its content */
 async function readClassJobFiles(directory) {

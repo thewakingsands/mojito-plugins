@@ -1250,7 +1250,9 @@ it('replays an ended fight from the log for its review, once until another fight
   const { entries } = result.data
   expect([...entries.field].map((field) => ENTRY_FIELDS[field])).toEqual(['damage', 'taken'])
   expect(new Set(Object.values(entries).map((column: ArrayLike<number>) => column.length))).toEqual(new Set([2]))
-  expect(result.data.actions).toEqual([{ actionId: 10, name: '技能', gcd: false, lane: null, durationMs: null }])
+  expect(result.data.actions).toEqual([
+    { actionId: 10, name: '技能', gcd: false, lane: null, durationMs: null, sustained: false },
+  ])
   // Kept: the same data without reading the log again
   expect(await command({ kind: 'replay', visitId: visit.id, fightId })).toBe(result)
   expect(await command({ kind: 'replay', visitId: visit.id, fightId: 'missing' })).toEqual({

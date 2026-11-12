@@ -275,9 +275,9 @@ it('keeps the skill icons of the lanes in place while playback scrolls the windo
         fight: { visitId: 'v', fightId: 'f', durationMs: 60_000 },
         actors: [member(0, 19, '骑士'), enemy(1, true)],
         actions: [
-          { actionId: 9, name: '先锋剑', gcd: true, lane: null, durationMs: null },
-          { actionId: 7385, name: '武装戍卫', gcd: false, lane: 'buff', durationMs: 20_000 },
-          { actionId: 7531, name: '铁壁', gcd: false, lane: 'buff', durationMs: 20_000 },
+          { actionId: 9, name: '先锋剑', gcd: true, lane: null, durationMs: null, sustained: false },
+          { actionId: 7385, name: '武装戍卫', gcd: false, lane: 'buff', durationMs: 20_000, sustained: false },
+          { actionId: 7531, name: '铁壁', gcd: false, lane: 'buff', durationMs: 20_000, sustained: false },
         ],
         uses: {
           t: Uint32Array.from([...seconds, ...buffs]),
@@ -299,6 +299,31 @@ it('keeps the skill icons of the lanes in place while playback scrolls the windo
     act(() => vi.advanceTimersByTime(20_000))
     expect(use()).toBe(before)
     expect(buff()).toBe(buffBefore)
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('draws the sustained raid buffs faint and under the others', async () => {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+  try {
+    await open(
+      replayData({
+        fight: { visitId: 'v', fightId: 'f', durationMs: 60_000 },
+        actors: [member(0, 23, '诗人'), enemy(1, true)],
+        actions: [
+          { actionId: 118, name: '战斗之声', gcd: false, lane: 'buff', durationMs: 20_000, sustained: false },
+          { actionId: 3559, name: '放浪神的小步舞曲', gcd: false, lane: 'buff', durationMs: 45_000, sustained: true },
+        ],
+        // The sustained one is used last, and still comes first in the lane
+        uses: { t: Uint32Array.from([1000, 2000]), actor: new Uint16Array(2), action: Uint16Array.from([0, 1]) },
+      }),
+    )
+    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+    const uses = [...document.querySelectorAll('.lane.buff .lane-use')]
+    expect(uses.map((use) => use.getAttribute('title')?.split(' · ')[0])).toEqual(['放浪神的小步舞曲', '战斗之声'])
+    expect(uses.map((use) => use.classList.contains('sustained'))).toEqual([true, false])
   } finally {
     vi.restoreAllMocks()
   }

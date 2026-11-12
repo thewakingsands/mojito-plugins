@@ -176,6 +176,8 @@ export interface ReplayAction {
   gcd: boolean
   lane: 'buff' | 'mitigation' | null
   durationMs: number | null
+  /** A raid buff kept up through the whole rotation, as PeriodicDefs.sustainedRaidBuffs */
+  sustained: boolean
 }
 export interface ReplayStatus {
   actor: number

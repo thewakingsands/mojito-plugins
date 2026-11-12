@@ -123,7 +123,14 @@
     { "id": 16000, "category": "weaponskill", "attackType": null },
     { "id": 16001, "category": "weaponskill", "attackType": null },
     { "id": 16002, "category": "weaponskill", "attackType": null },
-    { "id": 16003, "category": "weaponskill", "attackType": "physical" },
+    {
+      "id": 16003,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "raidBuff": true,
+      "duration": 60,
+      "sustained": true
+    },
     { "id": 16004, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
     {
       "id": 16005,
@@ -172,8 +179,22 @@
         "potency": [{ "level": 1, "potency": 300 }]
       }
     },
-    { "id": 16191, "category": "weaponskill", "attackType": "physical" },
-    { "id": 16192, "category": "weaponskill", "attackType": "physical" },
+    {
+      "id": 16191,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "raidBuff": true,
+      "duration": 60,
+      "sustained": true
+    },
+    {
+      "id": 16192,
+      "category": "weaponskill",
+      "attackType": "physical",
+      "raidBuff": true,
+      "duration": 60,
+      "sustained": true
+    },
     { "id": 16193, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
     { "id": 16194, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },
     { "id": 16195, "category": "weaponskill", "attackType": "physical", "raidBuff": true, "duration": 20 },

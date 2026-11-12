@@ -171,12 +171,13 @@ export interface PeriodicDefs {
    * status the caster has as well, as Devilment, is a raid buff on the others: its source tells them apart.
    */
   raidBuffStatuses: ReadonlySet<number>
-  /**
-   * Action ID → how long its effect lasts in seconds, for the actions that are raid buffs. Those whose effect is up
-   * through the whole rotation, as Standard Finish and the songs of the Bard, are not marked, so that the lane shows
-   * how the others overlap.
-   */
+  /** Action ID → how long its effect lasts in seconds, for the actions that are raid buffs */
   raidBuffActions: ReadonlyMap<number, number>
+  /**
+   * The raid buff actions whose effect is up through the whole rotation, as Standard Finish and the songs of the Bard.
+   * The lane draws them faint and under the others, which would otherwise always look covered.
+   */
+  sustainedRaidBuffs: ReadonlySet<number>
   /** Action ID → how long its effect lasts in seconds, for the actions that lower the damage the party takes */
   partyMitigations: ReadonlyMap<number, number>
   /** Level → its modifiers */
@@ -713,24 +714,30 @@ function rejectJob(entry: Reader): void {
 /** The fields of an action that each file listing it must give alike, besides its mark */
 const SHARED_ACTION_FIELDS = ['category', 'attackType', 'forced'] as const
 
-/** An action that is a raid buff or a party mitigation, and how long its effect lasts in seconds */
+/**
+ * An action that is a raid buff or a party mitigation, how long its effect lasts in seconds, and whether it is a raid
+ * buff kept up through the whole rotation
+ */
 interface ActionMark {
   kind: 'raidBuff' | 'partyMitigation'
   duration: number
+  sustained: boolean
 }
 
-/** The raidBuff or partyMitigation of an action, which takes a duration; null for neither */
+/** The raidBuff or partyMitigation of an action, which takes a duration, and its sustained; null for neither */
 function readActionMark(entry: Reader, keys: Set<string>): ActionMark | null {
   const raidBuff = keys.has('raidBuff') && entry.at('raidBuff').isTrue()
   const partyMitigation = keys.has('partyMitigation') && entry.at('partyMitigation').isTrue()
+  const sustained = keys.has('sustained') && entry.at('sustained').isTrue()
   if (raidBuff && partyMitigation) entry.at('partyMitigation').fail('cannot be given with raidBuff')
+  if (sustained && !raidBuff) entry.at('sustained').fail('is only for raidBuff')
   if (!raidBuff && !partyMitigation) {
     if (keys.has('duration')) entry.at('duration').fail('is only for raidBuff or partyMitigation')
     return null
   }
   const kind = raidBuff ? 'raidBuff' : 'partyMitigation'
   if (!keys.has('duration')) entry.at('duration').fail(`is required for ${kind}`)
-  return { kind, duration: entry.at('duration').positiveInteger() }
+  return { kind, duration: entry.at('duration').positiveInteger(), sustained }
 }
 
 /**
@@ -739,10 +746,10 @@ function readActionMark(entry: Reader, keys: Set<string>): ActionMark | null {
  * ascending ID with their category and attack type, and their calibration, forced result and sample potencies when
  * they have them; the entries leave out the job, which the classJob of the file gives. A status that is a raid buff has
  * raidBuff: true; an action that is a raid buff or a party mitigation has raidBuff: true or partyMitigation: true, and
- * the duration of its effect in seconds; an action whose effect is up through the whole rotation, as Standard Finish
- * and the songs of the Bard, has no raidBuff, though the status it gives has. A status or an action several classes
- * and jobs have, as those of the role actions, is in the file of each: the status the same in every file, the action
- * with the same category, attack type, forced result and mark. The calibrations and the sample potencies are those of the job of the file. The errors of
+ * the duration of its effect in seconds; a raid buff whose effect is up through the whole rotation, as Standard Finish
+ * and the songs of the Bard, has sustained: true as well. A status or an action several classes and jobs have, as
+ * those of the role actions, is in the file of each: the status the same in every file, the action with the same
+ * category, attack type, forced result and mark. The calibrations and the sample potencies are those of the job of the file. The errors of
  * parsePeriodicDefs in a merged entry give its path in its file. common is the file of the statuses no class or job
  * applies, as those of a duty or its area: an object with only statuses, each in no other file, none periodic.
  * @throws PeriodicDefsError
@@ -762,6 +769,7 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[], comm
   const actionTypes: { id: number }[] = []
   const raidBuffStatuses: number[] = []
   const raidBuffActions: [number, number][] = []
+  const sustainedRaidBuffs: number[] = []
   const partyMitigations: [number, number][] = []
   const from = <T extends object>(entry: Reader, value: T): T => {
     origins.set(value, entry.path)
@@ -810,7 +818,7 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[], comm
       rejectJob(entry)
       const keys = entry.object(
         ['id', 'category', 'attackType'],
-        ['raidBuff', 'partyMitigation', 'duration', 'calibration', 'forced', 'potency'],
+        ['raidBuff', 'partyMitigation', 'duration', 'sustained', 'calibration', 'forced', 'potency'],
       )
       rejectJob(entry.at('calibration'))
       const { category, attackType, calibration, forced, potency } = entry.value as Record<string, unknown>
@@ -826,10 +834,12 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[], comm
         // The mark one of the two has and the other has not, or else the duration
         if (mark?.kind !== first.mark?.kind) entry.at(mark?.kind ?? first.mark?.kind ?? 'raidBuff').fail(where)
         if (mark?.duration !== first.mark?.duration) entry.at('duration').fail(where)
+        if (mark?.sustained !== first.mark?.sustained) entry.at('sustained').fail(where)
       } else {
         firstActions.set(id, { entry, mark })
         actionTypes.push(from(entry, { id, category, attackType }))
         if (mark) (mark.kind === 'raidBuff' ? raidBuffActions : partyMitigations).push([id, mark.duration])
+        if (mark?.sustained) sustainedRaidBuffs.push(id)
       }
 
       const giveForced = keys.has('forced') && !forcedGiven.has(id)
@@ -857,6 +867,7 @@ export function mergeClassJobActions(files: readonly ClassJobActionsFile[], comm
     actionTypes: { actions: actionTypes },
     raidBuffStatuses,
     raidBuffActions,
+    sustainedRaidBuffs,
     partyMitigations,
   }
 }
@@ -879,6 +890,7 @@ export function parsePeriodicDefs(
     raidBuffStatuses?: readonly number[]
     /** Action ID and seconds */
     raidBuffActions?: readonly (readonly [number, number])[]
+    sustainedRaidBuffs?: readonly number[]
     /** Action ID and seconds */
     partyMitigations?: readonly (readonly [number, number])[]
     /** The content of level-modifiers.json */
@@ -926,6 +938,7 @@ export function parsePeriodicDefs(
     actionTypes,
     raidBuffStatuses: new Set(input.raidBuffStatuses ?? []),
     raidBuffActions: new Map(input.raidBuffActions ?? []),
+    sustainedRaidBuffs: new Set(input.sustainedRaidBuffs ?? []),
     partyMitigations: new Map(input.partyMitigations ?? []),
     levelModifiers,
     gauge,

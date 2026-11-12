@@ -921,6 +921,13 @@ describe('mergeClassJobActions', () => {
       expect([...defs.raidBuffStatuses]).toEqual([1191])
       expect([...defs.raidBuffActions]).toEqual([[3538, 30]])
       expect([...defs.partyMitigations]).toEqual([[7531, 20]])
+      expect(defs.sustainedRaidBuffs.size).toBe(0)
+    })
+
+    it('reads the raid buffs kept up through the rotation', () => {
+      const files = markedFiles()
+      files[0].content.actions[1].sustained = true
+      expect([...defsOf(files).sustainedRaidBuffs]).toEqual([3538])
     })
 
     it('has no marks without them', () => {
@@ -984,6 +991,28 @@ describe('mergeClassJobActions', () => {
         'a shared action with another duration',
         (files: Files) => (files[1].content.actions[1].duration = 15),
         'ClassJobActions/Warrior.actions[1].duration',
+      ],
+      [
+        'sustained on a party mitigation',
+        (files: Files) => (files[1].content.actions[1].sustained = true),
+        'ClassJobActions/Warrior.actions[1].sustained',
+      ],
+      [
+        'sustained that is not true',
+        (files: Files) => (files[0].content.actions[1].sustained = false),
+        'ClassJobActions/Paladin.actions[1].sustained',
+      ],
+      [
+        'a shared raid buff sustained in one file only',
+        (files: Files) => {
+          for (const file of files) {
+            const rampart = file.content.actions.find((action: Record<string, any>) => action.id === 7531)
+            delete rampart.partyMitigation
+            rampart.raidBuff = true
+          }
+          files[1].content.actions[1].sustained = true
+        },
+        'ClassJobActions/Warrior.actions[1].sustained',
       ],
     ])('rejects %s', (_, change, path) => {
       const files = markedFiles()
@@ -1154,10 +1183,8 @@ describe('periodicDefs', () => {
 
   it('has the durations of the raid buffs', () => {
     const { raidBuffActions } = periodicDefs
-    const durations = [16552, 37026, 2248, 16011, 16196].map((id) => raidBuffActions.get(id))
-    expect(durations).toEqual([20, 15, 20, 20, 20])
-    // Standard Finish and the songs of the Bard are up through the whole rotation, so the lane would never be empty
-    for (const id of [16003, 16191, 16192, 114, 116, 3559]) expect(raidBuffActions.has(id)).toBe(false)
+    const durations = [16552, 37026, 2248, 16011, 16196, 114, 16003].map((id) => raidBuffActions.get(id))
+    expect(durations).toEqual([20, 15, 20, 20, 20, 45, 60])
     // Buffs of the caster or of one member, and Trick Attack, which 技能威力表 does not mark as 团辅
     for (const id of [20, 7395, 2258, 37024]) expect(raidBuffActions.has(id)).toBe(false)
   })
@@ -1167,14 +1194,20 @@ describe('periodicDefs', () => {
     expect(durations).toEqual([15, 30, 10, 20])
   })
 
+  it('marks Standard Finish and the songs of the Bard as kept up through the rotation', () => {
+    const sustained = [16003, 16191, 16192, 114, 116, 3559]
+    expect([...periodicDefs.sustainedRaidBuffs].sort((a, b) => a - b)).toEqual(sustained.sort((a, b) => a - b))
+    for (const id of sustained) expect(periodicDefs.raidBuffActions.has(id)).toBe(true)
+  })
+
   it('puts no action in both lanes', () => {
     for (const id of periodicDefs.raidBuffActions.keys()) expect(periodicDefs.partyMitigations.has(id)).toBe(false)
   })
 
   it('marks the statuses raid buffs give the party or the target', () => {
-    for (const id of [1878, 3889, 638, 1825, 2105, 1297]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(true)
-    // Standard Finish and the songs are left out of the lane only, and still count as raid buffs for the damage
-    for (const id of [2105, 2216, 2217, 2218]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(true)
+    for (const id of [1878, 3889, 638, 1825, 2105, 2216, 2217, 2218, 1297]) {
+      expect(periodicDefs.raidBuffStatuses.has(id)).toBe(true)
+    }
     // Those the caster alone has, and the vulnerability of Trick Attack
     for (const id of [76, 3254, 1821, 1239, 1298]) expect(periodicDefs.raidBuffStatuses.has(id)).toBe(false)
   })

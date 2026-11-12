@@ -691,6 +691,7 @@ export function complete(partial: PartialReplay, data: GameData): ReplayData {
         gcd: data.gcd(actionId) ?? false,
         lane: buff !== undefined ? 'buff' : mitigation !== undefined ? 'mitigation' : null,
         durationMs: seconds === undefined ? null : seconds * 1000,
+        sustained: periodicDefs.sustainedRaidBuffs.has(actionId),
       }
     }),
     statusInfo: statusIds.map((statusId) => ({
