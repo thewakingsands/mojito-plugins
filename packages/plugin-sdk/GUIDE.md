@@ -62,7 +62,7 @@ Declare storage budgets in `plugin.json`; the installation confirmation shows th
 
 Worker plugins can also request larger files, for example `"storage": { "totalBytes": 536870912, "fileBytes": 33554432 }`. Use the existing whole-file `context.storage.read/write` methods and read the effective values from `context.limits.values['storage.pluginBytes']` and `context.limits.values['storage.fileBytes']`.
 
-Explicit values must be safe integers at least as large as their defaults, with the file budget no larger than the total. Native plugins retain the 3 MiB file ceiling for the 4 MiB transport frame. These budgets cover logical plugin storage bytes. Lowering a budget preserves existing data; writes beyond it return `quota_exceeded`.
+Explicit values must be safe integers at least as large as their defaults, with the file budget no larger than the total. From Plugin API 2.0.0 these are the plugin's own budget: the host reports them and does not refuse writes beyond them. Native plugins still fit each message in the 4 MiB transport frame.
 
 ### Publishing views
 
@@ -146,8 +146,7 @@ view.on('navigate-to-preference-item', ({ id }) => highlight(id))
 Plugin API 1.6.0 adds `context.notifications.send({ title, detail })`, which adds a
 notification to the list behind the bell in the Mojito title bar. Use it for something
 the user should know about while they are not looking at the plugin's page. It needs no
-permission. `title` has 1–80 characters and `detail` 0–500; a length out of range or an
-unknown field rejects with `invalid_argument`. Mojito keeps the newest 50 notifications
+permission. `title` must not be empty; an unknown field rejects with `invalid_argument`. Mojito keeps the newest 50 notifications
 of all plugins in its main process and clears them when it exits.
 
 A host older than 1.6.0 rejects the call with `unavailable`. A plugin whose `apiVersion`
@@ -166,9 +165,9 @@ Paths refer to this plugin's files; `documents` lists allowed navigation/popup p
 includes `entry`. Declare `ui.register` and `ui.overlayplugin`, and publish existing
 `OverlayState` values through `overlayProducer`. Remote pages use a host-managed profile.
 
-With `data.read`, `context.data.resource(path)` returns the original SqPack file bytes (up to 32 MiB for worker plugins or 3 MiB for native plugins; larger files return `quota_exceeded`), or `null` when absent. `context.data.image(path)` returns a local PNG URL for a TEX resource; `context.data.map('s1f1/00')` returns a composed map URL. These methods return `null` for missing main files. Images are decoded when a plugin page requests the URL, which belongs to the current activation and client data. Reacquire URLs after changing clients; send the URL through a view channel and use it as an image source.
+With `data.read`, `context.data.resource(path)` returns the original SqPack file bytes, or `null` when absent. `context.data.image(path)` returns a local PNG URL for a TEX resource; `context.data.map('s1f1/00')` returns a composed map URL. These methods return `null` for missing main files. Images are decoded when a plugin page requests the URL, which belongs to the current activation and client data. Reacquire URLs after changing clients; send the URL through a view channel and use it as an image source.
 
-`context.data.rowIds(sheet, language)` returns all actual row IDs of an ordinary EXD sheet, sorted in ascending order. It uses `data.read` and the transport collection limit. Read their cells with `data.rows` in batches no larger than `context.limits.values['data.rowIds']`. Use `none` for sheets without languages; enumerate subrows by reading their known parent row.
+`context.data.rowIds(sheet, language)` returns all actual row IDs of an ordinary EXD sheet, sorted in ascending order. It uses `data.read` and the transport collection limit. Read their cells with `data.rows`. Use `none` for sheets without languages; enumerate subrows by reading their known parent row.
 
 ### Status-list slots
 
@@ -198,3 +197,40 @@ with `@ffcafe/mojito-combat-model` from these events:
 `SessionSnapshot.opcodeVersion` is the opcode version the host parses the packets with.
 A plugin compares it with the version its status data is for, and stops computing when
 they differ: the game changed and the data has not followed yet.
+
+### Plugin API 2.0
+
+Plugin API 2.0.0 (MJT-282) changes what a plugin declares and what the user decides. It is not compatible
+with 1.x: rebuild the plugin and require `apiVersion: "^2.0.0"`.
+
+- `capabilities` is one array. Ordinary capabilities (`session.read`, `game.read`, `events.read`,
+  `data.read`, `ui.register`, `ui.overlayplugin`, `ui.overlayplugin.remote`, `audio.play`,
+  `services.provide`, `services.consume`) come with the install. The user may refuse each sensitive one
+  (`packets.read`, `memory.read`, `http.request`, `identity.read`, `microphone.record`) at install time or
+  later on the plugin's page. `host.files` and `host.openExternal` no longer exist; a name the host does not
+  know rejects the package.
+- `context.capabilities.get()` gives the state of each declared capability. A refused sensitive one is
+  `{ state: 'denied' }`; `capabilitiesChanged` updates it without a restart. Ordinary ones are never denied.
+- A refused or undeclared sensitive capability gives a substitute result instead of an error:
+  - without `identity.read`, players get per-session stand-in actor IDs in the player range (also in the
+    `params` of `actorControl`, `systemLogMessage` and `battleTalk`), names made of the race and ClassJob
+    abbreviations (`猫白魔`, `猫白魔 2`), no content ID and no `gameLog`. Filters given with stand-in IDs
+    work as expected. Players have a `race` field either way;
+  - without `packets.read` the packet subscription is established and sends nothing;
+  - without `memory.read` or `http.request` the calls reject with `unavailable` and a reason;
+  - without `microphone.record`, `getUserMedia({ audio: true })` rejects with `NotAllowedError`.
+- Services are named by their provider: `services.provides[].name` is a local name such as `overlay`, and
+  consumers use `pluginId/name`, for example `CombatStatistics/overlay`, in `services.consumes` and every
+  call. `connect` returns `{ service, version }` or `null`. A consumer needs no grant; the provider answers
+  with its own capabilities, and the install sheet tells the user. `dataPermissions`,
+  `services.callRequest` and `services.callSubscribe` are gone.
+- `host.openExternal(url)` needs no capability and asks the user each time; `http:` works too.
+- Files: `host.chooseFile`, `host.readFile` and `host.writeFile` are gone. Pages use `<input type="file">`
+  and downloads, which ask where to save.
+- Network: `http.request` runs on Electron's `net.fetch` with the system proxy. Every redirect hop must be in
+  `networkOrigins`, which may list `http:` and LAN origins. There is no size or redirect budget, and
+  `timeoutMs` applies only when given. Plugin pages may load from `networkOrigins`, use inline styles,
+  Web Workers and `blob:`/`data:` media, and move between pages of their package.
+- `context.limits` keeps only the transport, event flow, polling interval and storage budget names; other
+  count, size and rate limits, and the `quota_exceeded` they caused, are gone. Activation has no time limit,
+  and a page that misses heartbeats is shown as unresponsive instead of being stopped.

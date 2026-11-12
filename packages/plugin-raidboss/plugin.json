@@ -3,15 +3,12 @@
   "id": "MojitoRaidbossOfficial",
   "name": "Raidboss",
   "version": "0.2.0",
-  "apiVersion": "^1.7.0",
+  "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
     "path": "entry.mjs"
   },
-  "capabilities": {
-    "required": ["session.read", "game.read", "events.read", "ui.register"],
-    "optional": ["audio.play"]
-  },
+  "capabilities": ["session.read", "game.read", "events.read", "ui.register", "audio.play", "identity.read"],
   "networkOrigins": [],
   "author": "FFCafe",
   "description": "结构化事件驱动的 Raidboss 提示与时间轴，包含固定上游的官方规则集。"

@@ -44,7 +44,7 @@ it.each(['index', 'schema', 'protocol', 'messages', 'client', 'transport', 'view
       expect(runInNewContext("MojitoSDK.range('^1.0.0')", context)).toBe('^1.0.0')
       expect(() => runInNewContext("MojitoSDK.id('CON.txt')", context)).toThrow()
     } else if (entry === 'index') {
-      expect(runInNewContext('MojitoSDK.limitNames.includes("http.cookieBytes")', context)).toBe(true)
+      expect(runInNewContext('MojitoSDK.limitNames.includes("queue.pluginItems")', context)).toBe(true)
       expect(runInNewContext("'manifest' in MojitoSDK", context)).toBe(false)
     } else if (entry === 'protocol') {
       expect(runInNewContext('MojitoSDK.decodeValue(MojitoSDK.encodeValue(1n))', context)).toBe(1n)
@@ -85,10 +85,10 @@ it('gives host events to view listeners and keeps the latest one for the first l
     protocol: 1,
     activationId,
     kind: 'hello',
-    apiVersion: '1.0.0',
+    apiVersion: '2.0.0',
     identity: { id: 'Fixture', version: '1.0.0', activationId, mode: 'worker', environment: 'production' },
     limits: { schemaVersion: 1, revision: 'test', values: Object.fromEntries(limitNames.map((name) => [name, 128])) },
-    capabilities: { supported: {}, granted: [] },
+    capabilities: {},
     clock: { now: null, base: null, source: null, generation: 0, paused: false },
     viewIdentity: {
       viewId: 'page',

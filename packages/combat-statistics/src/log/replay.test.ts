@@ -61,7 +61,7 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
   const ctx = {
     identity: { activationId: 'replay', version: '1.0.0' },
     limits: { values: { 'game.entities': 512 } } as unknown as Limits,
-    capabilities: { get: () => ({ granted: ['data.read'], supported: {} }) },
+    capabilities: { get: () => ({ 'data.read': { state: 'available' } }) },
     log: { debug() {}, error() {}, info() {}, warn() {} },
     config: { get: async () => null, set: async () => {} },
     storage: memory.storage,

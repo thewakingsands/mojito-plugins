@@ -3,8 +3,11 @@
   "id": "SessionNotes",
   "name": "Session notes example",
   "version": "1.0.0",
-  "apiVersion": "^1.0.0",
-  "entry": { "kind": "worker", "path": "entry.mjs" },
-  "capabilities": { "required": ["session.read"], "optional": [] },
+  "apiVersion": "^2.0.0",
+  "entry": {
+    "kind": "worker",
+    "path": "entry.mjs"
+  },
+  "capabilities": ["session.read"],
   "networkOrigins": []
 }

@@ -66,7 +66,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   }
   const ctx = {
     config: { get: async () => null, set: async () => {} },
-    capabilities: { get: () => ({ granted: ['audio.play'] }) },
+    capabilities: { get: () => ({ 'audio.play': { state: 'available' } }) },
     clock: {
       now: () => 100000,
       state: () => ({ now: 100000, generation: 1, base: 'packet-unix', source: 'replay', paused: false }),

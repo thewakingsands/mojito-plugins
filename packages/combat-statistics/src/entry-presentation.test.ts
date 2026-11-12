@@ -38,7 +38,7 @@ async function harness() {
   const ctx = {
     identity: { activationId: 'test' },
     limits: { values: { 'game.entities': 512 } },
-    capabilities: { get: () => ({ granted: ['data.read'], supported: {} }) },
+    capabilities: { get: () => ({ 'data.read': { state: 'available' } }) },
     log: { debug() {}, error() {}, info() {}, warn() {} },
     config: { get: async () => null, set: async () => {} },
     storage: {

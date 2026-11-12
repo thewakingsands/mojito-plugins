@@ -4,38 +4,17 @@ import { useBridge } from './bridge.js'
 
 // Icons stay for the life of the page. `cache` shares one request per key; `loaded` holds the settled ones so a
 // component that mounts or switches to them draws the icon in its first render instead of an empty frame, which a
-// scrolling timeline would show as flicker. A review asks for a few hundred icons at once, more than the host lets a
-// plugin have in flight, so at most ICON_REQUESTS commands go to the Worker at a time and the rest wait in turn; 32
-// leaves room within the host's limit for the other commands of the page and the other host requests of the Worker. A
-// failed request is kept in neither map; a component still showing its key asks again every RETRY_MS.
-const ICON_REQUESTS = 32
+// scrolling timeline would show as flicker. A failed request is kept in neither map; a component still showing its key
+// asks again every RETRY_MS.
 const RETRY_MS = 5000
 const cache = new Map<string, Promise<string | null | undefined>>()
 const loaded = new Map<string, string | null>()
-let running = 0
-const waiting: (() => void)[] = []
-
-function queued<T>(run: () => Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const start = () => {
-      running++
-      run()
-        .then(resolve, reject)
-        .finally(() => {
-          running--
-          waiting.shift()?.()
-        })
-    }
-    if (running < ICON_REQUESTS) start()
-    else waiting.push(start)
-  })
-}
 
 /** The icon of a key; undefined when the request failed, null when the game data has none */
 function request(command: ReturnType<typeof useBridge>['command'], key: string) {
   let pending = cache.get(key)
   if (pending) return pending
-  pending = queued(() => command({ kind: 'icon', key })).then(
+  pending = command({ kind: 'icon', key }).then(
     (value) => {
       const icon = value as { mime: string; data: Uint8Array } | null
       const result = icon ? URL.createObjectURL(new Blob([icon.data as BlobPart], { type: icon.mime })) : null

@@ -3,8 +3,14 @@
   "id": "NativeSessionNotes",
   "name": "Native session notes example",
   "version": "0.1.0",
-  "apiVersion": "^1.0.0",
-  "entry": { "kind": "native", "path": "mojito_native_example.dll", "os": "win32", "arch": "x64", "abiVersion": 1 },
-  "capabilities": { "required": ["session.read"], "optional": [] },
+  "apiVersion": "^2.0.0",
+  "entry": {
+    "kind": "native",
+    "path": "mojito_native_example.dll",
+    "os": "win32",
+    "arch": "x64",
+    "abiVersion": 1
+  },
+  "capabilities": ["session.read"],
   "networkOrigins": []
 }

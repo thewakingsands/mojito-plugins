@@ -21,13 +21,10 @@ impl Package {
     let mut reader = ArchiveReader::new(Cursor::new(&bytes[offset..]), Password::empty())
       .map_err(|e| e.to_string())?;
     let archive = reader.archive();
-    ensure(
-      !archive.is_solid && archive.files.len() <= MAX_ENTRIES,
-      "Solid archives or too many entries",
-    )?;
+    ensure(!archive.is_solid, "Solid archives are not supported")?;
     for block in &archive.blocks {
       ensure(
-        block.coders.len() == 1 && block.get_unpack_size() <= MAX_FILE,
+        block.coders.len() == 1,
         "Invalid compression block",
       )?;
       let coder = &block.coders[0];
@@ -46,7 +43,6 @@ impl Package {
     }
     let mut names: BTreeMap<String, (String, bool, bool)> = BTreeMap::new();
     let mut files = Vec::new();
-    let mut expanded = 0u64;
     for entry in &archive.files {
       resource_path(&entry.name)?;
       ensure(
@@ -76,13 +72,6 @@ impl Package {
         let was_explicit = names.get(&key).is_some_and(|x| x.2);
         names.insert(key, (original, directory, explicit || was_explicit));
       }
-      expanded = expanded
-        .checked_add(entry.size)
-        .ok_or("Expanded archive too large")?;
-      ensure(
-        entry.size <= MAX_FILE && expanded <= MAX_EXPANDED,
-        "Expanded archive too large",
-      )?;
       if !entry.is_directory {
         files.push(FileInfo {
           path: entry.name.clone(),
@@ -132,7 +121,6 @@ pub fn pack_files(
   private_jwk: &str,
   compression: Compression,
 ) -> Result<Vec<u8>> {
-  ensure(files.len() <= MAX_ENTRIES, "Too many package files")?;
   let jwk = json(private_jwk.as_bytes())?;
   ensure(
     jwk["kty"] == "OKP" && jwk["crv"] == "Ed25519",
@@ -157,15 +145,9 @@ pub fn pack_files(
   ]);
   let mut files = files;
   files.sort_by(|a, b| a.0.cmp(&b.0));
-  let mut expanded = 0u64;
   let mut manifest = None;
   for (name, bytes) in files {
     resource_path(&name)?;
-    expanded += bytes.len() as u64;
-    ensure(
-      bytes.len() as u64 <= MAX_FILE && expanded <= MAX_EXPANDED,
-      "Expanded archive too large",
-    )?;
     if name == "plugin.json" {
       manifest = Some(json(&bytes)?);
     }
@@ -227,7 +209,6 @@ pub fn pack_directory(
     root: &Path,
     dir: &Path,
     files: &mut Vec<(String, Vec<u8>)>,
-    expanded: &mut u64,
     depth: usize,
   ) -> Result<()> {
     ensure(depth <= 32, "Directory too deep")?;
@@ -236,18 +217,10 @@ pub fn pack_directory(
       let kind = entry.file_type().map_err(|e| e.to_string())?;
       ensure(!kind.is_symlink(), "Package symlinks forbidden")?;
       if kind.is_dir() {
-        collect(root, &entry.path(), files, expanded, depth + 1)?;
+        collect(root, &entry.path(), files, depth + 1)?;
       } else {
-        ensure(
-          kind.is_file() && files.len() < MAX_ENTRIES,
-          "Special file or too many entries",
-        )?;
+        ensure(kind.is_file(), "Special file")?;
         let size = entry.metadata().map_err(|e| e.to_string())?.len();
-        *expanded += size;
-        ensure(
-          size <= MAX_FILE && *expanded <= MAX_EXPANDED,
-          "Expanded archive too large",
-        )?;
         let path = entry.path();
         let relative = path
           .strip_prefix(root)
@@ -271,7 +244,7 @@ pub fn pack_directory(
     Ok(())
   }
   let mut files = Vec::new();
-  collect(&root, &root, &mut files, &mut 0, 0)?;
+  collect(&root, &root, &mut files, 0)?;
   let key = fs::read_to_string(key_path).map_err(|e| e.to_string())?;
   pack_files(files, &key, compression)
 }
@@ -409,18 +382,7 @@ mod tests {
     assert!(Compression::parse("deflate").is_err());
   }
   #[test]
-  fn limits_fail() {
-    let mut files = files();
-    files.push(("large".into(), vec![0; MAX_FILE as usize + 1]));
-    assert!(pack_files(files, &key(), Compression::Copy).is_err());
+  fn path_limits_fail() {
     assert!(resource_path(&"a".repeat(241)).is_err());
-    assert!(
-      pack_files(
-        vec![("x".into(), vec![]); MAX_ENTRIES + 1],
-        &key(),
-        Compression::Copy
-      )
-      .is_err()
-    );
   }
 }

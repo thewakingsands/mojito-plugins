@@ -3,24 +3,30 @@ export type Disposer = () => void | Promise<void>
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 export type Value = null | boolean | number | string | bigint | Uint8Array | Value[] | { [key: string]: Value }
 export type TimeBase = 'packet-unix' | 'host-monotonic-unix'
-export type Capability = { state: 'available' } | { state: 'unavailable'; reason: string }
+/** available: usable; unavailable: the host cannot provide it now; denied: the user declined this sensitive capability */
+export type Capability = { state: 'available' } | { state: 'unavailable'; reason: string } | { state: 'denied' }
 
-export type CapabilityName =
-  | 'session.read'
-  | 'game.read'
-  | 'events.read'
-  | 'packets.read'
-  | 'memory.read'
-  | 'data.read'
-  | 'ui.register'
-  | 'ui.overlayplugin'
-  | 'ui.overlayplugin.remote'
-  | 'audio.play'
-  | 'http.request'
-  | 'host.files'
-  | 'host.openExternal'
-  | 'services.provide'
-  | 'services.consume'
+/** Ordinary capabilities are agreed to at install; sensitive ones are shown one by one and the user may decline each */
+export const ordinaryCapabilities = Object.freeze([
+  'session.read',
+  'game.read',
+  'events.read',
+  'data.read',
+  'ui.register',
+  'ui.overlayplugin',
+  'ui.overlayplugin.remote',
+  'audio.play',
+  'services.provide',
+  'services.consume',
+] as const)
+export const sensitiveCapabilities = Object.freeze([
+  'packets.read',
+  'memory.read',
+  'http.request',
+  'identity.read',
+  'microphone.record',
+] as const)
+export type CapabilityName = (typeof ordinaryCapabilities)[number] | (typeof sensitiveCapabilities)[number]
 
 export interface PluginIdentity {
   id: string
@@ -108,8 +114,8 @@ export interface SessionSnapshot {
   character: { actorId: number | null; contentId: bigint | null } | null
   uiLanguage: string
   dataLanguage: string | null
+  /** The state of each capability the plugin declares */
   capabilities: Record<string, Capability>
-  grantedCapabilities: string[]
   clock: ClockState
 }
 

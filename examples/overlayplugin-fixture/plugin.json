@@ -3,30 +3,27 @@
   "id": "CombatStatistics",
   "name": "Synthetic overlay fixture",
   "version": "1.0.0",
-  "apiVersion": "^1.1.0",
+  "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
     "path": "entry.mjs"
   },
-  "capabilities": {
-    "required": [
-      "ui.register",
-      "ui.overlayplugin",
-      "services.provide",
-      "session.read",
-      "game.read",
-      "events.read",
-      "data.read"
-    ],
-    "optional": ["ui.overlayplugin.remote"]
-  },
+  "capabilities": [
+    "ui.register",
+    "ui.overlayplugin",
+    "services.provide",
+    "session.read",
+    "game.read",
+    "events.read",
+    "data.read",
+    "ui.overlayplugin.remote"
+  ],
   "networkOrigins": [],
   "services": {
     "provides": [
       {
-        "name": "combat.statistics.overlay",
-        "version": "1.0.0",
-        "dataPermissions": ["session.read", "game.read", "events.read", "data.read"]
+        "name": "overlay",
+        "version": "1.0.0"
       }
     ]
   }

@@ -4,10 +4,9 @@ Build the SDK and this workspace to produce `dist/kagerou`, `dist/skyline` and
 `dist/mopimopi2`. The build fetches the fixed upstream commits into its own temporary directory. Source
 archives and build patches are emitted under `dist/sources` beside the runtime trees.
 
-Each plugin requires Mojito plugin API 1.1.0 and the `CombatStatistics` provider of
-`combat.statistics.overlay` v1. Install and enable combat statistics, grant service
-communication in the overlay plugin's details, then enable that plugin. Restore a
-stopped provider or revoked permission and re-enable the consumer to reconnect.
+Each plugin requires Mojito plugin API 2.0.0 and the `CombatStatistics/overlay` service v1. Install
+and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
+consumer to reconnect.
 
 Use the existing Rust CLI with a private Ed25519 JWK to create each package:
 

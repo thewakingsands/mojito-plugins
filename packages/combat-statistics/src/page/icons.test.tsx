@@ -40,30 +40,6 @@ it('draws an icon that has loaded in the first render, and never the icon of the
   expect(again.container.querySelector('img.icon')!.getAttribute('src')).not.toBe(url)
 })
 
-it('draws every icon of a review that asks for more than the host takes at once', async () => {
-  // The host rejects calls of a plugin beyond 128 at a time; even keys answer fast, as icons on disk do.
-  let running = 0
-  const limited = async (input: Command): Promise<Value> => {
-    if (running >= 128) throw { code: 'quota_exceeded' }
-    running++
-    try {
-      const id = Number((input as { key: string }).key.split(':')[1])
-      await new Promise((resolve) => setTimeout(resolve, id % 2 ? 20 : 1))
-      return { mime: 'image/png', data: new Uint8Array([1]) } as unknown as Value
-    } finally {
-      running--
-    }
-  }
-  const view = render(
-    <Bridge.Provider value={{ view: {} as ViewBridge, command: limited }}>
-      {Array.from({ length: 300 }, (_, i) => (
-        <SkillIcon key={i} skill={`action:${5001 + i}`} />
-      ))}
-    </Bridge.Provider>,
-  )
-  await waitFor(() => expect(view.container.querySelectorAll('img.icon')).toHaveLength(300), { timeout: 3000 })
-})
-
 const png = { mime: 'image/png', data: new Uint8Array([1]) } as unknown as Value
 const icons = (run: (input: Command) => Promise<Value>, skills: string[]) => (
   <Bridge.Provider value={{ view: {} as ViewBridge, command: run }}>
@@ -84,13 +60,9 @@ function scripted(...outcomes: ('icon' | 'none' | string)[]) {
 }
 const shown = (view: { container: HTMLElement }) => view.container.querySelectorAll('img.icon').length
 
-it('sends at most 32 icon commands at a time', async () => {
-  let running = 0
-  let most = 0
+it('asks for every icon of a review at once', async () => {
   const run = vi.fn(async (_input: Command): Promise<Value> => {
-    most = Math.max(most, ++running)
     await new Promise((resolve) => setTimeout(resolve, 1))
-    running--
     return png
   })
   const view = render(
@@ -100,8 +72,6 @@ it('sends at most 32 icon commands at a time', async () => {
     ),
   )
   await waitFor(() => expect(shown(view)).toBe(300), { timeout: 3000 })
-  // A review asks for more icons than that at once, so it runs exactly that many.
-  expect(most).toBe(32)
   expect(run).toHaveBeenCalledTimes(300)
 })
 

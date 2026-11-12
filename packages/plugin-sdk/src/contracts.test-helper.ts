@@ -15,9 +15,9 @@ export const worker = {
   id: 'CastNotice',
   name: 'Cast notice',
   version: '1.0.0',
-  apiVersion: '^1.0.0',
+  apiVersion: '^2.0.0',
   entry: { kind: 'worker', path: 'worker.js' },
-  capabilities: { required: ['events.read'], optional: [] },
+  capabilities: ['events.read'],
   networkOrigins: [],
 } satisfies Manifest
 

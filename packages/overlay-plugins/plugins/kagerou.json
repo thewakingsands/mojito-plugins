@@ -2,30 +2,28 @@
   "schemaVersion": 1,
   "id": "OverlayKagerou",
   "name": "Kagerou",
-  "description": "需要先安装并启用战斗统计，再允许服务通信。",
+  "description": "需要先安装并启用战斗统计。",
   "version": "0.1.0",
-  "apiVersion": "^1.1.0",
+  "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
     "path": "entry.mjs"
   },
-  "capabilities": {
-    "required": [
-      "ui.register",
-      "ui.overlayplugin",
-      "services.consume",
-      "session.read",
-      "game.read",
-      "events.read",
-      "data.read"
-    ],
-    "optional": []
-  },
+  "capabilities": [
+    "ui.register",
+    "ui.overlayplugin",
+    "services.consume",
+    "session.read",
+    "game.read",
+    "events.read",
+    "data.read",
+    "identity.read"
+  ],
   "networkOrigins": [],
   "services": {
     "consumes": [
       {
-        "name": "combat.statistics.overlay",
+        "name": "CombatStatistics/overlay",
         "versionRange": "^1.0.0",
         "optional": false
       }
