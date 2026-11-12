@@ -23,10 +23,7 @@ impl Package {
     let archive = reader.archive();
     ensure(!archive.is_solid, "Solid archives are not supported")?;
     for block in &archive.blocks {
-      ensure(
-        block.coders.len() == 1,
-        "Invalid compression block",
-      )?;
+      ensure(block.coders.len() == 1, "Invalid compression block")?;
       let coder = &block.coders[0];
       ensure(
         coder.encoder_method_id() == EncoderMethod::COPY.id()
