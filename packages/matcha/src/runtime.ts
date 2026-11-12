@@ -72,10 +72,10 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const pendingEvents: MatchaEvent[] = []
   const pendingNotices: string[] = []
   const pendingEffects: { label: string; signal: AbortSignal; run: (signal: AbortSignal) => Promise<unknown> }[] = []
-  const granted = (name: string) => context.capabilities.get().granted.includes(name)
+  const granted = (name: string) => context.capabilities.get()[name]?.state === 'available'
   const mapData = new ClientMapData(
     context.data,
-    context.limits.values['data.rowIds'],
+    256,
     () => granted('data.read'),
     () => cancellation.signal,
   )
@@ -98,10 +98,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       return result
     },
   }
-  const resourceSlots = Array.from(
-    { length: Math.max(1, Math.min(4, context.limits.values['http.pluginConcurrent'] ?? 4)) },
-    () => Promise.resolve(),
-  )
+  const resourceSlots = Array.from({ length: 4 }, () => Promise.resolve())
   let resourceSlot = 0
   const readResource = (url: string) => {
     const slot = resourceSlot++ % resourceSlots.length
@@ -338,18 +335,33 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       void flush()
     })
   }
+  const capabilityStates = () =>
+    JSON.stringify(
+      Object.entries(context.capabilities.get())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, capability]) => [name, capability.state]),
+    )
+  let lastCapabilities = capabilityStates()
+  const reconcileCapabilities = () => {
+    const current = capabilityStates()
+    if (current === lastCapabilities) return false
+    lastCapabilities = current
+    sessionRevision++
+    reset()
+    connectPackets()
+    return true
+  }
   const observeSession = (next: SessionSnapshot) => {
     sessionRevision++
     const changed = identity(next) !== identity(session)
-    const dataChanged =
-      next.dataLanguage !== session.dataLanguage ||
-      next.grantedCapabilities.includes('data.read') !== session.grantedCapabilities.includes('data.read')
+    const dataChanged = next.dataLanguage !== session.dataLanguage
     session = next
     dirty = true
-    if (changed) {
+    const capabilitiesChanged = reconcileCapabilities()
+    if (changed && !capabilitiesChanged) {
       reset()
       connectPackets()
-    } else {
+    } else if (!capabilitiesChanged) {
       if (dataChanged) mapData.reset()
       if (!packetSubscription && granted('packets.read')) connectPackets()
     }
@@ -384,6 +396,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     return settingsJson(settings)
   }
   const command = async (value: Value, view: ViewIdentity): Promise<Value> => {
+    reconcileCapabilities()
     const input = record(value)
     const admin = view.kind === 'feature' && view.definitionId === 'settings'
     const requireSettings = () => {
@@ -502,6 +515,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   let pollBusy = false
   const poll = async () => {
     if (stopped || pollBusy) return
+    reconcileCapabilities()
     pollBusy = true
     const captured = sessionRevision
     const clock = context.clock.state()

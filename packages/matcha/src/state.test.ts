@@ -132,7 +132,7 @@ it('serializes archive writes, propagates storage errors and restricts setting k
     storage.set('overlay.matcha-fishing-v1', 'last'),
   ])
   expect(await storage.get('overlay.matcha-fishing-v1')).toBe('last')
-  await expect(storage.set('overlay.matcha-fishing-v1', 'x'.repeat(101))).rejects.toThrow('限制')
+  await expect(storage.set('overlay.matcha-fishing-v1', 'x'.repeat(101))).rejects.toThrow('Matcha 文件大小预算')
   await expect(storage.get('overlay.unknown')).rejects.toThrow('Unknown')
   await storage.drain()
 })

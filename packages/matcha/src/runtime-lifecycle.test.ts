@@ -1,6 +1,7 @@
 import type {
   Batch,
   BatchListener,
+  Capability,
   Json,
   Packet,
   PluginContext,
@@ -49,13 +50,13 @@ function source(sourceKind: 'live' | 'replay' = 'live', generation = 1): Session
     characterGeneration: generation,
     process: sourceKind === 'live' ? { pid: 1, name: 'ffxiv_dx11.exe' } : null,
     build: 'synthetic',
+    opcodeVersion: '7.57',
     region: 'cn',
     login: 'logged-in',
     character: { actorId: 1, contentId: 1n },
     uiLanguage: 'chs',
     dataLanguage: 'chs',
     capabilities: {},
-    grantedCapabilities: ['session.read', 'packets.read'],
     clock: {
       now: 100000,
       base: sourceKind === 'live' ? 'host-monotonic-unix' : 'packet-unix',
@@ -104,6 +105,7 @@ function fixture(
   let current = options.initial ?? source()
   let now = 100000
   let grants = ['session.read', 'packets.read', 'ui.register', 'http.request', 'audio.play']
+  const capabilityOverrides: Record<string, Capability> = {}
   let sessionListener!: BatchListener<SessionSnapshot>
   let command!: (value: Value, view: ViewIdentity) => Value | Promise<Value>
   const streams: {
@@ -124,7 +126,12 @@ function fixture(
   const context = {
     identity: { id: 'Matcha', version: 'test', activationId: 'test', mode: 'worker', environment: 'development' },
     signal: controller.signal,
-    capabilities: { get: () => ({ granted: [...grants], supported: {} }) },
+    capabilities: {
+      get: () => ({
+        ...Object.fromEntries(grants.map((name) => [name, { state: 'available' }])),
+        ...capabilityOverrides,
+      }),
+    },
     limits: { version: 1, values: { 'storage.fileBytes': 16 * 1024 * 1024 } },
     clock: { now: () => now, state: () => current.clock },
     config: {
@@ -229,6 +236,9 @@ function fixture(
     setGrants(value: string[]) {
       grants = value
     },
+    setCapability(name: string, capability: Capability) {
+      capabilityOverrides[name] = capability
+    },
     async session(value: SessionSnapshot) {
       current = value
       await sessionListener(batch([structuredClone(value)]))
@@ -282,7 +292,7 @@ function latest(f: ReturnType<typeof fixture>): {
 }
 
 describe('Matcha runtime lifecycle', () => {
-  it('shares the HTTP resource limit across simultaneous plugin views', async () => {
+  it('shares the plugin HTTP resource budget across simultaneous plugin views', async () => {
     const f = fixture(),
       gate = deferred<void>()
     await start(f)
@@ -461,15 +471,42 @@ describe('Matcha runtime lifecycle', () => {
     const f = fixture()
     await start(f)
     await f.packet('PlayerSetup', setupData())
-    f.setGrants(['session.read', 'ui.register'])
-    f.streams[0].close('permission_denied')
+    f.setCapability('packets.read', { state: 'denied' })
+    // API 2.0 keeps denied packet subscriptions open but silent.
     await flush()
     await f.advance(1000)
     expect(latest(f).notebook).toBeNull()
     expect(f.context.packets.subscribe).toHaveBeenCalledTimes(1)
-    f.setGrants(['session.read', 'packets.read', 'ui.register'])
-    await f.session(f.current)
+    f.setCapability('packets.read', { state: 'available' })
+    await f.advance(1000)
     expect(f.context.packets.subscribe).toHaveBeenCalledTimes(2)
+  })
+  it.each([{ state: 'denied' } as const, { state: 'unavailable', reason: 'No live client' } as const])(
+    'starts without packets when the capability is $state and resumes without a session event',
+    async (capability) => {
+      const f = fixture()
+      f.setCapability('packets.read', capability)
+      await start(f)
+      expect(f.context.packets.subscribe).not.toHaveBeenCalled()
+      await expect(f.command({ action: 'settings.get' }, view('feature', 'settings'))).resolves.toBeDefined()
+      f.setCapability('packets.read', { state: 'available' })
+      await f.advance(1000)
+      expect(f.context.packets.subscribe).toHaveBeenCalledTimes(1)
+      await f.packet('PlayerSetup', setupData())
+      expect(latest(f).notebook?.characterName).toBe('角色一')
+    },
+  )
+  it('discards retained identity data when identity permission changes without a session event', async () => {
+    const f = fixture()
+    f.setCapability('identity.read', { state: 'available' })
+    await start(f)
+    await f.packet('PlayerSetup', setupData())
+    f.setCapability('identity.read', { state: 'denied' })
+    await f.advance(1000)
+    expect(latest(f).notebook).toBeNull()
+    expect(f.streams[0].subscription.dispose).toHaveBeenCalled()
+    await f.packet('PlayerSetup', setupData(), 0)
+    expect(latest(f).notebook).toBeNull()
   })
   it('reports a failed packet subscription and disposes the failed registration without retry loops', async () => {
     const f = fixture({ packetsFail: true })

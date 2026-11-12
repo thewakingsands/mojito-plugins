@@ -54,7 +54,7 @@ export class OverlayStorage {
         }
         const bytes = new TextEncoder().encode(value)
         if (bytes.length > this.context.limits.values['storage.fileBytes'])
-          throw new Error('保存的数据超过宿主文件大小限制')
+          throw new Error('保存的数据超过 Matcha 文件大小预算')
         await this.context.storage.write(this.path(bare), bytes)
       })
     this.writes.set(key, pending)

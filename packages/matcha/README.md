@@ -15,15 +15,15 @@ pnpm --filter @ffcafe/mojito-matcha... build
 构建结果位于 `packages/matcha/dist`。用现有 Rust CLI 和自己的 Ed25519 私钥 JWK 签名：
 
 ```sh
-mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.7.mojito lzma2
-mojito-package verify Matcha-4.0.0-mojito.7.mojito
+mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.8.mojito lzma2
+mojito-package verify Matcha-4.0.0-mojito.8.mojito
 ```
 
-在 Mojito 的插件页安装生成的 `.mojito` 包，按需授予可选权限，然后启用。启动后提供 **Matcha** 悬浮窗，以及“设置 › 插件设置”里的 **Matcha 设置**页。主窗口里没有 Matcha 的功能页，全部功能都在悬浮窗里。
+在 Mojito 的插件页安装生成的 `.mojito` 包，按需授予敏感权限，然后启用。启动后提供 **Matcha** 悬浮窗，以及“设置 › 插件设置”里的 **Matcha 设置**页。主窗口里没有 Matcha 的功能页，全部功能都在悬浮窗里。
 
 悬浮窗的界面来自 `vendor/matcha-overlay`，和 ACT 版共用同一套界面：固定的深色半透明底，配色、字号和控件沿用 Mojito 的深色主题。设置页使用宿主的 `/host/mojito-base.css`，修改立即生效。
 
-包格式与 worker 状态发布使用当前 Mojito SDK。可选能力以宿主报告的支持情况和授权为准；通知使用 SDK 的 context.notifications.send，需要 Plugin API 1.6.0。
+包格式与 worker 状态发布使用当前 Mojito SDK。需要 Plugin API 2.0；能力以 context.capabilities.get() 报告的状态为准，运行中修改授权无需重启。通知使用 SDK 的 context.notifications.send。
 
 ## 功能
 
@@ -45,7 +45,7 @@ Mojito 模式通过宿主本地数据接口读取物品、地图及图标，不�
 
 ## 权限和联网
 
-必需权限为会话、数据包和 UI。内存、角色信息、音频、HTTP 与文件访问是可选权限。未授权的功能显示不可用或不执行；文件选择始终由宿主确认。
+会话、游戏信息、本地数据、UI 和音频随安装启用。数据包、内存、HTTP 和真实角色身份为敏感权限，可在安装时拒绝或之后撤回。未授权的功能显示不可用或不执行；未授予真实角色身份时使用宿主提供的匿名身份。导入使用浏览器文件选择，导出使用下载保存。
 
 鱼漂与 Universalis 各使用一个开关，同时控制查询和上传，默认关闭。回放不会触发通知、Webhook 或上报。Universalis 的 API key 和 uploader ID 在打包时由环境变量 `MATCHA_UNIVERSALIS_API_KEY`、`MATCHA_UNIVERSALIS_UPLOADER_ID` 注入，用户不能自行填写；打包时没有这两个值，Universalis 的查询和上传都不可用，设置页里的开关也不可用。
 
@@ -55,7 +55,7 @@ Mojito 模式通过宿主本地数据接口读取物品、地图及图标，不�
 node packages/matcha/scripts/package.mjs --origin=https://your-service.example
 ```
 
-自定义源不会通过设置绕过宿主限制；HTTP 请求仍受公网地址、超时和响应大小限制。设置备份包含 Webhook 请求头，请自行保管。文件导入导出、归档和请求响应遵守宿主大小配额；超限会显示错误。
+自定义源不会通过设置绕过宿主限制；HTTP 请求及重定向必须匹配 networkOrigins，使用系统代理，超时由调用方指定。设置备份包含 Webhook 请求头，请自行保管。归档保留 Matcha 自身的单文件存储预算；API 2.0 的宿主不再强制该预算。
 
 ## 数据与兼容性
 
