@@ -1269,6 +1269,28 @@ table.uptime td:nth-child(2) {
   box-shadow: 0 0 0 1.5px var(--mojito-accent);
   color: var(--mojito-fg);
 }
+/* How long a use lasts. Translucent, so that the lane grows darker where the uses overlap */
+.lane-bar {
+  position: absolute;
+  top: 6px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--mojito-fg-tertiary);
+  opacity: 0.6;
+}
+.lane-bar.role-tank {
+  background: var(--mojito-tank-fg);
+}
+.lane-bar.role-healer {
+  background: var(--mojito-healer-fg);
+}
+.lane-bar.role-dps {
+  background: var(--mojito-dps-fg);
+}
+/* Kept up through the whole rotation: faint, so that the lane still shows how the other raid buffs overlap */
+.lane-bar.sustained {
+  opacity: 0.2;
+}
 .lane-use {
   position: absolute;
   top: 2px;
@@ -1276,21 +1298,8 @@ table.uptime td:nth-child(2) {
   align-items: center;
 }
 .lane-use .icon {
-  position: relative;
   width: 18px;
   height: 18px;
-}
-.lane-use .duration {
-  position: absolute;
-  top: 6px;
-  left: 0;
-  height: 6px;
-  border-radius: 3px;
-  opacity: 0.6;
-}
-/* Kept up through the whole rotation: faint, so that the lane still shows how the other raid buffs overlap */
-.lane-use.sustained {
-  opacity: 0.4;
 }
 .event-mark {
   position: absolute;
@@ -1380,6 +1389,8 @@ table.uptime td:nth-child(2) {
 .potency-help {
   display: inline-flex;
   flex: none;
+  /* Not the height of a control from mojito-base.css, which would make the title as tall as a button */
+  height: auto;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -1403,12 +1414,15 @@ table.uptime td:nth-child(2) {
 .potency-members {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
   max-width: 100%;
 }
 .potency-member {
   display: inline-flex;
-  padding: 1px;
+  /* As tall as its icon, not as a control from mojito-base.css */
+  height: auto;
+  /* Room for the outline of the pressed one, which is drawn inside: the label cuts what is drawn outside it */
+  padding: 2px;
   border: none;
   border-radius: var(--mojito-radius-small);
   background: transparent;
@@ -1421,6 +1435,7 @@ table.uptime td:nth-child(2) {
 .potency-member[aria-pressed="true"] {
   opacity: 1;
   outline: 2px solid var(--mojito-accent);
+  outline-offset: -2px;
 }
 .curve-swatch {
   flex: none;

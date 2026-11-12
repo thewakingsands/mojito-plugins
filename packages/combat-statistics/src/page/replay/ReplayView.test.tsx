@@ -304,7 +304,7 @@ it('keeps the skill icons of the lanes in place while playback scrolls the windo
   }
 })
 
-it('draws the sustained raid buffs faint and under the others', async () => {
+it('draws the bars of the sustained raid buffs faint and under the others, and every icon over the bars', async () => {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
   try {
@@ -321,9 +321,16 @@ it('draws the sustained raid buffs faint and under the others', async () => {
       }),
     )
     press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
-    const uses = [...document.querySelectorAll('.lane.buff .lane-use')]
-    expect(uses.map((use) => use.getAttribute('title')?.split(' · ')[0])).toEqual(['放浪神的小步舞曲', '战斗之声'])
-    expect(uses.map((use) => use.classList.contains('sustained'))).toEqual([true, false])
+    const name = (item: Element) => item.getAttribute('title')?.split(' · ')[0]
+    const drawn = [...document.querySelectorAll('.lane.buff .lane-bar, .lane.buff .lane-use')]
+    // In the order they are drawn: the bars, then the icons, so that no bar covers an icon
+    expect(drawn.map((item) => item.className)).toEqual([
+      'lane-bar role-dps sustained',
+      'lane-bar role-dps',
+      'lane-use',
+      'lane-use',
+    ])
+    expect(drawn.map(name)).toEqual(['放浪神的小步舞曲', '战斗之声', '放浪神的小步舞曲', '战斗之声'])
   } finally {
     vi.restoreAllMocks()
   }

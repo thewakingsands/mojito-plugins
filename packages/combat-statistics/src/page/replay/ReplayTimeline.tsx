@@ -207,26 +207,38 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
       {children}
     </div>
   )
-  const laneUses = (kind: 'buff' | 'mitigation') =>
-    props.uses
+  const laneUses = (kind: 'buff' | 'mitigation') => {
+    const uses = props.uses
       .filter((use) => use.action.lane === kind && props.chosen.has(use.actor))
       .filter((use) => visible(use.t, use.t + (use.action.durationMs ?? 0)))
       // The sustained first, so that the others are drawn over them
       .sort((a, b) => Number(b.action.sustained) - Number(a.action.sustained))
-      .map((use) => {
-        const role = data.actors[use.actor].role
-        const title = `${actionName(data, use.action.actionId, use.action.name)} · ${actorName(data.actors[use.actor])} · 持续 ${Math.round((use.action.durationMs ?? 0) / 1000)} 秒`
-        const className = use.action.sustained ? 'lane-use sustained' : 'lane-use'
-        return (
-          <span key={use.index} className={className} style={{ left: x(use.t) }} title={title}>
+      .map((use) => ({
+        use,
+        title: `${actionName(data, use.action.actionId, use.action.name)} · ${actorName(data.actors[use.actor])} · 持续 ${Math.round((use.action.durationMs ?? 0) / 1000)} 秒`,
+      }))
+    // Every bar before the first icon, so that no bar covers the icon of another use
+    return (
+      <>
+        {uses.map(({ use, title }) => {
+          const role = data.actors[use.actor].role
+          return (
             <i
-              className={`duration ${role ? ROLE_CLASS[role] : ''}`}
-              style={{ width: Math.max(0, x(use.t + (use.action.durationMs ?? 0)) - x(use.t)) }}
+              key={use.index}
+              className={`lane-bar${role ? ` ${ROLE_CLASS[role]}` : ''}${use.action.sustained ? ' sustained' : ''}`}
+              style={{ left: x(use.t), width: Math.max(0, x(use.t + (use.action.durationMs ?? 0)) - x(use.t)) }}
+              title={title}
             />
+          )
+        })}
+        {uses.map(({ use, title }) => (
+          <span key={use.index} className="lane-use" style={{ left: x(use.t) }} title={title}>
             <SkillIcon skill={`action:${use.action.actionId}`} />
           </span>
-        )
-      })
+        ))}
+      </>
+    )
+  }
   return (
     <div className="lanes" onWheel={(wheel) => props.onScroll(Math.sign(wheel.deltaY || wheel.deltaX) * length * 0.1)}>
       <div className="labels">
