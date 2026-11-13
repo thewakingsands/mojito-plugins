@@ -29,12 +29,12 @@ const reports = []
 const request = PluginHttp.prototype.request
 PluginHttp.prototype.request = function (input, context) {
   // Replace only the socket transport, keeping host origin, capability and replay checks.
-  this.send = async (url, options) => {
-    assert.equal(url.href, 'https://mojo.ffcafe.cn/api/telemetry/v1/events')
+  this.fetch = async (url, options) => {
+    assert.equal(url, 'https://mojo.ffcafe.cn/api/telemetry/v1/events')
     assert.equal(options.method, 'POST')
     assert(!options.headers.cookie)
     reports.push(JSON.parse(Buffer.from(options.body).toString()))
-    return { status: 503, headers: {}, cookies: [], body: new Uint8Array() }
+    return new Response(null, { status: 503 })
   }
   return request.call(this, input, context)
 }
@@ -130,7 +130,7 @@ async function main() {
     await page.load()
     await until(() => page.contents.executeJavaScript('!!document.querySelector("#telemetry")'), 'settings page')
   }
-  await host.setGrants(manifest.id, manifest.capabilities.required)
+  await host.setGrants(manifest.id, ['identity.read'])
   await open()
   assert(
     await page.contents.executeJavaScript(
@@ -140,20 +140,19 @@ async function main() {
   await page.contents.executeJavaScript(
     'const scope=document.querySelector("#scope"); scope.value="all"; scope.dispatchEvent(new Event("change",{bubbles:true})); true',
   )
-  await delay(50)
-  await page.contents.executeJavaScript(
-    '[...document.querySelectorAll("button")].find(b=>b.textContent==="保存设置").click(); true',
-  )
   await until(() => resumed, 'all-player scope resumes without live process memory')
-  result.checks.optionalPermissionRequired = true
+  result.checks.sensitivePermissionRequired = true
   await host.stop(manifest.id)
   resumed = false
-  await host.setGrants(manifest.id, [...manifest.capabilities.required, 'http.request'])
+  await host.setGrants(manifest.id, ['identity.read', 'http.request'])
   await open()
-  await page.contents.executeJavaScript(
-    'document.querySelector("#telemetry").click(); [...document.querySelectorAll("button")].find(b=>b.textContent==="保存设置").click(); true',
-  )
-  await until(() => page.contents.executeJavaScript('document.body.innerText.includes("已保存")'), 'consent saved')
+  await page.contents.executeJavaScript('document.querySelector("#telemetry").click(); true')
+  await until(async () => {
+    const config = JSON.parse(
+      await fs.readFile(path.join(output, 'installation', 'plugin-data', manifest.id, '.data/config.json'), 'utf8'),
+    )
+    return config.settings?.telemetryEnabled === true
+  }, 'consent saved')
   await fs.writeFile(path.join(output, 'settings.png'), (await page.contents.capturePage()).toPNG())
   function statuses(actor, id) {
     const buffs = id ? [{ id, actorId: 1, extra: 1, timestamp: Date.now(), duration: 0 }] : []

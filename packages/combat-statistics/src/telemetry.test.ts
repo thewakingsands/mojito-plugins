@@ -99,3 +99,39 @@ it('uses a random UUID v4 without actor or activation identifiers', () => {
   expect(ids.size).toBe(100)
   for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
 })
+
+it.each([{ state: 'denied' } as const, { state: 'unavailable', reason: 'network unavailable' } as const])(
+  'does not collect or send while HTTP is $state, and starts fresh after recovery',
+  async (capability) => {
+    const { telemetry, http, capabilities, fill } = setup()
+    capabilities.get.mockReturnValue({ 'http.request': capability })
+    telemetry.start('unavailable', context)
+    fill()
+    telemetry.end('unavailable', 'manual', false)
+    expect(http.request).not.toHaveBeenCalled()
+    capabilities.get.mockReturnValue({ 'http.request': { state: 'available' } })
+    telemetry.start('available', context)
+    fill()
+    telemetry.end('available', 'manual', false)
+    await Promise.resolve()
+    expect(http.request).toHaveBeenCalledTimes(1)
+  },
+)
+it('invalidates an active encounter and aborts pending HTTP when permission is revoked', async () => {
+  const { telemetry, http, capabilities, fill } = setup()
+  telemetry.start('collecting', context)
+  fill()
+  capabilities.get.mockReturnValue({ 'http.request': { state: 'denied' } })
+  telemetry.flush()
+  capabilities.get.mockReturnValue({ 'http.request': { state: 'available' } })
+  telemetry.end('collecting', 'manual', false)
+  expect(http.request).not.toHaveBeenCalled()
+  http.request.mockImplementation(() => new Promise(() => {}))
+  telemetry.start('sending', context)
+  fill()
+  telemetry.end('sending', 'manual', false)
+  const signal = http.request.mock.calls[0][1].signal as AbortSignal
+  capabilities.get.mockReturnValue({ 'http.request': { state: 'denied' } })
+  expect(telemetry.permitted()).toBe(false)
+  expect(signal.aborted).toBe(true)
+})

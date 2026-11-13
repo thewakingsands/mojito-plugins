@@ -18,9 +18,7 @@
     "identity.read",
     "http.request"
   ],
-  "networkOrigins": [
-    "https://mojo.ffcafe.cn"
-  ],
+  "networkOrigins": ["https://mojo.ffcafe.cn"],
   "storage": {
     "totalBytes": 2147483648,
     "fileBytes": 16777216

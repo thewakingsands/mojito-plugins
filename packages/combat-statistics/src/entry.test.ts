@@ -102,7 +102,10 @@ async function setup(
     identity: { activationId: 'test', version: '0.3.0' },
     limits: { values: { 'game.entities': 512 } },
     capabilities: {
-      get: () => ({ 'data.read': { state: 'available' }, 'http.request': { state: telemetryOptions?.granted ? 'available' : 'denied' } }),
+      get: () => ({
+        'data.read': { state: 'available' },
+        'http.request': { state: telemetryOptions?.granted ? 'available' : 'denied' },
+      }),
     },
     http: {
       request: vi.fn(async (_url: string, options: { body: string; signal: AbortSignal }) => {

@@ -29,7 +29,11 @@ function show(available = true) {
   const failures: string[] = []
   const view = {
     subscribe: (_: string, listener: (batch: { items: Value[] }) => void) => {
-      listener({ items: [{ settings: defaults, telemetryAvailable: available } as unknown as StatisticsState as unknown as Value] })
+      listener({
+        items: [
+          { settings: defaults, telemetryAvailable: available } as unknown as StatisticsState as unknown as Value,
+        ],
+      })
       return { dispose() {} }
     },
   } as unknown as ViewBridge
@@ -133,10 +137,10 @@ it('keeps anonymous sampling disabled without HTTP permission', () => {
   expect(checkbox.disabled).toBe(true)
 })
 it('saves anonymous sampling consent immediately and restores it if saving fails', async () => {
-  const {sent, failures} = show()
+  const { sent, failures } = show()
   fireEvent.click(screen.getByLabelText('共享匿名状态样本'))
   await settle()
-  expect(sent).toEqual([{kind:'settings',value:{...defaults,telemetryEnabled:true}}])
+  expect(sent).toEqual([{ kind: 'settings', value: { ...defaults, telemetryEnabled: true } }])
   failures.push('保存失败')
   fireEvent.click(screen.getByLabelText('共享匿名状态样本'))
   await settle()
