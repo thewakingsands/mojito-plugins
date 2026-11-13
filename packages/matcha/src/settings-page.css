@@ -74,7 +74,6 @@ fieldset#controls {
   gap: 12px;
 }
 .toolbar {
-  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -90,41 +89,6 @@ fieldset#controls {
   width: 16px;
   height: 16px;
   fill: currentColor;
-}
-.menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 10;
-  display: grid;
-  min-width: 168px;
-  padding: 4px;
-  border: 1px solid var(--mojito-border);
-  border-radius: var(--mojito-radius-panel);
-  background: var(--mojito-bg);
-  box-shadow: var(--mojito-shadow-popover);
-}
-.menu[hidden] {
-  display: none;
-}
-.menu button {
-  justify-content: flex-start;
-  height: 30px;
-  border: 0;
-  border-radius: calc(var(--mojito-radius-panel) - 4px);
-  background: none;
-  box-shadow: none;
-  font-weight: 400;
-}
-.menu button:hover,
-.menu button:focus-visible {
-  background: var(--mojito-bg-hover);
-}
-.menu button[data-tone="danger"] {
-  color: var(--mojito-danger-fg);
-}
-.menu hr {
-  margin: 4px 0;
 }
 
 .fate-split {
@@ -249,16 +213,11 @@ button.tree-name {
   }
 }
 
-/* Webhook */
+/* Webhook: rows of the base list */
 .webhook {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--mojito-border);
-}
-.webhook:last-child {
-  border-bottom: 0;
 }
 .webhook-text {
   flex: 1;
@@ -285,18 +244,19 @@ button.tree-name {
   white-space: nowrap;
 }
 
+/* The base dialog, with its header and footer */
 #webhook-dialog {
   width: min(460px, calc(100vw - 32px));
-  padding: 0;
 }
 #webhook-form {
   display: grid;
   gap: 12px;
-  padding: 16px 20px;
 }
-#webhook-form h2 {
-  margin: 0;
-  font-size: var(--mojito-text-lg);
+#webhook-form > header {
+  margin-bottom: 8px;
+}
+#webhook-form > footer {
+  margin-top: 8px;
 }
 #webhook-form label,
 .field-group {
@@ -324,12 +284,6 @@ button.tree-name {
   margin: 0;
   color: var(--mojito-danger-fg);
   font-size: var(--mojito-text-sm);
-}
-#webhook-form footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 4px;
 }
 
 /* Diagnostics */

@@ -55,14 +55,14 @@
           <span class="mojito-chip" data-mark="none" id="fate-count">已关注 0 项</span>
           <span class="spacer"></span>
           <select id="fate-template" aria-label="从预设加入"><option value="">从预设加入…</option></select>
-          <button type="button" id="fate-more" data-icon aria-label="更多" aria-haspopup="menu" aria-expanded="false">
+          <button type="button" id="fate-more" data-icon aria-label="更多" aria-haspopup="menu" popovertarget="fate-menu">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
           </button>
-          <div class="menu" id="fate-menu" role="menu" hidden>
+          <div id="fate-menu" role="menu" popover>
             <button type="button" role="menuitem" id="watch-import">导入关注列表</button>
             <button type="button" role="menuitem" id="watch-export">导出关注列表</button>
             <hr />
-            <button type="button" role="menuitem" id="watch-clear" data-tone="danger">清空关注列表</button>
+            <button type="button" role="menuitem" id="watch-clear" data-variant="danger">清空关注列表</button>
           </div>
         </div>
         <div class="fate-split">
@@ -93,7 +93,7 @@
         </section>
         <section class="group">
           <div class="group-head"><h3>Webhook</h3><button type="button" id="webhook-add">添加</button></div>
-          <div class="mojito-panel" id="webhook-rows"></div>
+          <ul class="mojito-list" id="webhook-rows"></ul>
         </section>
       </div>
 
@@ -131,7 +131,7 @@
 
     <dialog id="webhook-dialog" aria-labelledby="webhook-title">
       <form id="webhook-form" method="dialog">
-        <h2 id="webhook-title">编辑 Webhook</h2>
+        <header><h2 id="webhook-title">编辑 Webhook</h2></header>
         <label>名称<input id="webhook-name" autocomplete="off" /></label>
         <label>事件<select id="webhook-event"></select></label>
         <label>地址<input id="webhook-endpoint" type="url" placeholder="https://" autocomplete="off" /></label>

@@ -345,14 +345,14 @@ function renderWebhooks() {
   const container = element('webhook-rows')
   container.replaceChildren()
   if (settings.webhooks.length === 0) {
-    const empty = document.createElement('div')
+    const empty = document.createElement('li')
     empty.className = 'mojito-empty'
     empty.textContent = '没有 Webhook'
     container.append(empty)
     return
   }
   for (const hook of settings.webhooks) {
-    const row = document.createElement('div')
+    const row = document.createElement('li')
     row.className = 'webhook'
     const text = document.createElement('div')
     text.className = 'webhook-text'
@@ -504,25 +504,13 @@ function initializeTabs() {
   })
 }
 function initializeMenu() {
-  const trigger = element<HTMLButtonElement>('fate-more')
+  // A popover of its button: the browser places it and closes it on Esc or a click outside; a chosen item closes it too
   const menu = element('fate-menu')
-  const close = () => {
-    menu.hidden = true
-    trigger.setAttribute('aria-expanded', 'false')
-  }
-  trigger.addEventListener('click', (event) => {
-    event.stopPropagation()
-    menu.hidden = !menu.hidden
-    trigger.setAttribute('aria-expanded', String(!menu.hidden))
-    if (!menu.hidden) menu.querySelector<HTMLButtonElement>('button')?.focus()
+  menu.addEventListener('toggle', (event) => {
+    if ((event as ToggleEvent).newState === 'open') menu.querySelector<HTMLButtonElement>('button')?.focus()
   })
-  menu.addEventListener('click', close)
-  document.addEventListener('click', close)
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !menu.hidden) {
-      close()
-      trigger.focus()
-    }
+  menu.addEventListener('click', (event) => {
+    if ((event.target as Element).closest('[role="menuitem"]')) menu.hidePopover()
   })
 }
 async function initialize() {
