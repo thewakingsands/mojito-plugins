@@ -5,12 +5,16 @@ import type {
   Json,
   PluginContext,
   SessionSnapshot,
+  SourceMeta,
   Subscription,
   Value,
   ViewIdentity,
 } from '@ffcafe/mojito-plugin-sdk'
 import { universalisCredentials } from './build-config.js'
 import { ClientGameData, emptyCatalog } from './client-data.js'
+import { loadExplorationCatalog } from './exploration/catalog.js'
+import { ExplorationService } from './exploration/service.js'
+import type { ExplorationCatalog } from './exploration/types.js'
 import { createFishingApi, createFishingMemoryReader, FishingHandler, FishingService } from './fishing/index.js'
 import { InitialDataStore } from './initial-data/index.js'
 import { readClientItems } from './item-data.js'
@@ -64,6 +68,9 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const state = new MatchaSnapshot()
   const storage = new OverlayStorage(context)
   let catalog = emptyCatalog()
+  let explorationCatalog: ExplorationCatalog | null = null
+  let catalogRevision = 0
+  let exploration: ExplorationService | undefined
   const clientData = new ClientGameData(context.data)
   let catalogKey: string | null = null
   let gameDataVersion: string | null = null
@@ -76,6 +83,9 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     if (version !== gameDataVersion) {
       gameDataVersion = version
       catalog = emptyCatalog()
+      explorationCatalog = null
+      catalogRevision++
+      exploration?.reset(true)
       mapData.reset()
     }
     if (catalogKey === dataKey()) return
@@ -86,7 +96,23 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       const loaded = await clientData.load(session.dataLanguage ?? settings.language, signal)
       if (key !== dataKey() || signal.aborted) throw new Error('stale_session')
       catalog = loaded
+      try {
+        const extra = await loadExplorationCatalog(
+          context.data,
+          loaded,
+          session.dataLanguage ?? settings.language,
+          signal,
+        )
+        if (key !== dataKey() || signal.aborted) throw new Error('stale_session')
+        explorationCatalog = extra
+      } catch {
+        signal.throwIfAborted()
+        if (key !== dataKey()) throw new Error('stale_session')
+        explorationCatalog = null
+      }
       catalogKey = key
+      catalogRevision++
+      exploration?.reset(true)
       initialBatch = true
       try {
         initial.reloadMapping()
@@ -101,6 +127,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const notices = new Notices(() => catalog)
   const diagnostics: Diagnostic[] = []
   const pendingEvents: MatchaEvent[] = []
+  const pendingExploration = new Map<string, Json>()
   const pendingNotices: string[] = []
   const pendingEffects: { label: string; signal: AbortSignal; run: (signal: AbortSignal) => Promise<unknown> }[] = []
   const granted = (name: string) => context.capabilities.get()[name]?.state === 'available'
@@ -187,8 +214,12 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       noticeBusy = false
     }
   }
-  const emit = (type: string, content: Json, timestamp = now()) => {
+  const emit = (type: string, content: Json, timestamp = now(), stateOnly = false) => {
     if (stopped || quiet) return
+    if (type === 'TreasureSpot' && content && typeof content === 'object' && !Array.isArray(content)) {
+      if (typeof content.item === 'number' && typeof content.location === 'number')
+        exploration?.treasure(content.item, content.location)
+    }
     const event: MatchaEvent = { sequence: ++sequence, type, content, timestamp }
     state.add(event)
     pendingEvents.push(event)
@@ -199,7 +230,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     }
     dirty = true
     if (settings.logging) context.log.debug(`Matcha ${type}`)
-    if (!live()) return
+    if (stateOnly || !live()) return
     const text = notices.message(type, content, timestamp, settings)
     if (text) {
       if (pendingNotices.length < 32) pendingNotices.push(text)
@@ -252,7 +283,51 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     },
     onDiagnostic: diagnostic,
   })
-  const packets = new MatchaPacketHandlers({ emit, now, market, onDiagnostic: diagnostic })
+  let packetObservationMeta: SourceMeta | null = null
+  let packetZoneSequence = -1
+  let structuredZoneSequence = -1
+  let explorationStartedAt: number | null = null
+  exploration = new ExplorationService({
+    context,
+    session: () => session,
+    catalog: () => explorationCatalog,
+    catalogRevision: () => catalogRevision,
+    disconnected: () => {
+      packetZoneSequence = -1
+      explorationStartedAt = context.clock.now()
+    },
+    zoneChanged: (sequence) => {
+      structuredZoneSequence = sequence
+      if (packetZoneSequence <= sequence) packetZoneSequence = -1
+    },
+    publish: (type, content) => {
+      if (stopped || quiet) return
+      pendingExploration.set(type, content)
+      dirty = true
+      queueMicrotask(() => {
+        void flush()
+      })
+    },
+  })
+  const packets = new MatchaPacketHandlers({
+    emit,
+    now,
+    market,
+    onDiagnostic: diagnostic,
+    onFateObservation: (observation) => {
+      if (packetObservationMeta?.timeBase === context.clock.state().base)
+        exploration?.observeFate(
+          {
+            ...observation,
+            ...(observation.kind === 'info'
+              ? { serverToSourceOffsetMs: packetObservationMeta.observedAt - observation.timestamp }
+              : {}),
+            timestamp: packetObservationMeta.observedAt,
+          },
+          packetZoneSequence,
+        )
+    },
+  })
   const publicSettings = () => {
     const value = structuredClone(settings)
     value.webhooks = value.webhooks.map((hook) => ({ ...hook, headers: {} }))
@@ -273,6 +348,8 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   const flush = async () => {
     if (stopped || publishing || !dirty) return
     publishing = true
+    for (const [type, content] of pendingExploration) emit(type, content, now(), true)
+    pendingExploration.clear()
     dirty = false
     const events = pendingEvents.splice(0)
     const revision = stateRevision
@@ -293,6 +370,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       if (!stopped) diagnostic('界面状态同步未完成。')
     } finally {
       publishing = false
+      if (dirty && !stopped) void flush()
     }
   }
   const reset = () => {
@@ -300,8 +378,14 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     cancellation.abort()
     cancellation = new AbortController()
     mapData.reset()
-    if (catalogKey !== dataKey()) catalog = emptyCatalog()
+    if (catalogKey !== dataKey()) {
+      catalog = emptyCatalog()
+      explorationCatalog = null
+      catalogRevision++
+    }
     quiet = true
+    packetZoneSequence = -1
+    structuredZoneSequence = -1
     packets.reset()
     fishing.reset()
     fishingService.reset()
@@ -312,9 +396,11 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     quiet = false
     state.clear()
     pendingEvents.length = 0
+    pendingExploration.clear()
     pendingNotices.length = pendingEffects.length = 0
     lastNotice = -Infinity
     emit('Reset', null)
+    exploration?.reset()
   }
   const connectPackets = () => {
     const epoch = ++packetEpoch
@@ -338,7 +424,19 @@ export async function activate(context: PluginContext): Promise<Disposer> {
               item.meta.clockGeneration !== session.clock.generation
             )
               continue
-            packets.handle(item.value)
+            // Hold only FATE attribution until the structured zone event catches up.
+            if (
+              item.value.type === 'InitZone' &&
+              item.value.seq > structuredZoneSequence &&
+              (explorationStartedAt === null || item.meta.observedAt >= explorationStartedAt)
+            )
+              packetZoneSequence = item.value.seq
+            packetObservationMeta = item.meta
+            try {
+              packets.handle(item.value)
+            } finally {
+              packetObservationMeta = null
+            }
             fishing.handle(item.value)
             initial.handle(item.value)
             submarines.handle(item.value)
@@ -394,7 +492,14 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const changed = identity(next) !== identity(session)
     const dataChanged = next.dataLanguage !== session.dataLanguage || next.build !== session.build
     session = next
-    if (catalogKey !== dataKey()) catalog = emptyCatalog()
+    if (catalogKey !== dataKey()) {
+      catalog = emptyCatalog()
+      explorationCatalog = null
+    }
+    if (dataChanged) {
+      catalogRevision++
+      exploration?.reset(true)
+    }
     dirty = true
     const capabilitiesChanged = reconcileCapabilities()
     if (changed && !capabilitiesChanged) {
@@ -418,6 +523,12 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const world = packets.snapshot().world
     packets.reset()
     packets.setWorld(world)
+    if (catalogKey !== dataKey()) {
+      catalog = emptyCatalog()
+      explorationCatalog = null
+      catalogRevision++
+    }
+    exploration?.reset(true)
     notices.reset()
     fishingService.reset()
     fishingService.setEnabled(settings.fishing.enabled)
@@ -618,6 +729,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     cancellation.abort()
     packetEpoch++
     packetSubscription?.dispose()
+    exploration?.dispose()
     memory.dispose()
     fishingService.dispose()
     initial.dispose()
@@ -658,6 +770,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const current = await context.session.get()
     if (revision === sessionRevision) observeSession(current)
     if (!packetSubscription) connectPackets()
+    exploration.start()
     disposers.push(
       await context.ui.registerFeature({
         id: 'settings',

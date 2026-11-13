@@ -14,6 +14,7 @@
     "ui.register",
     "data.read",
     "game.read",
+    "events.read",
     "memory.read",
     "audio.play",
     "http.request",

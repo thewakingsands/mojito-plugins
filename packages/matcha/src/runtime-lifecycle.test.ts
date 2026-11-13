@@ -2,6 +2,10 @@ import type {
   Batch,
   BatchListener,
   Capability,
+  Cell,
+  DataRow,
+  GameEvent,
+  GameTopics,
   Json,
   Packet,
   PluginContext,
@@ -12,6 +16,9 @@ import type {
   ViewIdentity,
 } from '@ffcafe/mojito-plugin-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { EurekaState } from './exploration/eureka-types.js'
+import { ExplorationService } from './exploration/service.js'
+import type { HuntState } from './exploration/types.js'
 import { activate } from './runtime.js'
 import { defaultSettings } from './settings.js'
 
@@ -40,7 +47,8 @@ afterEach(async () => {
   vi.useRealTimers()
 })
 async function flush() {
-  for (let i = 0; i < 25; i++) await Promise.resolve()
+  // Drain the shared snapshot plus all view event publications.
+  for (let i = 0; i < 100; i++) await Promise.resolve()
 }
 function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (error: unknown) => void
@@ -118,11 +126,18 @@ const view = (kind: 'feature' | 'overlay' = 'feature', definitionId = 'main'): V
   instanceId: kind === 'overlay' ? 'overlay' : null,
 })
 function fixture(
-  options: { initial?: SessionSnapshot; settings?: Json; packetsFail?: boolean; sessionsFail?: boolean } = {},
+  options: {
+    initial?: SessionSnapshot
+    settings?: Json
+    packetsFail?: boolean
+    sessionsFail?: boolean
+    exploration?: boolean
+  } = {},
 ) {
   let current = options.initial ?? source()
   let now = 100000
   let grants = ['session.read', 'packets.read', 'ui.register', 'http.request', 'audio.play', 'data.read']
+  if (options.exploration) grants.push('game.read', 'events.read')
   const capabilityOverrides: Record<string, Capability> = {}
   let sessionListener!: BatchListener<SessionSnapshot>
   let command!: (value: Value, view: ViewIdentity) => Value | Promise<Value>
@@ -131,6 +146,28 @@ function fixture(
     subscription: Subscription
     close(reason: string): void
   }[] = []
+  const eventStreams: { listener: BatchListener<Sample<GameEvent<'zoneChanged'>>>; subscription: Subscription }[] = []
+  const zoneStreams: { listener: BatchListener<Sample<GameTopics['zone']>>; subscription: Subscription }[] = []
+  const gameSample = <T>(value: T): Sample<T> => ({
+    value,
+    meta: { ...packet('synthetic', new Uint8Array(), current, now).meta, timeBase: current.clock.base! },
+  })
+  const gameField = <T>(value: T) => ({
+    state: 'ok' as const,
+    value,
+    observedAt: now,
+    timeBase: current.clock.base!,
+    from: 'memory' as const,
+  })
+  const openSubscription = (): Subscription => {
+    const closed = deferred<{ reason: string }>()
+    return {
+      ready: Promise.resolve(),
+      closed: closed.promise,
+      dispose: vi.fn(() => closed.resolve({ reason: 'disposed' })),
+    }
+  }
+  const dataSheets: Record<string, DataRow[]> = {}
   const controller = new AbortController()
   const snapshots: Value[] = [],
     publications: { channel: string; value: Value }[] = []
@@ -150,8 +187,11 @@ function fixture(
         ...capabilityOverrides,
       }),
     },
-    limits: { version: 1, values: { 'storage.fileBytes': 16 * 1024 * 1024 } },
-    clock: { now: () => now, state: () => current.clock },
+    limits: {
+      version: 1,
+      values: { 'storage.fileBytes': 16 * 1024 * 1024, 'game.watchMinMs': 100, 'game.watchMaxMs': 60000 },
+    },
+    clock: { now: () => now, state: () => (options.exploration ? { ...current.clock, now } : current.clock) },
     config: {
       get: vi.fn(async (key: string) => configValues.get(key) ?? null),
       set: vi.fn(async (key: string, value: Json) => {
@@ -188,6 +228,13 @@ function fixture(
         return subscription
       }),
     },
+    events: {
+      subscribe: vi.fn((_topic, listener: BatchListener<Sample<GameEvent<'zoneChanged'>>>) => {
+        const subscription = openSubscription()
+        eventStreams.push({ listener, subscription })
+        return subscription
+      }),
+    },
     memory: {
       resolve: vi.fn(async () => {
         throw new Error('unavailable')
@@ -195,11 +242,31 @@ function fixture(
       read: vi.fn(async () => ({})),
     },
     game: {
+      subscribe: vi.fn((_topic, listener: BatchListener<Sample<GameTopics['zone']>>) => {
+        const subscription = openSubscription()
+        zoneStreams.push({ listener, subscription })
+        return subscription
+      }),
       getPlayer: vi.fn(async () => {
-        throw new Error('unavailable')
+        if (!options.exploration) throw new Error('unavailable')
+        return gameSample({ actorId: gameField(1), position: gameField({ x: 0, y: 0, z: 0 }), rotation: gameField(0) })
       }),
       getCombatants: vi.fn(async () => {
-        throw new Error('unavailable')
+        if (!options.exploration) throw new Error('unavailable')
+        return gameSample({
+          entities: [
+            {
+              id: 7,
+              objectKind: gameField(2),
+              bNpcBase: gameField(10),
+              bNpcName: gameField(11),
+              position: gameField({ x: 3, y: 0, z: 4 }),
+              hpCur: gameField(100),
+              hpMax: gameField(100),
+            },
+          ],
+          missingIds: [],
+        })
       }),
     },
     http: {
@@ -212,7 +279,10 @@ function fixture(
     },
     data: {
       version: vi.fn(async () => 'test-client'),
-      rows: vi.fn(async () => []),
+      rowIds: vi.fn(async (sheet: string) => (dataSheets[sheet] ?? []).map((row) => row.rowId)),
+      rows: vi.fn(async (sheet: string, ids: number[]) =>
+        (dataSheets[sheet] ?? []).filter((row) => ids.includes(row.rowId)),
+      ),
       map: vi.fn(async () => 'mojito-plugin://runtime/map'),
       image: vi.fn(async () => 'mojito-plugin://runtime/icon'),
     },
@@ -242,6 +312,28 @@ function fixture(
   return {
     context,
     streams,
+    eventStreams,
+    zoneStreams,
+    dataSheets,
+    get now() {
+      return now
+    },
+    async zone(id = 732) {
+      await zoneStreams.at(-1)!.listener(batch([gameSample({ territoryType: gameField(id), mapId: gameField(1) })]))
+      await flush()
+    },
+    async zoneChanged(seq: number, id = 732) {
+      await eventStreams.at(-1)!.listener(
+        batch([
+          gameSample({
+            type: 'zoneChanged' as const,
+            data: { territoryTypeId: id },
+            packet: { seq, timestamp: now + 5000, sourceActorId: 0, targetActorId: 0 },
+          }),
+        ]),
+      )
+      await flush()
+    },
     controller,
     snapshots,
     publications,
@@ -620,4 +712,215 @@ it('keeps settings available when client data is unavailable and does not return
     dataError: '客户端游戏资料暂不可用',
   })
   await expect(f.command({ action: 'settings.get' }, view('feature', 'settings'))).resolves.toBeDefined()
+})
+
+it('publishes exploration state without imported webhook or notification effects', async () => {
+  const f = fixture({
+    settings: {
+      ...defaultSettings,
+      webhooks: [
+        {
+          id: 'nav',
+          name: 'synthetic',
+          event: 'NavigationState',
+          type: 'JSON',
+          endpoint: 'https://example.com/nav',
+          headers: {},
+        },
+        {
+          id: 'hunt',
+          name: 'synthetic',
+          event: 'HuntState',
+          type: 'JSON',
+          endpoint: 'https://example.com/hunt',
+          headers: {},
+        },
+        {
+          id: 'nm',
+          name: 'synthetic',
+          event: 'EurekaState',
+          type: 'JSON',
+          endpoint: 'https://example.com/nm',
+          headers: {},
+        },
+      ],
+    },
+  })
+  await start(f)
+  await f.advance(1000)
+  expect(latest(f).events.map((event) => event.type)).toEqual(
+    expect.arrayContaining(['NavigationState', 'HuntState', 'EurekaState']),
+  )
+  expect(f.context.http.request).not.toHaveBeenCalled()
+  expect(f.context.audio.say).not.toHaveBeenCalled()
+  expect(f.context.notifications.send).not.toHaveBeenCalled()
+  const events = f.publications
+    .filter((item) => item.channel === 'matcha.events')
+    .map((item) => item.value as { sequence: number })
+  expect(events.map((event) => event.sequence)).toEqual(events.map((_, i) => i + 1))
+})
+
+async function explorationFixture() {
+  const f = fixture({ exploration: true })
+  const { emptyCatalog } = await import('./client-data.js')
+  loadClientData.mockImplementation(async () => {
+    const catalog = emptyCatalog()
+    catalog.maps[1] = { name: 'Synthetic island', offset: [0, 0], sizeFactor: 100 }
+    catalog.exploration.maps[1] = { resource: 'synthetic/00', territoryId: 732, isEvent: false }
+    catalog.exploration.territories[732] = { mapId: 1, weatherRateId: null }
+    catalog.fates[1332] = { name: { chs: 'Synthetic NM' }, level: 1, patch: 4, location: 732 }
+    return catalog
+  })
+  const row = (rowId: number, values: (number | string)[]): DataRow => ({
+    rowId,
+    subrows: [{ subrowId: null, cells: values.map((value) => ({ type: typeof value, value }) as Cell) }],
+  })
+  f.dataSheets.NotoriousMonster = [row(1, [10, 2, 11])]
+  f.dataSheets.BNpcName = [row(11, ['Synthetic hunt'])]
+  await start(f)
+  await f.zone()
+  return f
+}
+function fatePacket(category: number, progress = 0) {
+  const bytes = new Uint8Array(40),
+    data = new DataView(bytes.buffer)
+  data.setUint16(0, category, true)
+  data.setUint16(4, 1332, true)
+  data.setUint8(8, progress)
+  return bytes
+}
+async function explorationPacket(
+  f: ReturnType<typeof fixture>,
+  type: string,
+  seq: number,
+  bytes: Uint8Array,
+  observedAt = f.now,
+) {
+  const sample = packet(type, bytes, f.current, observedAt + 5000)
+  sample.meta = { ...sample.meta, observedAt, timeBase: f.current.clock.base! }
+  sample.value.seq = seq
+  await f.streams.at(-1)!.listener(batch([sample]))
+  await flush()
+}
+const eurekaState = (f: ReturnType<typeof fixture>) =>
+  latest(f).events.find((e) => e.type === 'EurekaState')!.content as unknown as EurekaState
+const huntState = (f: ReturnType<typeof fixture>) =>
+  latest(f).events.find((e) => e.type === 'HuntState')!.content as unknown as HuntState
+function zonePacket() {
+  const bytes = new Uint8Array(136)
+  new DataView(bytes.buffer).setUint16(2, 732, true)
+  return bytes
+}
+
+describe('Matcha exploration integration boundaries', () => {
+  it('holds raw-first FATE observations until the structured same-zone boundary is confirmed', async () => {
+    const f = await explorationFixture()
+    await explorationPacket(f, 'ActorControlSelf', 9, fatePacket(2370))
+    expect(eurekaState(f).entries[0]?.activity).toBe('active')
+    await f.advance(500)
+    await explorationPacket(f, 'InitZone', 10, zonePacket())
+    await explorationPacket(f, 'ActorControlSelf', 11, fatePacket(2364, 42))
+    expect(eurekaState(f).entries[0]?.progress).toBeNull()
+    await f.zoneChanged(10)
+    await f.zone()
+    expect(eurekaState(f).entries[0]).toMatchObject({
+      activity: 'active',
+      progress: 42,
+      cooldown: { referenceAt: f.now },
+    })
+  })
+
+  it('accepts structured-first FATE observations without waiting for a duplicate zone event', async () => {
+    const f = await explorationFixture()
+    await f.zoneChanged(20)
+    await f.zone()
+    await explorationPacket(f, 'InitZone', 20, zonePacket())
+    await explorationPacket(f, 'ActorControlSelf', 21, fatePacket(2364, 31))
+    expect(eurekaState(f).entries[0]).toMatchObject({ activity: 'active', progress: 31 })
+  })
+
+  it('clears an unreachable raw-zone gate during a catalog reset and ignores delayed pre-reset InitZone', async () => {
+    const f = await explorationFixture()
+    const beforeReset = f.now
+    await explorationPacket(f, 'InitZone', 30, zonePacket())
+    await explorationPacket(f, 'ActorControlSelf', 31, fatePacket(2364, 15))
+    expect(eurekaState(f).entries[0]?.activity).toBe('unknown')
+    vi.mocked(f.context.data.version).mockResolvedValue('new-client')
+    await f.advance(1000)
+    await f.zone()
+    await explorationPacket(f, 'InitZone', 30, zonePacket(), beforeReset)
+    await explorationPacket(f, 'ActorControlSelf', 32, fatePacket(2364, 53))
+    expect(eurekaState(f).entries[0]).toMatchObject({
+      activity: 'active',
+      progress: 53,
+      cooldown: { referenceAt: f.now },
+    })
+  })
+
+  it('clears a pending raw-zone gate when the structured stream disconnects', async () => {
+    const f = await explorationFixture()
+    await explorationPacket(f, 'InitZone', 60, zonePacket())
+    await explorationPacket(f, 'ActorControlSelf', 61, fatePacket(2364, 15))
+    expect(eurekaState(f).entries[0]?.activity).toBe('unknown')
+    f.eventStreams.at(-1)!.subscription.dispose()
+    await flush()
+    await f.advance(1500)
+    expect(f.context.events.subscribe).toHaveBeenCalledTimes(2)
+    await f.zone()
+    await explorationPacket(f, 'ActorControlSelf', 62, fatePacket(2364, 72))
+    expect(eurekaState(f).entries[0]).toMatchObject({ activity: 'active', progress: 72 })
+  })
+
+  it('preserves a structured acknowledgment across a service-only reset', async () => {
+    const f = await explorationFixture()
+    await f.zoneChanged(40)
+    await f.zone()
+    await f.command(
+      { action: 'settings.set', settings: defaultSettings as unknown as Json },
+      view('feature', 'settings'),
+    )
+    await f.zone()
+    await explorationPacket(f, 'InitZone', 40, zonePacket())
+    await explorationPacket(f, 'ActorControlSelf', 41, fatePacket(2364, 64))
+    expect(eurekaState(f).entries[0]).toMatchObject({ activity: 'active', progress: 64 })
+  })
+
+  it('invalidates the extra client catalog when data.read disappears without a session event', async () => {
+    const f = await explorationFixture()
+    await f.advance(500)
+    expect(huntState(f).entries[0]?.name).toBe('Synthetic hunt')
+    f.setCapability('data.read', { state: 'unavailable', reason: 'Client closed' })
+    await f.advance(1000)
+    await f.zone()
+    await f.advance(500)
+    expect(huntState(f)).toMatchObject({ status: 'waiting', entries: [] })
+    expect(eurekaState(f)).toMatchObject({ status: 'waiting', entries: [] })
+  })
+
+  it('passes source observation time and the measured server offset only to the new FATE state', async () => {
+    const observe = vi.spyOn(ExplorationService.prototype, 'observeFate')
+    try {
+      const f = await explorationFixture()
+      const bytes = new Uint8Array(24),
+        data = new DataView(bytes.buffer)
+      data.setUint16(0, 1332, true)
+      data.setUint32(8, 90, true)
+      data.setUint32(16, 1200, true)
+      await explorationPacket(f, 'FateInfo', 50, bytes)
+      expect(observe).toHaveBeenLastCalledWith(
+        {
+          kind: 'info',
+          fateId: 1332,
+          packetSeq: 50,
+          timestamp: f.now,
+          startTimeSeconds: 90,
+          durationSeconds: 1200,
+          serverToSourceOffsetMs: -5000,
+        },
+        -1,
+      )
+    } finally {
+      observe.mockRestore()
+    }
+  })
 })

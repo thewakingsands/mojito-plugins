@@ -509,3 +509,46 @@ describe('market request correlation', () => {
     expect(service.deleteListing).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('Matcha FATE observation callback', () => {
+  it('publishes source sequence and raw timing while preserving legacy events', () => {
+    const emit = vi.fn()
+    const onFateObservation = vi.fn()
+    const handlers = new MatchaPacketHandlers({ emit, onFateObservation })
+    const start = ac(2370).u16(4, 1332).value
+    handlers.handle({ ...start, seq: 11 })
+    const info = packet('FateInfo', 24).u16(0, 1332).u32(8, 1_699_999_940).u32(16, 1200).value
+    handlers.handle({ ...info, seq: 12 })
+    handlers.handle({ ...ac(2364).u16(4, 1332).u8(8, 45).value, seq: 13 })
+    handlers.handle({ ...ac(2357).u16(4, 1332).u16(28, 2).value, seq: 14 })
+    expect(onFateObservation.mock.calls.map(([value]) => value)).toEqual([
+      { kind: 'start', fateId: 1332, packetSeq: 11, timestamp: start.timestamp },
+      {
+        kind: 'info',
+        fateId: 1332,
+        packetSeq: 12,
+        timestamp: info.timestamp,
+        startTimeSeconds: 1_699_999_940,
+        durationSeconds: 1200,
+      },
+      { kind: 'progress', fateId: 1332, packetSeq: 13, timestamp: start.timestamp, progress: 45 },
+      { kind: 'end', fateId: 1332, packetSeq: 14, timestamp: start.timestamp, extra: 2 },
+    ])
+    expect(emit.mock.calls).toEqual([
+      ['Fate', { type: 'start', fate: 1332, progress: 0, extra: 0 }, start.timestamp],
+      ['Fate', { type: 'progress', fate: 1332, progress: 45, extra: 0 }, start.timestamp],
+      ['Fate', { type: 'end', fate: 1332, progress: 0, extra: 2 }, start.timestamp],
+    ])
+    expect(handlers.snapshot().fates).toEqual([])
+  })
+
+  it('does not publish observations for malformed or irrelevant packets', () => {
+    const onFateObservation = vi.fn()
+    const handlers = new MatchaPacketHandlers({ emit: vi.fn(), onFateObservation })
+    handlers.handle(packet('FateInfo', 23).value)
+    handlers.handle(packet('FateInfo', 24, 'send').value)
+    handlers.handle(ac(2364).u16(4, 1332).u8(8, 101).value)
+    handlers.handle(packet('InitZone', 136).u16(2, 732).value)
+    expect(onFateObservation).not.toHaveBeenCalled()
+  })
+})
