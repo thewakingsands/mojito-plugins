@@ -38,6 +38,11 @@ interface Encounter {
 }
 /** The periodicTicks whose damageAttributed events may still come */
 const attributionTickLimit = 1024
+/**
+ * How long after leaving combat the death of an enemy still counts for the fight; the game may report it seconds late,
+ * after the enemy sat at 1 HP through its last scene.
+ */
+const deathGraceMs = 5000
 export class Encounters {
   config: Settings = { ...defaults }
   /**
@@ -67,6 +72,8 @@ export class Encounters {
   /** The encounter of each accepted periodicTick, by tickKey, for the damageAttributed of its shares */
   private attributionTicks = new Map<string, Encounter>()
   private trailing = false
+  /** The last fight, while it ended by leaving combat and nothing has come after it */
+  private grace: Encounter | null = null
   /**
    * Increases whenever a method may change an encounter, which only methods of this class do; a summary computed
    * at the same revision is still current.
@@ -171,6 +178,7 @@ export class Encounters {
     if (observer) encounter.ledger.observer = (entry) => observer(encounter.id, entry)
     for (const reason of this.qualityReasons) encounter.ledger.quality.add(reason)
     this.active = encounter
+    this.grace = null
     this.hooks?.started({ id: encounter.id, at })
     return encounter
   }
@@ -254,6 +262,7 @@ export class Encounters {
     encounter.reason = reason
     if (incomplete) encounter.ledger.quality.add(`输入不完整：${reason}`)
     this.active = null
+    this.grace = reason === 'outOfCombat' ? encounter : null
     this.completed.unshift(encounter)
     for (const removed of this.completed.splice(100)) {
       removed.ledger.seal()
@@ -272,6 +281,7 @@ export class Encounters {
   boundary(reason: string, at: number) {
     this.revision++
     this.finish(reason, at, true)
+    this.grace = null
     for (const encounter of this.completed) encounter.ledger.seal()
     // Sealing settles the heals, which changes the summary finish computed.
     this.revision++
@@ -299,6 +309,7 @@ export class Encounters {
     this.revision++
     for (const encounter of this.completed) encounter.ledger.seal()
     this.completed.length = 0
+    this.grace = null
     for (const map of [this.bindings, this.attributionTicks])
       for (const [key, owner] of map) if (owner !== this.active) map.delete(key)
   }
@@ -344,6 +355,22 @@ export class Encounters {
       if (encounter.ledger.attribute(record.actorId, skill, record.contributions, at)) touched.add(encounter)
     }
     for (const encounter of touched) this.notify(encounter, true)
+  }
+  /** Gives the fight that just ended by leaving combat the death of an enemy its party damaged */
+  private lateDeath(event: GameEvent<'actorDied'>, source: string, at: number): boolean {
+    const encounter = this.grace
+    const actor = this.actors.get(event.data.actorId ?? -1)
+    if (
+      !encounter ||
+      encounter.source !== source ||
+      at > encounter.closedAt! + deathGraceMs ||
+      actor?.kind !== 'enemy' ||
+      !encounter.ledger.damaged(actor.key)
+    )
+      return false
+    encounter.outcome.death(actor, at)
+    this.notify(encounter, true)
+    return true
   }
   accept(sample: Sample<GameEvent>, now: number) {
     this.revision++
@@ -408,6 +435,7 @@ export class Encounters {
     }
     if (event.type === 'zoneChanged') {
       this.finish('zoneChanged', sample.meta.observedAt)
+      this.grace = null
       this.resetCombat(sample.meta.observedAt)
       this.zone = event.data.territoryTypeId
       return
@@ -427,6 +455,7 @@ export class Encounters {
       encounter = this.active ?? undefined
       if (encounter && at < encounter.start) return
       if (!encounter) {
+        if (event.type === 'actorDied' && this.lateDeath(event, source, at)) return
         // A tick after leaving combat belongs to no fight.
         if (event.type === 'periodicTick' && !this.manual && this.inCombat === false) return
         // An old fact after a manual end must not open a duplicate encounter.

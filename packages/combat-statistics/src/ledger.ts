@@ -591,6 +591,11 @@ export class Ledger {
     }
     return { hostile, accepted }
   }
+  /** Whether a row dealt damage to the actor of this key */
+  damaged(key: string): boolean {
+    for (const row of this.rows.values()) if ((row.targets[key]?.damage ?? 0) > 0) return true
+    return false
+  }
   hostile(event: GameEvent<'actionEffect'>): boolean {
     const source = this.actors.get(event.data.sourceActorId ?? -1)
     return event.data.targets.some((target) => {

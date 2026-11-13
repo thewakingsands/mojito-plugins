@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { Encounters } from './encounters.js'
-import { actors, effect, npcParty, sample } from './fixtures.js'
+import { actors, combat, effect, npcParty, sample } from './fixtures.js'
 
 const setup = () => {
   let id = 0
@@ -122,6 +122,73 @@ it('is a kill when the main enemy reaches 0 HP and the game leaves combat before
   encounters.accept(sample(effect(1), 1000), 1000)
   encounters.accept(hp(2, 9, 0, 10_000), 1100)
   expect(outcome(encounters, 2000).result).toBe('kill')
+})
+it('is a kill when the game reports the death of the main enemy seconds after leaving combat', () => {
+  const revisions: boolean[] = []
+  const encounters = new Encounters(
+    () => 'battle',
+    (_, revision) => revisions.push(revision),
+  )
+  encounters.updateActors(actors())
+  encounters.localActorId = 1
+  encounters.accept(sample(combat(1, true), 900), 900)
+  encounters.accept(sample(effect(2), 1000), 1000)
+  // The enemy sits at 1 HP through its last scene
+  encounters.accept(hp(3, 9, 1, 10_000), 1100)
+  encounters.accept(sample(combat(4, false), 2000), 2000)
+  const ended = encounters.snapshot(encounters.completed[0])!
+  expect(ended.outcome.result).toBe('ended')
+  encounters.accept(died(5, 9, 6900), 6900)
+  const revised = encounters.snapshot(encounters.completed[0])!
+  expect(revised.outcome.result).toBe('kill')
+  expect(revised).toMatchObject({ durationMs: ended.durationMs, endAt: ended.endAt })
+  expect(revisions.at(-1)).toBe(true)
+  expect(encounters.active).toBeNull()
+})
+it('leaves a fight that left combat as it was for deaths it did not see', () => {
+  const late = (then: (encounters: Encounters) => void) => {
+    const encounters = setup()
+    encounters.accept(sample(combat(1, true), 900), 900)
+    encounters.accept(sample(effect(2), 1000), 1000)
+    encounters.accept(sample(combat(3, false), 2000), 2000)
+    then(encounters)
+    return encounters.snapshot(encounters.completed.at(-1))!.outcome.result
+  }
+  // Too late
+  expect(late((encounters) => encounters.accept(died(4, 9, 7100), 7100))).toBe('ended')
+  // Another zone
+  expect(
+    late((encounters) => {
+      encounters.accept(
+        sample({ type: 'zoneChanged', packet: effect(4).packet, data: { territoryTypeId: 2 } }, 3000),
+        3000,
+      )
+      encounters.accept(died(5, 9, 3100), 3100)
+    }),
+  ).toBe('ended')
+  // After the next fight began
+  expect(
+    late((encounters) => {
+      encounters.accept(sample(effect(4, 100, 1, 9), 3000), 3000)
+      encounters.accept(died(5, 9, 3100), 3100)
+    }),
+  ).toBe('ended')
+  // An enemy the party did not damage
+  expect(
+    late((encounters) => {
+      encounters.updateActors(
+        new Map([...actors(), [11, { ...actors().get(9)!, key: 'source:1:11', id: 11, name: '旁观' }]]),
+      )
+      encounters.accept(died(4, 11, 3000), 3000)
+    }),
+  ).toBe('ended')
+  // A member: the wipe stays with what the fight saw
+  expect(
+    late((encounters) => {
+      encounters.accept(died(4, 1, 3000), 3000)
+      encounters.accept(died(5, 2, 3000), 3000)
+    }),
+  ).toBe('ended')
 })
 it('takes NPC party members as members for the main enemy and the wipe', () => {
   const encounters = setup()

@@ -1,9 +1,6 @@
-import { readFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
-import { decodeColumns, parseFile } from '../../log/parquet.js'
+import { records } from '../../log/records.test-helper.js'
 import { replay } from '../../log/replay.js'
-import { Assembler, COLUMN_NAMES, COLUMNS, type Row } from '../../log/schema.js'
-import type { LogRecord } from '../../log/types.js'
 import { ReplayBuilder } from '../../replay/builder.js'
 import { buildMapScene, sceneAt } from './scene.js'
 import { memberShown, poseAt } from './tracks.js'
@@ -11,25 +8,6 @@ import { memberShown, poseAt } from './tracks.js'
 /** The log holds player names, so it stays out of the repository and this test reads it from a path. */
 const LOG = process.env.MOJITO_REVIEW_LOG
 const END_MS = 377_000
-
-async function records(path: string): Promise<LogRecord[]> {
-  const parsed = parseFile(new Uint8Array(await readFile(path)), COLUMNS)
-  const assembler = new Assembler()
-  const result: LogRecord[] = []
-  for (let group = 0; group < parsed.groups.length; group++) {
-    const columns = await decodeColumns(parsed, group, COLUMN_NAMES)
-    for (let index = 0; index < (columns[0]?.length ?? 0); index++) {
-      const row: Row = {}
-      COLUMN_NAMES.forEach((column, c) => {
-        const cell = columns[c][index]
-        if (cell !== null) row[column] = cell
-      })
-      result.push(...assembler.push(row))
-    }
-  }
-  result.push(...assembler.flush())
-  return result
-}
 
 it.skipIf(!LOG)(
   'splits the attached fight into the panes of the acceptance table',
