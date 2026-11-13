@@ -124,12 +124,14 @@ function mockLaneRect() {
   })
 }
 
-it('closes the popover of a selected event and expands the panel with one press of the expand button', async () => {
+const detail = () => screen.queryByRole('region', { name: '事件详情' })
+
+it('expands the panel with one press of the expand button while an event is expanded', async () => {
   await open()
   press(event('死亡 · 骑士'))
-  expect(screen.getByRole('dialog')).toHaveProperty('textContent', expect.stringContaining('致命一击'))
+  expect(detail()!.textContent).toContain('致命一击')
   press(screen.getByRole('button', { name: '详细数据' }))
-  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(detail()).toBeNull()
   expect(tab('伤害').getAttribute('aria-selected')).toBe('true')
   expect(screen.getByRole('button', { name: '收起' })).toBeTruthy()
 })
@@ -149,15 +151,60 @@ it('uses the segmented control and the tabs of the base styles', async () => {
   expect(document.querySelector('tr.actor .mojito-chevron')).toBeTruthy()
 })
 
-it('highlights the event that was pressed', async () => {
+it('expands one event at a time under it in the list, and collapses it on a second press or Esc', async () => {
   await open()
   press(event('伤害降低 · 白魔'))
-  expect(event('伤害降低 · 白魔').getAttribute('aria-pressed')).toBe('true')
-  expect(event('死亡 · 骑士').getAttribute('aria-pressed')).toBe('false')
+  expect(event('伤害降低 · 白魔').getAttribute('aria-expanded')).toBe('true')
+  expect(event('死亡 · 骑士').getAttribute('aria-expanded')).toBe('false')
   press(event('死亡 · 骑士'))
-  expect(event('死亡 · 骑士').getAttribute('aria-pressed')).toBe('true')
-  expect(event('伤害降低 · 白魔').getAttribute('aria-pressed')).toBe('false')
-  expect(screen.getByRole('dialog').textContent).toContain('死亡 · 骑士')
+  expect(event('死亡 · 骑士').getAttribute('aria-expanded')).toBe('true')
+  expect(event('伤害降低 · 白魔').getAttribute('aria-expanded')).toBe('false')
+  expect(screen.getAllByRole('region', { name: '事件详情' })).toHaveLength(1)
+  expect(event('死亡 · 骑士').parentElement!.contains(detail())).toBe(true)
+  expect(detail()!.textContent).toContain('致命一击')
+  press(event('死亡 · 骑士'))
+  expect(detail()).toBeNull()
+  press(event('死亡 · 骑士'))
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(detail()).toBeNull()
+})
+
+const bigHit: ReplayEvent = {
+  kind: 'bigHit',
+  t: 25_000,
+  actor: 0,
+  hit: hit(25_000),
+  maxHp: 1000,
+  statuses: [],
+}
+
+it('leaves the big hits out until their switch is on, and counts every type', async () => {
+  await open({ ...data, events: [...events, bigHit] })
+  const box = (name: RegExp) => screen.getByRole<HTMLInputElement>('checkbox', { name })
+  expect(box(/^死亡/).checked).toBe(true)
+  expect(box(/^大额伤害/).checked).toBe(false)
+  expect(box(/^大额伤害/).parentElement!.textContent).toBe('大额伤害1')
+  expect(screen.queryByText('大额伤害 · 骑士')).toBeNull()
+  expect(document.querySelectorAll('.events .event-mark')).toHaveLength(3)
+  fireEvent.click(box(/^大额伤害/))
+  expect(event('大额伤害 · 骑士')).toBeTruthy()
+  expect(document.querySelectorAll('.events .event-mark')).toHaveLength(4)
+  for (const name of [/^死亡/, /^惩罚/, /^首领/, /^大额伤害/]) fireEvent.click(box(name))
+  expect(screen.getByText('没有选中任何事件类型')).toBeTruthy()
+})
+
+it('expands the event of a mark in the list, from any tab of the panel', async () => {
+  await open()
+  press(screen.getByRole('button', { name: '详细数据' }))
+  const mark = [...document.querySelectorAll<HTMLElement>('.events .event-mark')].find((item) =>
+    item.title.includes('死亡 · 骑士'),
+  )!
+  press(mark)
+  expect(tab('重要事件').getAttribute('aria-selected')).toBe('true')
+  expect(event('死亡 · 骑士').getAttribute('aria-expanded')).toBe('true')
+  press(mark)
+  expect(event('死亡 · 骑士').getAttribute('aria-expanded')).toBe('true')
+  expect(screen.getByText('0:20.0 / 1:00.0')).toBeTruthy()
 })
 
 it('keeps the grouping and the open rows of each table to itself', async () => {
@@ -193,9 +240,9 @@ it('takes every press while playing', async () => {
   expect(screen.getByRole('button', { name: '暂停' })).toBeTruthy()
   press(screen.getByRole('button', { name: '收起' }))
   press(event('死亡 · 骑士'))
-  expect(event('死亡 · 骑士').getAttribute('aria-pressed')).toBe('true')
+  expect(event('死亡 · 骑士').getAttribute('aria-expanded')).toBe('true')
   expect(screen.getByText('0:20.0 / 1:00.0')).toBeTruthy()
-  expect(screen.getByRole('dialog')).toBeTruthy()
+  expect(detail()).toBeTruthy()
 })
 
 it('starts buff and debuff groups closed, and opens them separately', async () => {
@@ -600,10 +647,9 @@ it('shows the details of a boss cast above it without moving the time', async ()
 
   press(casts()[0])
   press(document.querySelector('.event-mark')!)
-  expect(screen.getAllByRole('dialog')).toHaveLength(1)
-  expect(screen.getByRole('dialog', { name: '事件详情' })).toBeTruthy()
+  expect(dialog()).toBeNull()
+  expect(detail()).toBeTruthy()
   press(casts()[0])
-  expect(screen.getAllByRole('dialog')).toHaveLength(1)
   expect(dialog()).toBeTruthy()
 })
 
@@ -624,18 +670,16 @@ it('lists the cutscenes and shows their range and length', async () => {
   await open(withScenes)
   expect(event('过场动画开始').textContent).toContain('0:42.1')
   press(event('过场动画结束'))
-  const text = screen.getByRole('dialog').textContent
-  expect(text).toContain('过场动画结束')
-  expect(text).toContain('0:42.1 – 0:55.0 · 12.9 秒')
+  expect(detail()!.textContent).toContain('0:42.1 – 0:55.0 · 12.9 秒')
 })
 
-it('writes why a boss left in the list and in its popover', async () => {
+it('writes why a boss left in the list and in its details', async () => {
   await open(withScenes)
   const left = screen.getAllByRole('button', { name: /离开 · / })
   expect(left[0].textContent).toContain('不可选中')
   expect(left[1].textContent).toContain('离开场地')
   press(left[0])
-  const rows = [...screen.getByRole('dialog').querySelectorAll('table.hits tr')].map((row) => row.textContent)
+  const rows = [...detail()!.querySelectorAll('table.hits tr')].map((row) => row.textContent)
   expect(rows).toEqual([
     expect.stringContaining('出现'),
     expect.stringContaining('离开（不可选中）'),

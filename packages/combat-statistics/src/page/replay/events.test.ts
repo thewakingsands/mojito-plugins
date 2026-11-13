@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { ReplayEvent } from '../../view-model.js'
-import { cutscenesOf, lastBefore, listedEvents } from './events.js'
+import { countTypes, cutscenesOf, DEFAULT_TYPES, lastBefore, listedEvents, ofTypes, typeOf } from './events.js'
 
 const events: ReplayEvent[] = [
   { kind: 'bossIn', t: 0, actor: 9 },
@@ -40,4 +40,33 @@ it('lists the cutscenes whatever members are chosen, within the span by the time
 
 it('gives one event for each cutscene', () => {
   expect(cutscenesOf([...events, cutscene, cutsceneEnd])).toEqual([cutscene])
+})
+
+const bigHit = {
+  kind: 'bigHit',
+  t: 2500,
+  actor: 0,
+  hit: { t: 2500, source: 9, sourceName: null, actionId: 1, name: null, amount: 900, periodic: false },
+  maxHp: 1000,
+  statuses: [],
+} as const satisfies ReplayEvent
+
+it('sorts the events into the types of the list, cutscenes with the boss', () => {
+  expect([...events, bigHit, cutscene].map(typeOf)).toEqual(['boss', 'death', 'penalty', 'boss', 'bigHit', 'boss'])
+})
+
+it('counts the types of what the members and the span leave', () => {
+  const all = [...events, bigHit]
+  expect(countTypes(listedEvents(all, new Set([0, 1]), null))).toEqual({ death: 1, penalty: 1, boss: 2, bigHit: 1 })
+  expect(countTypes(listedEvents(all, new Set([1]), { from: 1500, to: 2600 }))).toEqual({
+    death: 0,
+    penalty: 1,
+    boss: 0,
+    bigHit: 0,
+  })
+})
+
+it('leaves the big hits out by default', () => {
+  expect(ofTypes([...events, bigHit], DEFAULT_TYPES)).toEqual(events)
+  expect(ofTypes([...events, bigHit], new Set(['bigHit']))).toEqual([bigHit])
 })

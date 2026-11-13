@@ -3,7 +3,7 @@ import { memo, type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import type { Hit, ReplayData, ReplayEvent, StatusNote } from '../../view-model.js'
 import { amount, percent } from '../format.js'
 import { SkillIcon } from '../icons.js'
-import { type BossEvent, isBossEvent, isFightEvent, lastBefore } from './events.js'
+import { type BossEvent, EVENT_TYPES, type EventType, isBossEvent, isFightEvent, lastBefore } from './events.js'
 import { actionName, actorName, Diamond, sourceName, statusName } from './parts.js'
 import { clockText } from './timeline.js'
 import { poseAt } from './tracks.js'
@@ -116,20 +116,25 @@ export function eventLines(data: ReplayData, event: ReplayEvent): { title: strin
 }
 
 /**
- * The listed events, the ones after the time dimmed. While playing it keeps the last event before the time in view,
- * until the user scrolls the list; a click on an event or a drag of the timeline gives it back.
+ * The switches of the event types over the listed events, the ones after the time dimmed. While playing it keeps the
+ * last event before the time in view, until the user scrolls the list; a click on an event or a drag of the timeline
+ * gives it back. The expanded event shows its details under it.
  */
 export const EventList = memo(function EventList(props: {
   data: ReplayData
   events: readonly ReplayEvent[]
+  /** How many events of each type the members and the span leave, whether the type is on or not */
+  counts: Record<EventType, number>
+  types: ReadonlySet<EventType>
+  onTypes: (types: ReadonlySet<EventType>) => void
   time: number
   playing: boolean
-  selected: ReplayEvent | null
+  expanded: ReplayEvent | null
   /** Changes whenever the user moves the time; the list follows again then */
   follow: number
-  onSelect: (event: ReplayEvent, item: HTMLElement) => void
+  onSelect: (event: ReplayEvent) => void
 }) {
-  const { data, events, time } = props
+  const { data, events, time, types } = props
   const list = useRef<HTMLDivElement>(null)
   const [manual, setManual] = useState(false)
   const last = lastBefore(events, time)
@@ -143,36 +148,58 @@ export const EventList = memo(function EventList(props: {
     const item = list.current?.children[last] as HTMLElement | undefined
     item?.scrollIntoView?.({ block: 'nearest' })
   }, [props.playing, manual, last])
-  if (!events.length) return <p className="placeholder">当前筛选下没有重要事件</p>
+  useLayoutEffect(() => {
+    if (props.expanded) list.current?.querySelector('.event-item.open')?.scrollIntoView?.({ block: 'nearest' })
+  }, [props.expanded])
+  const toggle = (type: EventType) => {
+    const next = new Set(types)
+    if (!next.delete(type)) next.add(type)
+    props.onTypes(next)
+  }
   return (
-    <div className="events" ref={list} onWheel={() => setManual(true)}>
-      {events.map((event, index) => {
-        const lines = eventLines(data, event)
-        const classes = [
-          'event',
-          isFightEvent(event) && 'boss',
-          event.t > time && 'future',
-          props.selected === event && 'selected',
-        ]
-        return (
-          <button
-            key={`${event.kind}:${event.t}:${index}`}
-            type="button"
-            className={classes.filter(Boolean).join(' ')}
-            aria-pressed={props.selected === event}
-            data-event
-            onClick={(click) => props.onSelect(event, click.currentTarget)}
-          >
-            <span className="event-time number">{clockText(event.t)}</span>
-            <EventIcon data={data} event={event} />
-            <span className="event-text">
-              <span className="ellipsis">{lines.title}</span>
-              {lines.detail && <small className="ellipsis">{lines.detail}</small>}
-            </span>
-          </button>
-        )
-      })}
-    </div>
+    <>
+      <div className="event-types">
+        {EVENT_TYPES.map(([type, label]) => (
+          <label key={type}>
+            <input type="checkbox" checked={types.has(type)} onChange={() => toggle(type)} />
+            {label}
+            <span className="number">{props.counts[type]}</span>
+          </label>
+        ))}
+      </div>
+      {!types.size ? (
+        <p className="placeholder">没有选中任何事件类型</p>
+      ) : !events.length ? (
+        <p className="placeholder">当前筛选下没有重要事件</p>
+      ) : (
+        <div className="events" ref={list} onWheel={() => setManual(true)}>
+          {events.map((event, index) => {
+            const lines = eventLines(data, event)
+            const open = props.expanded === event
+            const classes = ['event', isFightEvent(event) && 'boss', event.t > time && 'future']
+            return (
+              <div key={`${event.kind}:${event.t}:${index}`} className={`event-item${open ? ' open' : ''}`}>
+                <button
+                  type="button"
+                  className={classes.filter(Boolean).join(' ')}
+                  aria-expanded={open}
+                  data-event
+                  onClick={() => props.onSelect(event)}
+                >
+                  <span className="event-time number">{clockText(event.t)}</span>
+                  <EventIcon data={data} event={event} />
+                  <span className="event-text">
+                    <span className="ellipsis">{lines.title}</span>
+                    {lines.detail && <small>{lines.detail}</small>}
+                  </span>
+                </button>
+                {open && <EventDetail data={data} event={event} />}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
   )
 })
 
@@ -196,21 +223,12 @@ function Statuses({ data, title, statuses }: { data: ReplayData; title: string; 
   )
 }
 
-/** What an event did and why, next to the panel */
-export function EventPopover(props: {
-  data: ReplayData
-  event: ReplayEvent
-  top: number
-  right: number
-  popover: React.RefObject<HTMLDivElement | null>
-}) {
+/** What an event did and why, under it in the list */
+function EventDetail(props: { data: ReplayData; event: ReplayEvent }) {
   const { data, event } = props
-  const who = event.kind === 'cutscene' ? '' : actorName(data.actors[event.actor])
-  let title: ReactNode
   let body: ReactNode
   switch (event.kind) {
     case 'cutscene':
-      title = CUTSCENE_TITLES[event.edge]
       body = (
         <p>
           {clockText(event.from)} – {clockText(event.to)} · {((event.to - event.from) / 1000).toFixed(1)} 秒
@@ -218,7 +236,6 @@ export function EventPopover(props: {
       )
       break
     case 'death':
-      title = `死亡 · ${who}`
       body = (
         <>
           <p>
@@ -245,12 +262,6 @@ export function EventPopover(props: {
       )
       break
     case 'penalty':
-      title = (
-        <>
-          <SkillIcon skill={`status:${event.statusId}`} />
-          {`${statusName(data, event.statusId, event.name)} · ${who}`}
-        </>
-      )
       body = (
         <>
           <p>
@@ -265,7 +276,6 @@ export function EventPopover(props: {
       )
       break
     case 'bigHit':
-      title = `大额伤害 · ${who}`
       body = (
         <>
           <p>
@@ -277,14 +287,7 @@ export function EventPopover(props: {
       )
       break
     default: {
-      const boss = data.actors[event.actor]
       const hp = bossHp(data, event)
-      title = (
-        <>
-          <Diamond main={boss.main} />
-          {`${BOSS_TITLES[event.kind]} · ${who}`}
-        </>
-      )
       body = (
         <>
           {hp !== null && <p>HP {percent(hp * 100)}</p>}
@@ -310,18 +313,8 @@ export function EventPopover(props: {
     }
   }
   return (
-    <div
-      className="popover"
-      ref={props.popover}
-      role="dialog"
-      aria-label="事件详情"
-      style={{ top: props.top, right: props.right }}
-    >
-      <h4>
-        {title}
-        <span className="popover-time number">{clockText(event.t)}</span>
-      </h4>
+    <section className="event-detail" aria-label="事件详情">
       {body}
-    </div>
+    </section>
   )
 }

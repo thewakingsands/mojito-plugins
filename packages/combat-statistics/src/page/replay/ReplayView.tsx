@@ -18,8 +18,8 @@ import { duration, entered, percent, zoneName } from '../format.js'
 import type { Scope, Span } from './aggregate.js'
 import { CastPopover } from './CastPopover.js'
 import { DamageTable, type HealGroup, HealingTable, type TakenGroup, TakenTable, UptimeTable } from './DetailTables.js'
-import { EventList, EventPopover } from './EventList.js'
-import { listedEvents } from './events.js'
+import { EventList } from './EventList.js'
+import { countTypes, DEFAULT_TYPES, type EventType, listedEvents, ofTypes } from './events.js'
 import { everyone, type FilterMember, isEveryone } from './filter.js'
 import { bottomHeight, bottomLimit, panelWidth } from './layout.js'
 import { MemberFilter } from './MemberFilter.js'
@@ -197,8 +197,8 @@ const Review = memo(function Review({
   const [healOpen, setHealOpen] = useState<ReadonlySet<number>>(new Set())
   const [buffOpen, setBuffOpen] = useState<ReadonlySet<number>>(new Set())
   const [debuffOpen, setDebuffOpen] = useState<ReadonlySet<number>>(new Set())
-  const [selected, setSelected] = useState<ReplayEvent | null>(null)
-  const [popoverAt, setPopoverAt] = useState<{ top: number; right: number } | null>(null)
+  const [expandedEvent, setExpandedEvent] = useState<ReplayEvent | null>(null)
+  const [types, setTypes] = useState<ReadonlySet<EventType>>(DEFAULT_TYPES)
   /** The cast of the timeline whose details are open, and where they show */
   const [castOpen, setCastOpen] = useState<{ index: number; left: number; bottom: number } | null>(null)
   const [timelineOpen, setTimelineOpen] = useState(false)
@@ -287,31 +287,24 @@ const Review = memo(function Review({
     [time, durationMs],
   )
 
-  const closePopover = useCallback(() => {
-    setSelected(null)
-    setPopoverAt(null)
-  }, [])
-  const closePopovers = useCallback(() => {
-    closePopover()
-    setCastOpen(null)
-  }, [closePopover])
+  const closeCast = useCallback(() => setCastOpen(null), [])
+  /** Moves to the event and expands it in the list, or collapses it when it is expanded */
   const selectEvent = useCallback(
     (event: ReplayEvent) => {
-      if (selected === event) {
-        closePopover()
+      setCastOpen(null)
+      if (expandedEvent === event) {
+        setExpandedEvent(null)
         return
       }
-      setCastOpen(null)
       seek(event.t)
       setTab('events')
-      setSelected(event)
+      setExpandedEvent(event)
     },
-    [selected, seek, closePopover],
+    [expandedEvent, seek],
   )
   /** Opens the details of a cast above its bar, or closes them when they are open; the time stays where it is */
   const openCast = useCallback(
     (index: number, item: HTMLElement) => {
-      closePopover()
       if (castOpen?.index === index) {
         setCastOpen(null)
         return
@@ -324,38 +317,28 @@ const Review = memo(function Review({
         bottom: clientHeight - box.top + POPOVER_GAP,
       })
     },
-    [castOpen, closePopover],
+    [castOpen],
   )
-  // The popover sits left of the panel, level with the item of its event once the list shows it.
-  useLayoutEffect(() => {
-    if (!selected) return
-    const item = panel.current?.querySelector<HTMLElement>('.event.selected')
-    const box = panel.current?.getBoundingClientRect()
-    if (!item || !box) return
-    item.scrollIntoView?.({ block: 'nearest' })
-    setPopoverAt({
-      top: item.getBoundingClientRect().top,
-      right: document.documentElement.clientWidth - box.left + POPOVER_GAP,
-    })
-  }, [selected])
-  // A press outside the popover, the events and the casts closes it; the press still does what it does.
-  const popoverOpen = selected !== null || castOpen !== null
+  // A press outside the details of a cast and the casts closes them; the press still does what it does.
+  const castShown = castOpen !== null
   useEffect(() => {
-    if (!popoverOpen) return
+    if (!castShown) return
     const down = (event: PointerEvent) => {
       const target = event.target as Element | null
-      if (popover.current?.contains(target) || target?.closest?.('[data-event], [data-cast]')) return
-      closePopovers()
+      if (popover.current?.contains(target) || target?.closest?.('[data-cast]')) return
+      closeCast()
     }
     document.addEventListener('pointerdown', down, true)
     return () => document.removeEventListener('pointerdown', down, true)
-  }, [popoverOpen, closePopovers])
+  }, [castShown, closeCast])
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       const target = event.target as Element | null
       if (target?.closest?.('input, textarea, select')) return
-      if (event.key === 'Escape') closePopovers()
-      else if (event.key === ' ') {
+      if (event.key === 'Escape') {
+        closeCast()
+        setExpandedEvent(null)
+      } else if (event.key === ' ') {
         event.preventDefault()
         togglePlay()
       } else if (event.key === 'ArrowLeft') step(-STEP_MS)
@@ -363,7 +346,7 @@ const Review = memo(function Review({
     }
     document.addEventListener('keydown', key)
     return () => document.removeEventListener('keydown', key)
-  }, [togglePlay, step, closePopovers])
+  }, [togglePlay, step, closeCast])
 
   const scope = useMemo<Scope>(
     () => ({
@@ -383,14 +366,25 @@ const Review = memo(function Review({
     )
     return new Set(data.actors.filter((actor) => keys.has(actor.key)).map((actor) => actor.index))
   }, [summary, data])
-  const listed = useMemo(() => listedEvents(data.events, chosen, span), [data, chosen, span])
-  const marked = useMemo(() => listedEvents(data.events, chosen, null), [data, chosen])
+  const unswitched = useMemo(() => listedEvents(data.events, chosen, span), [data, chosen, span])
+  const counts = useMemo(() => countTypes(unswitched), [unswitched])
+  const listed = useMemo(() => ofTypes(unswitched, types), [unswitched, types])
+  const marked = useMemo(() => ofTypes(listedEvents(data.events, chosen, null), types), [data, chosen, types])
   const uptimeSpan = useMemo(() => span ?? { from: 0, to: durationMs }, [span, durationMs])
   const scroll = useCallback(
     (by: number) => setWindow((current) => scrollWindow(current, by, durationMs)),
     [durationMs],
   )
-  const markEvent = useCallback((event: ReplayEvent) => selectEvent(event), [selectEvent])
+  /** A mark on the timeline expands its event in the list, and keeps it expanded when pressed again */
+  const markEvent = useCallback(
+    (event: ReplayEvent) => {
+      setCastOpen(null)
+      seek(event.t)
+      setTab('events')
+      setExpandedEvent(event)
+    },
+    [seek],
+  )
 
   const toggleExpanded = () => {
     setExpanded(!expanded)
@@ -473,9 +467,12 @@ const Review = memo(function Review({
       <EventList
         data={data}
         events={listed}
+        counts={counts}
+        types={types}
+        onTypes={setTypes}
         time={time}
         playing={playing}
-        selected={selected}
+        expanded={expandedEvent}
         follow={moved}
         onSelect={selectEvent}
       />
@@ -607,9 +604,6 @@ const Review = memo(function Review({
           />
         </section>
       </div>
-      {selected && popoverAt && (
-        <EventPopover data={data} event={selected} top={popoverAt.top} right={popoverAt.right} popover={popover} />
-      )}
       {castOpen && (
         <CastPopover
           data={data}

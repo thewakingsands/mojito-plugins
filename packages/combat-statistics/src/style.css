@@ -850,9 +850,36 @@ svg.map .grid {
   visibility: hidden;
   pointer-events: none;
 }
+/* Stays at the top of the panel while the events scroll under it */
+.event-types {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: -8px -8px 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--mojito-border);
+  background: var(--mojito-bg);
+  font-size: var(--mojito-text-sm);
+}
+.event-types label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 400;
+}
+.event-types .number {
+  color: var(--mojito-fg-tertiary);
+}
 .events {
   display: grid;
   gap: 2px;
+}
+.event-item.open {
+  border-radius: var(--mojito-radius-control);
+  background: var(--mojito-bg-subtle);
 }
 .event {
   display: grid;
@@ -879,7 +906,7 @@ svg.map .grid {
 .event.future {
   color: var(--mojito-fg-tertiary);
 }
-.event.selected {
+.event[aria-expanded="true"] {
   background: var(--mojito-bg-muted);
 }
 .event-time {
@@ -891,7 +918,53 @@ svg.map .grid {
   min-width: 0;
 }
 .event-text small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: var(--mojito-text-xs);
+}
+/* Under its event, as wide as the panel; the names of hits wrap rather than widen it */
+.event-detail {
+  padding: 4px 8px 10px 66px;
+  font-size: var(--mojito-text-sm);
+  user-select: text;
+}
+.event-detail p {
+  margin: 0 0 2px;
+}
+.event-detail h5 {
+  margin: 8px 0 4px;
+  font-size: var(--mojito-text-xs);
+  font-weight: 500;
+  color: var(--mojito-fg-tertiary);
+}
+.event-detail table.hits {
+  width: 100%;
+}
+.event-detail table.hits td {
+  padding: 2px 6px 2px 0;
+  font-size: var(--mojito-text-xs);
+  line-height: 18px;
+  vertical-align: top;
+}
+.event-detail table.hits td:first-child,
+.event-detail table.hits td:last-child {
+  white-space: nowrap;
+}
+.event-detail table.hits td:last-child {
+  padding-right: 0;
+  text-align: right;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .event-detail {
+    animation: event-detail-in 120ms ease-out;
+  }
+}
+@keyframes event-detail-in {
+  from {
+    opacity: 0;
+  }
 }
 .event .icon {
   width: 18px;
