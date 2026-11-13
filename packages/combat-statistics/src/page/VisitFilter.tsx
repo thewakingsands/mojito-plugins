@@ -71,22 +71,24 @@ export function VisitFilter({ query }: { query: VisitQuery }) {
         </span>
       </summary>
       <div className="visit-filter-body">
-        <input
-          type="text"
-          placeholder="副本名"
-          aria-label="副本名"
-          value={draft.duty}
-          onChange={(event) => setDraft({ ...draft, duty: event.target.value })}
-          onKeyDown={onEnter}
-        />
-        <input
-          type="text"
-          placeholder="角色名"
-          aria-label="角色名"
-          value={draft.character}
-          onChange={(event) => setDraft({ ...draft, character: event.target.value })}
-          onKeyDown={onEnter}
-        />
+        <label className="visit-filter-field">
+          <span>副本名</span>
+          <input
+            type="text"
+            value={draft.duty}
+            onChange={(event) => setDraft({ ...draft, duty: event.target.value })}
+            onKeyDown={onEnter}
+          />
+        </label>
+        <label className="visit-filter-field">
+          <span>角色名</span>
+          <input
+            type="text"
+            value={draft.character}
+            onChange={(event) => setDraft({ ...draft, character: event.target.value })}
+            onKeyDown={onEnter}
+          />
+        </label>
         <div className="visit-filter-row visit-filter-dates">
           <span>从</span>
           <input
@@ -144,20 +146,24 @@ export function VisitFilter({ query }: { query: VisitQuery }) {
               </div>
             ))}
             <div className="job-picker-foot">
-              <span>{draft.selfOnly ? '自己的职业是所选之一' : '所选职业全部在队伍里'}</span>
               <button type="button" onClick={() => setDraft({ ...draft, jobs: [] })}>
                 清空
               </button>
             </div>
           </div>
-          <label className="visit-filter-self">
-            <input
-              type="checkbox"
-              checked={draft.selfOnly}
-              onChange={(event) => setDraft({ ...draft, selfOnly: event.target.checked })}
-            />
-            仅自己
-          </label>
+          {/* The same words as the summary's 自己：… and 队伍：…, so the choice needs no explanation */}
+          <fieldset className="mojito-segmented" aria-label="职业条件">
+            <button type="button" aria-pressed={draft.selfOnly} onClick={() => setDraft({ ...draft, selfOnly: true })}>
+              自己
+            </button>
+            <button
+              type="button"
+              aria-pressed={!draft.selfOnly}
+              onClick={() => setDraft({ ...draft, selfOnly: false })}
+            >
+              队伍
+            </button>
+          </fieldset>
         </div>
         <div className="visit-filter-actions">
           <button type="button" onClick={() => apply(DEFAULT_QUERY)}>

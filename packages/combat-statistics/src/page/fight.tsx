@@ -10,9 +10,12 @@ export function fightFacts(fight: FightEntry, statistics: StatisticsState | null
   const live = statistics?.activeFightId === fight.id ? statistics.current : null
   const selected = !live && statistics?.selected?.id === fight.id ? statistics.selected.outcome : null
   const result: ResultTag = live ? 'running' : (selected?.result ?? fight.result ?? 'ended')
+  const enemy = live ? live.outcome.mainEnemy : selected ? selected.mainEnemy : fight.mainEnemy
   return {
     result,
-    enemy: (live ? live.outcome.mainEnemy?.name : (selected?.mainEnemy?.name ?? fight.mainEnemy?.name)) ?? '未知敌人',
+    enemy: (live ? enemy?.name : (enemy?.name ?? fight.mainEnemy?.name)) ?? '未知敌人',
+    /** The main enemy's HP left, in percent */
+    hpPercent: enemy?.hpPercent ?? null,
     durationMs: live ? (live.durationMs ?? 0) : (fight.durationMs ?? 0),
     deaths: live ? live.rows.reduce((sum, row) => sum + row.totals.deaths, 0) : (fight.deaths ?? 0),
   }

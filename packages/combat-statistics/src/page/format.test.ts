@@ -1,9 +1,11 @@
 import { expect, it } from 'vitest'
-import { amount, duration, entered, fightCounts, skillName } from './format.js'
+import { amount, duration, entered, fightCounts, skillName, whole } from './format.js'
 
 it('formats amounts, durations and skill names', () => {
   expect(amount(18_234_567)).toBe('18.2M')
   expect(amount(999_999.4)).toBe('999,999')
+  expect(whole(1_234_567.4)).toBe('1,234,567')
+  expect(whole(0)).toBe('0')
   expect(duration(522_900)).toBe('8:42')
   expect(skillName('action:7505', {})).toBe('技能 7505')
   expect(skillName('status:1', { 'status:1': '毒' })).toBe('毒')

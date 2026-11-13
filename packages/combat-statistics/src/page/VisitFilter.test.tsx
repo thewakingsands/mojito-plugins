@@ -56,14 +56,25 @@ it('sums up the jobs with / for the own job and with + for the party', () => {
   fireEvent.click(screen.getByRole('button', { name: '骑士', hidden: true }))
   fireEvent.click(screen.getByRole('button', { name: '白魔法师', hidden: true }))
   expect(screen.getByRole('button', { name: '骑士', hidden: true }).getAttribute('aria-pressed')).toBe('true')
-  expect(screen.getByText('自己的职业是所选之一')).not.toBeNull()
+  expect(screen.getByRole('button', { name: '自己' }).getAttribute('aria-pressed')).toBe('true')
+  expect(screen.getByRole('button', { name: '队伍' }).getAttribute('aria-pressed')).toBe('false')
   fireEvent.click(screen.getByText('搜索'))
   h.rerenderWith(h.sent[0].kind === 'visits' ? h.sent[0].query : DEFAULT_QUERY)
   expect(h.head().textContent).toContain('自己：骑士/白魔法师')
-  fireEvent.click(screen.getByLabelText('仅自己'))
+  fireEvent.click(screen.getByRole('button', { name: '队伍' }))
+  expect(h.sent).toHaveLength(1)
   fireEvent.click(screen.getByText('搜索'))
+  expect(h.sent[1].kind === 'visits' && h.sent[1].query.selfOnly).toBe(false)
   h.rerenderWith(h.sent[1].kind === 'visits' ? h.sent[1].query : DEFAULT_QUERY)
   expect(h.head().textContent).toContain('队伍：骑士+白魔法师')
+})
+it('labels the text fields above them, without placeholders', () => {
+  setup()
+  for (const name of ['副本名', '角色名']) {
+    const input = screen.getByLabelText(name) as HTMLInputElement
+    expect(input.placeholder).toBe('')
+    expect(input.closest('label')?.className).toBe('visit-filter-field')
+  }
 })
 it('opens the job picker as a popover of its button', () => {
   const h = setup()

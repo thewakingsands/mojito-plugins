@@ -9,12 +9,16 @@ import { JobIcon, SkillIcon } from './icons.js'
 import { showBanner, toggle } from './state.js'
 import {
   type Cell,
+  type Column,
+  DAMAGE_COLUMNS,
   damageCells,
   damageRows,
   damageSkills,
+  HEAL_COLUMNS,
   healerCells,
   healerRows,
   healSkills,
+  rdpsUnavailable,
   type SkillLine,
   skillLabel,
   totalCells,
@@ -48,7 +52,10 @@ export function Overview(props: {
     return (
       <>
         {banner}
-        <p className="mojito-empty">还没有战斗记录。进入区域并开始战斗后，这里会显示记录。</p>
+        <div className="mojito-empty">
+          <h2>还没有战斗记录</h2>
+          <p>进入区域并开始战斗后，这里会显示记录。</p>
+        </div>
       </>
     )
   const fight = visit?.fights.find((item) => item.id === selection.fightId)
@@ -65,20 +72,18 @@ export function Overview(props: {
   const facts = fight && fightFacts(fight, statistics)
   const blocked =
     visit?.status === 'failed'
-      ? '日志不可用'
+      ? '日志不可用，无法打开战斗回顾'
       : !fight || facts?.result === 'running' || summary?.outcome.result === null
-        ? '战斗结束后可以回顾'
+        ? '战斗结束后才能打开战斗回顾'
         : null
-  const mainEnemy = summary?.outcome.mainEnemy ?? fight?.mainEnemy
   const subtitle = [visit && zoneName(visit), summary && entered(summary.startAt, Date.now())].filter(Boolean)
   // The fight at a glance, label over value, above the tables
   const team = summary && !statistics.loading && !statistics.loadError ? teamFacts(summary) : null
   const glance = facts && [
     ['时长', duration(facts.durationMs)],
-    team && ['团队 DPS', team.dps],
-    team?.rdps && ['团队 rDPS', team.rdps],
+    team && ['团队 DPS', team],
     ['死亡', String(facts.deaths)],
-    facts.result === 'wipe' && mainEnemy?.hpPercent != null && ['敌人剩余', percent(mainEnemy.hpPercent)],
+    facts.result === 'wipe' && facts.hpPercent !== null && ['敌人剩余', percent(facts.hpPercent)],
   ]
   return (
     <>
@@ -96,11 +101,12 @@ export function Overview(props: {
         <div className="overview-actions">
           <button
             type="button"
+            data-variant="primary"
             disabled={!!blocked}
             title={blocked || undefined}
             onClick={() => props.onReview(selection)}
           >
-            副本回顾
+            战斗回顾
           </button>
         </div>
       </header>
@@ -121,9 +127,6 @@ export function Overview(props: {
   )
 }
 
-const DAMAGE_COLUMNS = ['DPS', 'rDPS', '暴击率', '直击率', '直爆率', '受到伤害', '死亡']
-const HEAL_COLUMNS = ['HPS', '过量 %']
-
 function Tables({ summary, names }: { summary: Summary; names: Record<string, string> }) {
   // Kept by actor across refreshes; the two tables expand independently.
   const [damageOpen, setDamageOpen] = useState<ReadonlySet<string>>(new Set())
@@ -131,41 +134,31 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
   const rows = damageRows(summary)
   const healers = healerRows(summary)
   const damageTop = Math.max(0, ...rows.map((row) => row.metrics.encDps?.value ?? 0))
+  // Without rDPS on any row, the column is left out and its reason is told once beside the title.
+  const noRdps = rdpsUnavailable(summary)
+  const kept = DAMAGE_COLUMNS.map((column) => !(noRdps !== null && column.className.includes('col-rdps')))
+  const damageColumns = DAMAGE_COLUMNS.filter((_, index) => kept[index])
+  const pick = (cells: Cell[]) => cells.filter((_, index) => kept[index])
   const healTop = Math.max(0, ...healers.map((row) => row.metrics.encHps?.value ?? 0))
   return (
     <>
       <section className="mojito-panel table-panel">
         <header>
           <h2>伤害</h2>
+          {noRdps !== null && <p className="hint">rDPS 不可用：{noRdps}</p>}
         </header>
         <table className="stats damage">
-          <colgroup>
-            <col />
-            <col className="amount" />
-            <col className="amount" />
-            <col className="rate" />
-            <col className="rate" />
-            <col className="rate" />
-            <col className="amount" />
-            <col className="count" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>角色</th>
-              {DAMAGE_COLUMNS.map((name) => (
-                <th key={name}>{name}</th>
-              ))}
-            </tr>
-          </thead>
+          <Head columns={damageColumns} />
           <tbody>
             {rows.map((row) => (
               <ActorRows
                 key={row.actor.key}
                 row={row}
                 names={names}
-                cells={damageCells(row, summary)}
+                columns={damageColumns}
+                cells={pick(damageCells(row, summary))}
                 share={damageTop > 0 ? (row.metrics.encDps?.value ?? 0) / damageTop : 0}
-                skills={damageSkills(row, summary)}
+                skills={damageSkills(row, summary).map((skill) => ({ ...skill, cells: pick(skill.cells) }))}
                 open={damageOpen.has(row.actor.key)}
                 onToggle={() => setDamageOpen((keys) => toggle(keys, row.actor.key))}
               />
@@ -173,7 +166,7 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
             {rows.length > 0 && (
               <tr className="total">
                 <td />
-                <Cells cells={totalCells(rows, summary)} />
+                <Cells columns={damageColumns} cells={pick(totalCells(rows, summary))} />
               </tr>
             )}
           </tbody>
@@ -185,25 +178,14 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
             <h2>治疗</h2>
           </header>
           <table className="stats heal">
-            <colgroup>
-              <col />
-              <col className="amount" />
-              <col className="rate" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>角色</th>
-                {HEAL_COLUMNS.map((name) => (
-                  <th key={name}>{name}</th>
-                ))}
-              </tr>
-            </thead>
+            <Head columns={HEAL_COLUMNS} />
             <tbody>
               {healers.map((row) => (
                 <ActorRows
                   key={row.actor.key}
                   row={row}
                   names={names}
+                  columns={HEAL_COLUMNS}
                   cells={healerCells(row)}
                   share={healTop > 0 ? (row.metrics.encHps?.value ?? 0) / healTop : 0}
                   skills={healSkills(row, summary)}
@@ -222,6 +204,7 @@ function Tables({ summary, names }: { summary: Summary; names: Record<string, st
 function ActorRows(props: {
   row: RowSummary
   names: Record<string, string>
+  columns: Column[]
   cells: Cell[]
   skills: SkillLine[]
   /** The row's value against the table's highest, drawn as a bar behind the name */
@@ -262,7 +245,7 @@ function ActorRows(props: {
             <span className="ellipsis">{name}</span>
           </span>
         </td>
-        <Cells cells={props.cells} />
+        <Cells columns={props.columns} cells={props.cells} />
       </tr>
       {open &&
         props.skills.map((skill) => {
@@ -275,7 +258,7 @@ function ActorRows(props: {
                   <span className="ellipsis">{label}</span>
                 </span>
               </td>
-              <Cells cells={skill.cells} />
+              <Cells columns={props.columns} cells={skill.cells} />
             </tr>
           )
         })}
@@ -283,15 +266,26 @@ function ActorRows(props: {
   )
 }
 
-/** Team DPS and rDPS as the total row sums them; rDPS is left out when a member lacks it */
-function teamFacts(summary: Summary) {
-  const cells = totalCells(damageRows(summary), summary)
-  return { dps: cells[0].text, rdps: cells[1].text !== '—' ? cells[1].text : null }
-}
+/** Team DPS as the total row sums it. Team rDPS is not shown: the rDPS of the members add up to the total damage. */
+const teamFacts = (summary: Summary) => totalCells(damageRows(summary), summary)[0].text
 
-const Cells = ({ cells }: { cells: Cell[] }) =>
+/** The width of each column is set on its header; table-layout: fixed takes the widths from the first row. */
+const Head = ({ columns }: { columns: Column[] }) => (
+  <thead>
+    <tr>
+      <th>角色</th>
+      {columns.map((column) => (
+        <th key={column.label} className={column.className}>
+          {column.label}
+        </th>
+      ))}
+    </tr>
+  </thead>
+)
+
+const Cells = ({ columns, cells }: { columns: Column[]; cells: Cell[] }) =>
   cells.map((cell, index) => (
-    <td key={index} title={cell.title}>
+    <td key={index} className={columns[index]?.className} title={cell.title}>
       {cell.text}
     </td>
   ))

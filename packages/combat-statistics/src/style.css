@@ -60,6 +60,7 @@ body {
   grid-template-columns: 280px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
+  user-select: none;
 }
 .layout > .status {
   grid-column: 1 / -1;
@@ -72,6 +73,17 @@ body {
   overflow-y: auto;
   scrollbar-gutter: stable;
   padding-left: var(--mojito-space-page);
+}
+/* On a wide page the names and their numbers stay close instead of moving to the two edges. */
+.overview > * {
+  max-width: 960px;
+}
+/* Nothing logged yet: no side bar, only the overview's empty state */
+.layout.blank {
+  grid-template-columns: minmax(0, 1fr);
+}
+.layout.blank .overview {
+  padding-left: 0;
 }
 /* The filter panel stays at the top of the side bar; the list under it scrolls. */
 .visits {
@@ -88,12 +100,18 @@ body {
   scrollbar-gutter: stable;
 }
 @media (max-width: 720px) {
-  .layout {
+  .layout:not(.blank) {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 }
-.visits h2 {
+.visit-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 0 8px 8px;
+}
+.visits h2 {
   font-size: 13px;
   font-weight: 600;
   color: var(--mojito-fg-secondary);
@@ -127,10 +145,26 @@ body {
   gap: 6px;
   padding: 0 8px 8px;
 }
+.visit-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.visit-filter-field > span {
+  font-size: var(--mojito-text-xs);
+  color: var(--mojito-fg-secondary);
+}
 .visit-filter-row {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.visit-filter-row > .mojito-segmented {
+  flex: none;
+}
+/* Narrower than the base, so that the chosen job icons keep room in a 220px side bar */
+:where(.visit-filter-row > .mojito-segmented) > button {
+  padding: 0 8px;
 }
 .visit-filter-dates span {
   flex: none;
@@ -140,14 +174,6 @@ body {
 .visit-filter-dates input {
   flex: 1;
   min-width: 0;
-}
-.visit-filter-self {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--mojito-text-xs);
-  color: var(--mojito-fg-secondary);
 }
 .visit-filter-actions {
   display: flex;
@@ -191,12 +217,8 @@ body {
 }
 .job-picker-foot {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: flex-end;
   margin-top: 10px;
-  font-size: var(--mojito-text-xs);
-  color: var(--mojito-fg-tertiary);
 }
 .visits-reading {
   flex: none;
@@ -241,13 +263,28 @@ body {
 .visit-head.selected {
   font-weight: 600;
 }
-.visit-title,
 .fight-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
+}
+/* Long duty names differ at their end, so they wrap to a second line before they are cut. */
+.visit-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.visit-zone {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .visit-meta,
 .fight-meta {
@@ -305,7 +342,9 @@ body {
   padding: 12px 16px;
   border-radius: var(--mojito-radius-control);
   background: var(--mojito-bg-subtle);
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
 }
 .fight-facts dd {
   font-size: var(--mojito-text-base);
@@ -322,13 +361,16 @@ body {
   table-layout: fixed;
   border-collapse: collapse;
 }
-.stats col.amount {
+.stats th.col-amount {
   width: 84px;
 }
-.stats col.rate {
+.stats th.col-taken {
+  width: 96px;
+}
+.stats th.col-rate {
   width: 68px;
 }
-.stats col.count {
+.stats th.col-count {
   width: 64px;
 }
 .stats th,
@@ -352,6 +394,7 @@ body {
 }
 .stats td {
   font-size: 13px;
+  user-select: text;
 }
 /* Only actor rows open on click, so only they show the hover of the base table */
 .stats tbody tr:hover {
@@ -382,6 +425,21 @@ body {
 .table-panel {
   overflow: hidden;
   margin-bottom: var(--mojito-space-section);
+  container-type: inline-size;
+}
+/*
+ * The character column keeps at least 160px: the rates go first, then the damage taken. Each threshold is 160px plus
+ * the widths of the columns that remain (532px with all of them, 328px without the rates).
+ */
+@container (width < 692px) {
+  .stats.damage .col-rate {
+    display: none;
+  }
+}
+@container (width < 488px) {
+  .stats.damage .col-taken {
+    display: none;
+  }
 }
 .table-panel th {
   background: var(--mojito-bg-subtle);

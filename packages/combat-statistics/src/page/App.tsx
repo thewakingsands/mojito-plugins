@@ -4,7 +4,7 @@ import type { Selection, StatisticsState, VisitsState, VisitView } from '../view
 import { DEFAULT_QUERY, filtering } from '../visit-filter.js'
 import { useBridge, useChannel } from './bridge.js'
 import { fightFacts, ResultLabel } from './fight.js'
-import { duration, entered, fightCounts, zoneName } from './format.js'
+import { duration, entered, fightCounts, percent, zoneName } from './format.js'
 import { Overview } from './Overview.js'
 import { ReplayView } from './replay/ReplayView.js'
 import { expandedAfter, toggleVisit } from './state.js'
@@ -39,6 +39,10 @@ export function App() {
     setMatched(statistics.selection)
     setExpanded(expandedAfter(expanded, matched, statistics))
   }
+  // Nothing logged yet: the side bar has nothing to list or filter, so only the overview's empty state is shown. Until
+  // the list arrives the side bar stays, so that the page does not jump when it opens.
+  const blank =
+    visitsState !== null && !visits.length && !filtering(query) && visitsState.page === 0 && !visitsState.reading
   const status = [statistics?.paused && 'Mojito没有正常返回游戏数据，统计已暂停。', statistics?.inputError]
     .filter(Boolean)
     .join(' · ')
@@ -53,41 +57,54 @@ export function App() {
           onBack={() => setReview(null)}
         />
       )}
-      <div className="layout" hidden={review !== null}>
+      <div className={`layout${blank ? ' blank' : ''}`} hidden={review !== null}>
         {status && (
           <p className="mojito-callout status" data-tone="warn" role="status">
             {status}
           </p>
         )}
-        <div className="visits">
-          <VisitFilter query={query} />
-          {visitsState?.reading && <p className="visits-reading">正在读取更早的日志</p>}
-          <nav className="visit-list" aria-label={title} ref={list}>
-            <h2>{title}</h2>
-            {visits.map((visit) => (
-              <VisitItem
-                key={visit.id}
-                visit={visit}
-                statistics={statistics}
-                expanded={expanded === visit.id}
-                onToggle={() => setExpanded((current) => toggleVisit(current, visit.id))}
-              />
-            ))}
-            {!visits.length && !visitsState?.reading && filtering(query) && (
-              <p className="mojito-empty">没有符合条件的进本</p>
-            )}
-            {paging && (
-              <div className="pager">
-                <button type="button" disabled={!visitsState.hasPrevious} onClick={() => turn(visitsState.page - 1)}>
-                  上一页
-                </button>
-                <button type="button" disabled={!visitsState.hasNext} onClick={() => turn(visitsState.page + 1)}>
-                  下一页
-                </button>
+        {!blank && (
+          <div className="visits">
+            <VisitFilter query={query} />
+            {visitsState?.reading && <p className="visits-reading">正在读取更早的日志</p>}
+            <nav className="visit-list" aria-label={title} ref={list}>
+              <div className="visit-list-head">
+                <h2>{title}</h2>
+                {filtering(query) && (
+                  <button
+                    type="button"
+                    data-variant="ghost"
+                    onClick={() => void command({ kind: 'visits', query: DEFAULT_QUERY, page: 0 })}
+                  >
+                    清除筛选
+                  </button>
+                )}
               </div>
-            )}
-          </nav>
-        </div>
+              {visits.map((visit) => (
+                <VisitItem
+                  key={visit.id}
+                  visit={visit}
+                  statistics={statistics}
+                  expanded={expanded === visit.id}
+                  onToggle={() => setExpanded((current) => toggleVisit(current, visit.id))}
+                />
+              ))}
+              {!visits.length && !visitsState?.reading && filtering(query) && (
+                <p className="mojito-empty">没有符合条件的进本</p>
+              )}
+              {paging && (
+                <div className="pager">
+                  <button type="button" disabled={!visitsState.hasPrevious} onClick={() => turn(visitsState.page - 1)}>
+                    上一页
+                  </button>
+                  <button type="button" disabled={!visitsState.hasNext} onClick={() => turn(visitsState.page + 1)}>
+                    下一页
+                  </button>
+                </div>
+              )}
+            </nav>
+          </div>
+        )}
         <main className="overview">
           {statistics && (
             <Overview
@@ -115,7 +132,9 @@ function VisitItem(props: {
     <section className={`visit${expanded ? ' expanded' : ''}`}>
       <button type="button" className={`visit-head${selected ? ' selected' : ''}`} onClick={props.onToggle}>
         <span className="visit-title">
-          <span className="ellipsis">{zoneName(visit)}</span>
+          <span className="visit-zone" title={zoneName(visit)}>
+            {zoneName(visit)}
+          </span>
           {visit.current && (
             <span className="mojito-chip tag" data-tone="ok">
               进行中
@@ -170,8 +189,16 @@ function FightItem({
           <ResultLabel result={facts.result} />
         </span>
         <span className="fight-meta" data-duration-ms={facts.durationMs}>
-          <span className="number">{duration(facts.durationMs)}</span> · 死亡{' '}
-          <span className="number">{facts.deaths}</span>
+          <span className="number">{duration(facts.durationMs)}</span> ·{' '}
+          {facts.result === 'wipe' && facts.hpPercent !== null ? (
+            <>
+              剩余 <span className="number">{percent(facts.hpPercent)}</span>
+            </>
+          ) : (
+            <>
+              死亡 <span className="number">{facts.deaths}</span>
+            </>
+          )}
         </span>
       </button>
     </li>

@@ -1,10 +1,12 @@
 import { type FightResult, REFLECT_SKILL } from '../model.js'
 
-/** Damage, rates and HP: millions with one decimal, otherwise whole numbers with thousands separators */
+/** Damage, rates and HP in the review: millions with one decimal, otherwise whole numbers with thousands separators */
 export function amount(value: number): string {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
   return Math.round(value).toLocaleString('en-US')
 }
+/** The overview's tables write every amount this way, so a column never mixes 643,016 with 1.8M */
+export const whole = (value: number) => Math.round(value).toLocaleString('en-US')
 export const percent = (value: number) => `${value.toFixed(1)}%`
 export function duration(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))

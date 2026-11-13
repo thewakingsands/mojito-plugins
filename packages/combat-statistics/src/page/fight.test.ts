@@ -32,3 +32,16 @@ it('shows the result of the summary of the selected fight over what an older log
   expect(fightFacts(fight, state(selected))).toMatchObject({ result: 'kill', enemy: '永远之暗' })
   expect(fightFacts({ ...fight, id: 'fight-2' }, state(selected))).toMatchObject({ result: 'ended' })
 })
+it('takes the HP left of the main enemy from the live, the selected or the logged fight', () => {
+  const enemy = (hpPercent: number) => ({ key: 'k', name: '敌人', hpCur: 1, hpMax: 2, hpPercent })
+  expect(fightFacts(fight, state(null)).hpPercent).toBeNull()
+  expect(fightFacts({ ...fight, mainEnemy: enemy(3.4) }, state(null)).hpPercent).toBe(3.4)
+  const selected = { id: 'fight-1', outcome: { result: 'wipe', mainEnemy: enemy(12) } } as Partial<Summary>
+  expect(fightFacts({ ...fight, mainEnemy: enemy(3.4) }, state(selected)).hpPercent).toBe(12)
+  const live = {
+    activeFightId: 'fight-1',
+    current: { durationMs: 1000, rows: [], outcome: { result: null, mainEnemy: enemy(50) } },
+    selected: null,
+  } as unknown as StatisticsState
+  expect(fightFacts({ ...fight, mainEnemy: enemy(3.4) }, live)).toMatchObject({ result: 'running', hpPercent: 50 })
+})

@@ -9,6 +9,7 @@ import {
   healerCells,
   healerRows,
   healSkills,
+  rdpsUnavailable,
   skillLabel,
   totalCells,
 } from './tables.js'
@@ -40,7 +41,15 @@ it('orders the damage table by DPS and formats amounts, rates and missing values
   expect(summary.durationMs).toBe(2000)
   expect(damageRows(summary).map((item) => item.actor.id)).toEqual([1, 2, 3])
   // No buffs in the fight: the rDPS of each actor is its DPS.
-  expect(texts(damageCells(row(summary, 1), summary))).toEqual(['1.0M', '1.0M', '33.3%', '0.0%', '0.0%', '0', '0'])
+  expect(texts(damageCells(row(summary, 1), summary))).toEqual([
+    '1,000,025',
+    '1,000,025',
+    '33.3%',
+    '0.0%',
+    '0.0%',
+    '0',
+    '0',
+  ])
   expect(texts(damageCells(row(summary, 3), summary)).slice(0, 2)).toEqual(['50', '50'])
 })
 it('sums the total row and shows no rDPS when a row lacks it', () => {
@@ -52,11 +61,11 @@ it('sums the total row and shows no rDPS when a row lacks it', () => {
       totals: { ...item.totals, taken: 600_000, deaths: 1 },
     }),
   )
-  expect(texts(totalCells(known.slice(1), summary))).toEqual(['200', '2,000', '', '', '', '1.2M', '2'])
+  expect(texts(totalCells(known.slice(1), summary))).toEqual(['200', '2,000', '', '', '', '1,200,000', '2'])
   known[2].metrics.contributionDps = { value: null, quality: 'unavailable' }
   const unavailable = { ...summary, contributionUnavailable: '周期模型不可用，无法计算 rDPS' }
   const total = totalCells(known, unavailable)
-  expect(texts(total).slice(0, 2)).toEqual(['1.0M', '—'])
+  expect(texts(total).slice(0, 2)).toEqual(['1,000,225', '—'])
   expect(total[1].title).toBe('周期模型不可用，无法计算 rDPS')
   const cell = damageCells(known[2], unavailable)[1]
   expect(cell).toEqual({ text: '—', title: '周期模型不可用，无法计算 rDPS' })
@@ -64,11 +73,40 @@ it('sums the total row and shows no rDPS when a row lacks it', () => {
   known[2].metrics.contributionDps = metric(null, 'unavailable', '这场战斗没有 rDPS 数据')
   expect(damageCells(known[2], unavailable)[1].title).toBe('这场战斗没有 rDPS 数据')
 })
+it('writes damage taken as whole numbers in every row and the total', () => {
+  const summary = fight()
+  const [big, small] = summary.rows.map(
+    (item, index): RowSummary => ({ ...item, totals: { ...item.totals, taken: index ? 12_000 : 1_803_245 } }),
+  )
+  expect(damageCells(big, summary)[5].text).toBe('1,803,245')
+  expect(damageCells(small, summary)[5].text).toBe('12,000')
+  expect(totalCells([big, small], summary)[5].text).toBe('1,815,245')
+})
+it('tells why rDPS is unavailable only when no row has it', () => {
+  const summary = fight()
+  const missing = (reason?: string) =>
+    summary.rows.map(
+      (item): RowSummary => ({
+        ...item,
+        metrics: { ...item.metrics, contributionDps: { value: null, quality: 'unavailable' as const, reason } },
+      }),
+    )
+  const unavailable = '周期模型不可用，无法计算 rDPS'
+  expect(rdpsUnavailable({ ...summary, rows: missing(), contributionUnavailable: unavailable })).toBe(unavailable)
+  expect(rdpsUnavailable({ ...summary, rows: missing('没有团辅数据'), contributionUnavailable: null })).toBe(
+    '没有团辅数据',
+  )
+  expect(rdpsUnavailable({ ...summary, rows: missing(), contributionUnavailable: null })).toBe('没有可用输入')
+  const some = missing()
+  some[0] = summary.rows[0]
+  expect(rdpsUnavailable({ ...summary, rows: some, contributionUnavailable: unavailable })).toBeNull()
+  expect(rdpsUnavailable({ ...summary, rows: [] })).toBeNull()
+})
 it('lists the damaging skills with their DPS over the fight and no rates for damage over time', () => {
   const summary = fight()
   const lines = damageSkills(row(summary, 1), summary)
   expect(lines.map((line) => line.key)).toEqual(['action:10', 'status:1'])
-  expect(texts(lines[0].cells)).toEqual(['1.0M', '1.0M', '50.0%', '0.0%', '0.0%', '', ''])
+  expect(texts(lines[0].cells)).toEqual(['1,000,000', '1,000,000', '50.0%', '0.0%', '0.0%', '', ''])
   expect(texts(lines[1].cells)).toEqual(['25', '25', '—', '—', '—', '', ''])
   expect(lines[1].cells[2].title).toBe('持续伤害没有暴击和直击标记')
   // A healing-only skill is not a damage line.
@@ -135,7 +173,7 @@ it('lists the limit break row with the members, without the rates it has no data
   const [first] = damageRows(summary)
   expect(first.actor.kind).toBe('limitBreak')
   const cells = damageCells(first, summary)
-  expect(texts(cells)).toEqual(['2.0M', '2.0M', '—', '—', '—', '—', '—'])
+  expect(texts(cells)).toEqual(['2,000,000', '2,000,000', '—', '—', '—', '—', '—'])
   expect(cells[2].title).toBe('极限技没有这项数据')
   const [skill] = damageSkills(first, summary)
   expect(skill.key).toBe('action:200@source:1:1')
