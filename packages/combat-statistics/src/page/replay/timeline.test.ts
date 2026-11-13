@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { clockText, follow, pressed, scrollWindow, tickStep, ticks, windowAround } from './timeline.js'
+import { castLabelShown, clockText, follow, pressed, scrollWindow, tickStep, ticks, windowAround } from './timeline.js'
 
 const duration = 300_000
 
@@ -41,4 +41,10 @@ it('takes a press on the ticks for a click up to four pixels, and for a selectio
 it('writes review time with tenths of a second', () => {
   expect(clockText(185_250)).toBe('3:05.2')
   expect(clockText(0)).toBe('0:00.0')
+})
+
+it('writes the name of a cast only in a bar wide enough for all of it', () => {
+  expect(castLabelShown(56, '大地摇动')).toBe(true)
+  expect(castLabelShown(55, '大地摇动')).toBe(false)
+  expect(castLabelShown(0, '')).toBe(false)
 })

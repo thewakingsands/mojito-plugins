@@ -909,3 +909,73 @@ it('keeps the background and the arrow of a region, with the tip of the lane ove
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(potencyTip()!.textContent).toContain('基准值 50.0')
 })
+
+it('opens the help of the review from its button', async () => {
+  await open()
+  const button = screen.getByRole('button', { name: '操作说明' })
+  const help = document.getElementById(button.getAttribute('popovertarget')!)!
+  expect(help.getAttribute('popover')).toBe('auto')
+  expect(help.getAttribute('role')).toBe('dialog')
+  expect(help.textContent).toContain('在刻度上拖动选取时间段')
+})
+
+it('writes the name of a cast only in a bar wide enough for it', async () => {
+  // 800 pixels for the fight of 60 seconds: the finished cast is 62 pixels, the cancelled one 26
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
+  try {
+    await open()
+    const casts = [...document.querySelectorAll<HTMLElement>('.cast')]
+    expect(casts.map((cast) => cast.textContent)).toEqual(['大地摇动', ''])
+    expect(casts.map((cast) => cast.getAttribute('aria-label'))).toEqual(['大地摇动', '大地摇动'])
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('tells how to select a span over the ticks until one is selected', async () => {
+  mockLaneRect()
+  try {
+    await open()
+    const ruler = document.querySelector<HTMLElement>('.lane.ruler')!
+    fireEvent.pointerMove(ruler, { clientX: 100 })
+    expect(screen.getByRole('tooltip').textContent).toBe('拖动选取时间段')
+    fireEvent.pointerLeave(ruler)
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    fireEvent.pointerDown(ruler, { clientX: 100 })
+    fireEvent.pointerMove(document, { clientX: 250 })
+    fireEvent.pointerUp(document, { clientX: 250 })
+    fireEvent.pointerMove(ruler, { clientX: 100 })
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('draws the raid buffs as bars without icons and leaves out the weaponskills past two minutes', async () => {
+  const seconds = Array.from({ length: 30 }, (_, i) => i * 10_000)
+  await open(
+    replayData({
+      fight: { visitId: 'v', fightId: 'f', durationMs: 300_000 },
+      actors: [member(0, 23, '诗人'), enemy(1, true)],
+      actions: [
+        { actionId: 118, name: '战斗之声', gcd: false, lane: 'buff', durationMs: 20_000, sustained: false },
+        { actionId: 97, name: '强力射击', gcd: true, lane: null, durationMs: null, sustained: false },
+      ],
+      uses: {
+        t: Uint32Array.from([0, ...seconds]),
+        actor: Uint16Array.from([0, ...seconds.map(() => 0)]),
+        action: Uint16Array.from([0, ...seconds.map(() => 1)]),
+      },
+    }),
+  )
+  expect(document.querySelector('.lanes.dense')).toBeTruthy()
+  expect(document.querySelectorAll('.lane.buff .lane-bar')).toHaveLength(1)
+  expect(document.querySelectorAll('.lane.buff .lane-use')).toHaveLength(0)
+  press(screen.getByRole('button', { name: '技能轴' }))
+  const lane = document.querySelector('.lane.member')!
+  expect(lane.querySelectorAll('.use-line.ability')).toHaveLength(1)
+  expect(lane.querySelectorAll('.use-line.gcd')).toHaveLength(0)
+  press(screen.getByRole('button', { name: '1 分钟' }))
+  expect(document.querySelector('.lanes.dense')).toBeNull()
+  expect(document.querySelectorAll('.lane.buff .lane-use')).toHaveLength(1)
+})

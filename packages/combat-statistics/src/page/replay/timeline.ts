@@ -69,3 +69,8 @@ export function clockText(ms: number): string {
   const seconds = Math.floor(tenths / 10)
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}.${tenths % 10}`
 }
+
+/** Roughly how wide a character of a cast's name is at the size of the lane's text, without measuring the page */
+const CHAR_PX = 12
+/** Whether a cast bar this many pixels wide holds its whole name; otherwise it is drawn without one */
+export const castLabelShown = (widthPx: number, name: string) => widthPx >= name.length * CHAR_PX + 8

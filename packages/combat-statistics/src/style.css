@@ -1201,6 +1201,7 @@ table.uptime td:nth-child(2) {
   flex: none;
   flex-direction: column;
   min-height: 0;
+  container-type: inline-size;
   border-top: 1px solid var(--mojito-border);
   background: var(--mojito-bg);
 }
@@ -1231,6 +1232,30 @@ table.uptime td:nth-child(2) {
 .playback-label {
   font-size: var(--mojito-text-xs);
   color: var(--mojito-fg-tertiary);
+}
+/* The zoom keeps its accessible name when its label goes */
+@container (width < 560px) {
+  .playback-label {
+    display: none;
+  }
+}
+.help {
+  padding: 8px 12px;
+  font-size: var(--mojito-text-sm);
+}
+.help-key,
+.help-what {
+  height: 26px;
+  padding: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+.help-key {
+  padding-right: 16px;
+  font-weight: 500;
+}
+.help-what {
+  color: var(--mojito-fg-secondary);
 }
 .overview-strip {
   position: relative;
@@ -1357,7 +1382,7 @@ table.uptime td:nth-child(2) {
   overflow: hidden;
   border: 0;
   border-radius: var(--mojito-radius-small);
-  background: var(--mojito-bg-muted);
+  background: var(--mojito-bg-strong);
   font-size: var(--mojito-text-xs);
   font-weight: 400;
   line-height: 16px;
@@ -1380,25 +1405,34 @@ table.uptime td:nth-child(2) {
 }
 /* How long a use lasts. Translucent, so that the lane grows darker where the uses overlap */
 .lane-bar {
+  --bar: var(--mojito-fg-tertiary);
   position: absolute;
   top: 6px;
   height: 10px;
   border-radius: 3px;
-  background: var(--mojito-fg-tertiary);
-  opacity: 0.6;
+  background: color-mix(in srgb, var(--bar) 60%, transparent);
 }
 .lane-bar.role-tank {
-  background: var(--mojito-tank-fg);
+  --bar: var(--mojito-tank-fg);
 }
 .lane-bar.role-healer {
-  background: var(--mojito-healer-fg);
+  --bar: var(--mojito-healer-fg);
 }
 .lane-bar.role-dps {
-  background: var(--mojito-dps-fg);
+  --bar: var(--mojito-dps-fg);
 }
 /* Kept up through the whole rotation: faint, so that the lane still shows how the other raid buffs overlap */
 .lane-bar.sustained {
-  opacity: 0.2;
+  background: color-mix(in srgb, var(--bar) 20%, transparent);
+}
+/* Past two minutes there are no icons: fainter bars over the height of the lane, which darken where they stack */
+.lanes.dense .lane-bar {
+  top: 4px;
+  height: 14px;
+  background: color-mix(in srgb, var(--bar) 35%, transparent);
+}
+.lanes.dense .lane-bar.sustained {
+  background: color-mix(in srgb, var(--bar) 12%, transparent);
 }
 .lane-use {
   position: absolute;

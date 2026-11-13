@@ -1,5 +1,5 @@
 import { ChevronsDown, ChevronsUp, Pause, Play } from 'lucide-react'
-import { memo, type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from 'react'
+import { memo, type ReactNode, type PointerEvent as ReactPointerEvent, useId, useMemo, useRef, useState } from 'react'
 import type { ReplayAction, ReplayData, ReplayEvent } from '../../view-model.js'
 import { duration as tickText } from '../format.js'
 import { JobIcon, SkillIcon } from '../icons.js'
@@ -7,10 +7,12 @@ import type { Span } from './aggregate.js'
 import { DpsLabel, DpsLane, PotencyLabel, PotencyLane, useCurves } from './CurveLanes.js'
 import { EventIcon, eventLines } from './EventList.js'
 import { cutscenesOf, isFightEvent } from './events.js'
+import { FloatingTip } from './FloatingTip.js'
 import type { FilterMember } from './filter.js'
+import { Help } from './Help.js'
 import { actionName, actorName, ROLE_CLASS } from './parts.js'
 import { useSize } from './ReplayMap.js'
-import { clockText, ICON_WINDOW_MS, pressed, ticks, ZOOMS, type Zoom } from './timeline.js'
+import { castLabelShown, clockText, ICON_WINDOW_MS, pressed, ticks, ZOOMS, type Zoom } from './timeline.js'
 
 const ROLE_ORDER = { tank: 0, healer: 1, dps: 2 } as const
 
@@ -41,15 +43,19 @@ export function PlaybackControls(props: {
   onZoom: (zoom: Zoom) => void
   onExpand: () => void
 }) {
+  const speedTip = useId()
   return (
     <div className="playback">
       <button type="button" data-variant="primary" onClick={props.onPlay}>
         {props.playing ? <Pause /> : <Play />}
         {props.playing ? '暂停' : '播放'}
       </button>
-      <button type="button" onClick={props.onSpeed} title="播放速度">
+      <button type="button" aria-label={`播放速度 ${props.speed}×`} interestfor={speedTip} onClick={props.onSpeed}>
         {props.speed}×
       </button>
+      <span id={speedTip} popover="hint">
+        播放速度
+      </span>
       <span className="number clock">
         {clockText(props.time)} / {clockText(props.durationMs)}
       </span>
@@ -71,6 +77,7 @@ export function PlaybackControls(props: {
         {props.expanded ? <ChevronsDown /> : <ChevronsUp />}
         技能轴
       </button>
+      <Help />
     </div>
   )
 }
@@ -128,6 +135,37 @@ interface LaneProps {
   /** The members in the order of the filter bar */
   members: readonly FilterMember[]
   mergePets: boolean
+}
+
+/** The row of ticks; with nothing selected, a tip at the pointer says that a drag on it selects a span */
+function Ruler(props: { onPress: (down: ReactPointerEvent<HTMLElement>) => void; hint: boolean; children: ReactNode }) {
+  const [pointer, setPointer] = useState<{ x: number; top: number; bottom: number } | null>(null)
+  return (
+    <div
+      className="lane ruler"
+      onPointerDown={(down) => {
+        setPointer(null)
+        props.onPress(down)
+      }}
+      onPointerMove={(move) => {
+        if (move.buttons) return
+        const rect = move.currentTarget.getBoundingClientRect()
+        setPointer({ x: move.clientX, top: rect.top, bottom: rect.bottom })
+      }}
+      onPointerLeave={() => setPointer(null)}
+    >
+      {props.children}
+      {props.hint && pointer && (
+        <FloatingTip
+          side="below"
+          className="ruler-tip"
+          anchor={{ left: pointer.x, right: pointer.x, top: pointer.top, bottom: pointer.bottom }}
+        >
+          拖动选取时间段
+        </FloatingTip>
+      )}
+    </div>
+  )
 }
 
 /**
@@ -217,7 +255,8 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
         use,
         title: `${actionName(data, use.action.actionId, use.action.name)} · ${actorName(data.actors[use.actor])} · 持续 ${Math.round((use.action.durationMs ?? 0) / 1000)} 秒`,
       }))
-    // Every bar before the first icon, so that no bar covers the icon of another use
+    // Every bar before the first icon, so that no bar covers the icon of another use. Past two minutes there are no
+    // icons: the bars alone show when the raid is covered.
     return (
       <>
         {uses.map(({ use, title }) => {
@@ -231,16 +270,20 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
             />
           )
         })}
-        {uses.map(({ use, title }) => (
-          <span key={use.index} className="lane-use" style={{ left: x(use.t) }} title={title}>
-            <SkillIcon skill={`action:${use.action.actionId}`} />
-          </span>
-        ))}
+        {icons &&
+          uses.map(({ use, title }) => (
+            <span key={use.index} className="lane-use" style={{ left: x(use.t) }} title={title}>
+              <SkillIcon skill={`action:${use.action.actionId}`} />
+            </span>
+          ))}
       </>
     )
   }
   return (
-    <div className="lanes" onWheel={(wheel) => props.onScroll(Math.sign(wheel.deltaY || wheel.deltaX) * length * 0.1)}>
+    <div
+      className={`lanes${icons ? '' : ' dense'}`}
+      onWheel={(wheel) => props.onScroll(Math.sign(wheel.deltaY || wheel.deltaX) * length * 0.1)}
+    >
       <div className="labels">
         <span className="label" />
         {props.expanded && (
@@ -263,14 +306,14 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
       </div>
       <div className="rows">
         {shade && <span className="selection" style={{ left: x(shade.from), width: x(shade.to) - x(shade.from) }} />}
-        <div className="lane ruler" onPointerDown={ruler}>
+        <Ruler onPress={ruler} hint={!shade}>
           {cutscenes}
           {ticks(window).map((t) => (
             <span key={t} className="tick" style={{ left: x(t) }}>
               {tickText(t)}
             </span>
           ))}
-        </div>
+        </Ruler>
         {props.expanded && (
           <>
             <DpsLane {...curveProps} />
@@ -287,18 +330,20 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
               const end = cast.cancelledAt ?? cast.t + cast.durationMs
               const name = actionName(data, cast.actionId, cast.name)
               const classes = ['cast', cast.cancelledAt !== null && 'cancelled', props.openCast === index && 'open']
+              const barWidth = Math.max(2, x(end) - x(cast.t))
               return (
                 <button
                   key={index}
                   type="button"
                   className={classes.filter(Boolean).join(' ')}
                   data-cast
-                  style={{ left: x(cast.t), width: Math.max(2, x(end) - x(cast.t)) }}
+                  aria-label={name}
+                  style={{ left: x(cast.t), width: barWidth }}
                   title={`${name} · 读条 ${(cast.durationMs / 1000).toFixed(1)} 秒${cast.cancelledAt !== null ? ' · 被打断或取消' : ''}`}
                   onPointerDown={(down) => down.stopPropagation()}
                   onClick={(click) => props.onCast(index, click.currentTarget)}
                 >
-                  {name}
+                  {castLabelShown(barWidth, name) && name}
                 </button>
               )
             }),
@@ -348,7 +393,14 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
                     />
                   ))}
                 {props.uses
-                  .filter((use) => use.actor === actor.index && visible(use.t, use.t) && use.action.name)
+                  // Past two minutes the weaponskills and spells are a solid band; the abilities still stand out
+                  .filter(
+                    (use) =>
+                      use.actor === actor.index &&
+                      visible(use.t, use.t) &&
+                      use.action.name &&
+                      (icons || !use.action.gcd),
+                  )
                   .map((use) => {
                     const lasting = use.action.lane && use.action.durationMs
                     const title = `${clockText(use.t)} ${use.action.name}${lasting ? ` · 持续 ${Math.round(lasting / 1000)} 秒` : ''}`
