@@ -158,7 +158,8 @@ export async function replay(
         next = record.id
         break
       case 'fightEnd': {
-        // An end caused by an input is logged before that input, so the fight is ended here from the note.
+        // An end caused by an input is logged before that input, so the fight is ended here from the note. The end of a
+        // fight that left combat is logged a few seconds later, after the input already ended it.
         const active = encounters.active
         if (record.reason === 'quiet') encounters.advance(record.endAt + 1)
         else if (record.reason === 'manual') {
@@ -167,7 +168,7 @@ export async function replay(
           encounters.finish(record.reason, record.endAt)
         else encounters.boundary(record.reason, record.endAt)
         const ended = encounters.completed[0]
-        if (!ended || ended.reason !== record.reason || ended.closedAt !== record.endAt)
+        if (!ended || ended.reason !== record.reason || Math.round(ended.closedAt!) !== record.endAt)
           throw new Error(
             `重放的第 ${record.fight} 场战斗没有按日志结束：${ended?.reason ?? '未结束'} ${ended?.closedAt ?? ''}，日志为 ${record.reason} ${record.endAt}`,
           )

@@ -38,6 +38,11 @@ export interface Settings {
   mergePets: boolean
   scope: Scope
 }
+/**
+ * How long after leaving combat the death of an enemy still counts for the fight; the game may report it seconds late,
+ * after the enemy sat at 1 HP through its last scene. The log writes the end of such a fight only after this.
+ */
+export const LATE_DEATH_MS = 5000
 export const defaults: Settings = { quietSeconds: 10, mergePets: true, scope: 'party' }
 /** Checks the items in order; the first invalid one names the error. */
 export function settings(value: unknown): Settings {

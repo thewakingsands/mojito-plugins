@@ -145,6 +145,44 @@ describe('combat log', () => {
     expect(records.filter((record) => record.kind === 'fightEnd')).toHaveLength(2)
     expect(records.at(-1)).toMatchObject({ kind: 'fightEnd', id: 'enc-2' })
   })
+  it('writes the end of a fight that left combat after the late deaths, or when the next fight or zone comes', async () => {
+    const h = open()
+    await h.log.open()
+    h.source()
+    h.enter(T, 1)
+    const r = h.log.recorder
+    const left = (id: string, start: number) => {
+      h.fight(id, start)
+      r.fightEnded({ id, reason: 'outOfCombat', at: start + 1000, summary })
+      r.flushBoundaries()
+    }
+    const ends = async () =>
+      (await read(h.log, '20261026-200000-1')).flatMap((record, index, all) =>
+        record.kind === 'fightEnd' ? [[record.id, all[index - 1].kind]] : [],
+      )
+    // Waits for deaths up to 5 seconds after the end, then the next input writes it
+    left('enc-1', T + 1000)
+    r.event({ meta: meta(T + 7000), value: effect(T + 7000) })
+    expect(await ends()).toEqual([])
+    r.event({ meta: meta(T + 7001), value: effect(T + 7001) })
+    expect(await ends()).toEqual([['enc-1', 'event']])
+    // A new fight writes it at once
+    left('enc-2', T + 10_000)
+    h.fight('enc-3', T + 11_500, T + 12_000)
+    expect(await ends()).toEqual([
+      ['enc-1', 'event'],
+      ['enc-2', 'event'],
+      ['enc-3', 'event'],
+    ])
+    // So does leaving the zone
+    left('enc-4', T + 20_000)
+    h.enter(T + 22_000, 2)
+    expect(h.log.list()[1].fights.at(-1)).toMatchObject({ id: 'enc-4', reason: 'outOfCombat', hashed: true })
+    expect((await read(h.log, '20261026-200000-1')).slice(-2).map((record) => record.kind)).toEqual([
+      'fightEnd',
+      'visitEnd',
+    ])
+  })
   it('writes source clock times and durations with fractional milliseconds as whole ones', async () => {
     const first = open()
     await first.log.open()

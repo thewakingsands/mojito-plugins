@@ -12,7 +12,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { DamageAttribution, GameEvent } from '../combat-events.js'
 import { displaySummary } from '../display.js'
 import { activate, PUBLISH_MS } from '../entry.js'
-import { attribution, castSpace, effect, meta, sample, tick } from '../fixtures.js'
+import { attribution, castSpace, combat, effect, meta, sample, tick } from '../fixtures.js'
 import { defaults, REFLECT_SKILL, type Summary } from '../model.js'
 import type { StatisticsState, VisitsState } from '../view-model.js'
 import { CombatLog } from './index.js'
@@ -761,4 +761,47 @@ it('replays a log written in the removed manual mode with its fights ending wher
   const replayed = await replay(written('manual'))
   expect(replayed).toHaveLength(1)
   expect(replayed[0]).toMatchObject({ reason: 'manual', encounterDamage: { value: 150 } })
+})
+it('lists a fight as a kill when the game reports the death of the boss after leaving combat', async () => {
+  const died = (seq: number, actorId: number): GameEvent => ({
+    type: 'actorDied',
+    packet: effect(seq).packet,
+    data: { actorId, causedByActorId: 1 },
+  })
+  const h = await plugin()
+  await h.zone(1263)
+  await h.party([{ id: 1, ownParty: true }])
+  await h.entities()
+  h.at(T + 1000)
+  await h.events([sample(combat(1, true), T + 1000), sample(effect(2, 100), T + 1100)])
+  h.at(T + 2000)
+  await h.events([sample(combat(3, false), T + 2000)])
+  h.at(T + 3900)
+  await h.events([sample(died(4, 9), T + 3900)])
+  // The end is not written yet, but the list shows the fight as ended with the death
+  const listed = () => (h.snapshot('visits') as VisitsState).visits[0].fights[0]
+  expect(listed()).toMatchObject({ endAt: T + 2000, reason: 'outOfCombat', result: 'kill' })
+  // A later input writes the end
+  h.at(T + 8000)
+  await h.events([sample(hp(5, 1, 100, 200, null), T + 8000)])
+  await h.dispose()
+
+  const log = new CombatLog(h.memory.storage, { values: {} } as unknown as Limits, {
+    createdBy: 'test',
+    actors: () => new Map(),
+    names: { zone: () => null, job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  await log.open()
+  expect(log.list()[0].fights).toEqual([expect.objectContaining({ reason: 'outOfCombat', result: 'kill' })])
+  const records: LogRecord[] = []
+  for await (const record of log.read(log.list()[0].id)) records.push(record)
+  const end = records.findIndex((record) => record.kind === 'fightEnd')
+  const death = records.findIndex((record) => record.kind === 'event' && record.sample.value.type === 'actorDied')
+  expect(death).toBeGreaterThan(0)
+  expect(end).toBeGreaterThan(death)
+  expect(await replay(records)).toEqual([
+    expect.objectContaining({ reason: 'outOfCombat', outcome: expect.objectContaining({ result: 'kill' }) }),
+  ])
 })

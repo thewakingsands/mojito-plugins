@@ -217,6 +217,7 @@ export async function activate(ctx: PluginContext) {
         log.recorder.fightEnded(info)
         logPending = true
       },
+      revised: (info) => log.recorder.fightRevised(info),
     },
   )
   try {

@@ -5,7 +5,7 @@ import type { GameEvent } from './combat-events.js'
 import { HpTracker } from './hp-tracker.js'
 import { Ledger, type LedgerEntry, remember, remembered, tickKey } from './ledger.js'
 import type { Carry } from './log/types.js'
-import { type Actor, defaults, metric, type Settings, type Summary, sourceKey } from './model.js'
+import { type Actor, defaults, LATE_DEATH_MS, metric, type Settings, type Summary, sourceKey } from './model.js'
 import { Outcome } from './outcome.js'
 import type { PresentationAnchor } from './presentation.js'
 import { elapsed } from './settlement-time.js'
@@ -14,6 +14,8 @@ export interface EncounterHooks {
   started(info: { id: string; at: number }): void
   /** `afterInput` marks an end decided after the event being accepted was already applied to the fight. */
   ended(info: { id: string; reason: string; at: number; summary: Summary; afterInput: boolean }): void
+  /** A death reported after the fight left combat changed its summary */
+  revised?(info: { id: string; summary: Summary }): void
 }
 /** An encounter that changed; its summary is computed when read, from the encounter as it is then. */
 export interface ChangedEncounter {
@@ -38,11 +40,6 @@ interface Encounter {
 }
 /** The periodicTicks whose damageAttributed events may still come */
 const attributionTickLimit = 1024
-/**
- * How long after leaving combat the death of an enemy still counts for the fight; the game may report it seconds late,
- * after the enemy sat at 1 HP through its last scene.
- */
-const deathGraceMs = 5000
 export class Encounters {
   config: Settings = { ...defaults }
   /**
@@ -363,13 +360,15 @@ export class Encounters {
     if (
       !encounter ||
       encounter.source !== source ||
-      at > encounter.closedAt! + deathGraceMs ||
+      encounter.zone !== this.zone ||
+      at > encounter.closedAt! + LATE_DEATH_MS ||
       actor?.kind !== 'enemy' ||
       !encounter.ledger.damaged(actor.key)
     )
       return false
     encounter.outcome.death(actor, at)
     this.notify(encounter, true)
+    this.hooks?.revised?.({ id: encounter.id, summary: this.snapshot(encounter, false)! })
     return true
   }
   accept(sample: Sample<GameEvent>, now: number) {
@@ -435,7 +434,6 @@ export class Encounters {
     }
     if (event.type === 'zoneChanged') {
       this.finish('zoneChanged', sample.meta.observedAt)
-      this.grace = null
       this.resetCombat(sample.meta.observedAt)
       this.zone = event.data.territoryTypeId
       return

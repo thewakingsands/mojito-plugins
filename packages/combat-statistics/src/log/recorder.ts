@@ -1,6 +1,6 @@
 import type { CombatantState, Field, GameTopics, PlayerState, Sample, SessionSnapshot } from '@ffcafe/mojito-plugin-sdk'
 import { value } from '../identity.js'
-import type { Actor, Scope, Settings, Summary } from '../model.js'
+import { type Actor, LATE_DEATH_MS, type Scope, type Settings, type Summary } from '../model.js'
 import { FightHash } from './hash.js'
 import {
   type DataRecord,
@@ -315,6 +315,14 @@ export class Recorder {
   fightEnded(info: { id: string; reason: string; at: number; summary: Summary; afterInput?: boolean }) {
     this.boundaries.push({ kind: 'end', ...info, at: ms(info.at), afterInput: info.afterInput ?? false })
   }
+  /** A fight whose end is not written yet takes the summary it has now. */
+  fightRevised(info: { id: string; summary: Summary }) {
+    for (const boundary of this.boundaries)
+      if (boundary.kind === 'end' && boundary.id === info.id) {
+        boundary.summary = info.summary
+        this.listEnd(boundary)
+      }
+  }
   /** Writes fight boundaries decided by a timer or command, which have no input of their own. */
   flushBoundaries() {
     this.prelude(this.latest)
@@ -333,6 +341,17 @@ export class Recorder {
     while (this.boundaries.length) {
       const boundary = this.boundaries[0]
       if (holdTrailing && boundary.kind === 'end' && boundary.afterInput) break
+      // The game may report the deaths of a fight that left combat seconds late; its end waits for them unless the
+      // next fight starts first.
+      if (
+        boundary.kind === 'end' &&
+        boundary.reason === 'outOfCombat' &&
+        this.boundaries.length === 1 &&
+        this.latest <= boundary.at + LATE_DEATH_MS
+      ) {
+        this.listEnd(boundary)
+        break
+      }
       this.boundaries.shift()
       if (boundary.kind === 'start') this.startFight(boundary)
       else this.endFight(boundary)
@@ -440,6 +459,9 @@ export class Recorder {
   private endVisit(reason: VisitEndReason, t: number) {
     const visit = this.visit!
     if (!visit.released) this.release()
+    for (const boundary of this.boundaries.splice(0))
+      if (boundary.kind === 'start') this.startFight(boundary)
+      else this.endFight(boundary)
     if (this.fight) {
       this.options.positions(null)
       this.fight = null
@@ -507,19 +529,9 @@ export class Recorder {
     // A fight that started before this visit's log began has no fightStart, so it gets no fightEnd either.
     if (!visit || !fight || fight.id !== boundary.id) return
     this.cut()
-    const { result, mainEnemy } = this.options.brief(boundary.summary)
     const truncated = this.options.sink.fightTruncated()
-    const note = fightEndNote({
-      visit: visit.id,
-      fight: fight.number,
-      endAt: boundary.at,
-      durationMs: boundary.summary.durationMs ?? null,
-      reason: boundary.reason,
-      result,
-      mainEnemy,
-      deaths: boundary.summary.rows.reduce((sum, row) => sum + row.totals.deaths, 0),
-      truncated,
-    })
+    const brief = this.brief(boundary)
+    const note = fightEndNote({ ...brief, visit: visit.id, fight: fight.number, truncated })
     const row: Row = { kind: 'fightEnd', visit: visit.id, t: boundary.at, fight: fight.number }
     const hash = truncated ? null : fight.hash.finish(row, note)
     this.fight = null
@@ -528,16 +540,23 @@ export class Recorder {
     this.options.sink.fightEnded()
     this.options.positions(null)
     const entry = visit.fights.find((item) => item.number === fight.number)!
-    Object.assign(entry, {
+    Object.assign(entry, { ...brief, truncated, hashed: hash !== null })
+  }
+  private brief(boundary: Extract<Boundary, { kind: 'end' }>) {
+    const { summary } = boundary
+    return {
       endAt: boundary.at,
+      durationMs: summary.durationMs ?? null,
       reason: boundary.reason,
-      durationMs: note.durationMs,
-      deaths: note.deaths,
-      result,
-      mainEnemy,
-      truncated,
-      hashed: hash !== null,
-    })
+      ...this.options.brief(summary),
+      deaths: summary.rows.reduce((sum, row) => sum + row.totals.deaths, 0),
+    }
+  }
+  /** Lists a fight as ended while its end waits to be written, so the page shows it and can review it. */
+  private listEnd(boundary: Extract<Boundary, { kind: 'end' }>) {
+    const fight = this.fight
+    if (fight?.id !== boundary.id) return
+    Object.assign(this.visit!.fights.find((item) => item.number === fight.number)!, this.brief(boundary))
   }
   private rows(record: DataRecord, t: number) {
     const visit = this.visit!
