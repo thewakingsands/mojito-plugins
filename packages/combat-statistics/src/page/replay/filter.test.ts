@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { chooseMember, chooseRole, everyone, type FilterMember, roleOn } from './filter.js'
+import { chooseMember, chooseRole, everyone, type FilterMember, onlyMember, roleOn } from './filter.js'
 
 const members: FilterMember[] = [
   { index: 0, role: 'tank' },
@@ -9,11 +9,15 @@ const members: FilterMember[] = [
 ]
 const all = everyone(members)
 
-it('keeps only the member clicked when everyone is chosen', () => {
-  expect(chooseMember(members, all, 2)).toEqual(new Set([2]))
+it('removes the member unchecked from everyone', () => {
+  expect(chooseMember(members, all, 2)).toEqual(new Set([0, 1, 3]))
 })
 
-it('adds and removes members otherwise, and goes back to everyone after the last one', () => {
+it('keeps only one member', () => {
+  expect(onlyMember(2)).toEqual(new Set([2]))
+})
+
+it('adds and removes members, and goes back to everyone after the last one', () => {
   expect(chooseMember(members, new Set([2]), 3)).toEqual(new Set([2, 3]))
   expect(chooseMember(members, new Set([2, 3]), 3)).toEqual(new Set([2]))
   expect(chooseMember(members, new Set([2]), 2)).toEqual(all)

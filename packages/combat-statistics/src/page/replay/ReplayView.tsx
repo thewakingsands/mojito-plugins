@@ -1,7 +1,8 @@
-import { ArrowLeft, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
+import { ArrowLeft, Map as MapIcon, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
 import {
   type CSSProperties,
   memo,
+  type ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -10,21 +11,19 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { Role } from '../../jobs.js'
 import type { ReplayData, ReplayEvent, ReplayResult, StatisticsState, VisitView } from '../../view-model.js'
 import { useBridge } from '../bridge.js'
 import { fightFacts, ResultLabel } from '../fight.js'
 import { duration, entered, percent, zoneName } from '../format.js'
-import { JobIcon } from '../icons.js'
 import type { Scope, Span } from './aggregate.js'
 import { CastPopover } from './CastPopover.js'
 import { DamageTable, type HealGroup, HealingTable, type TakenGroup, TakenTable, UptimeTable } from './DetailTables.js'
 import { EventList, EventPopover } from './EventList.js'
 import { listedEvents } from './events.js'
-import { chooseMember, chooseRole, everyone, type FilterMember, isEveryone, roleOn } from './filter.js'
+import { everyone, type FilterMember, isEveryone } from './filter.js'
 import { bottomHeight, bottomLimit, panelWidth } from './layout.js'
+import { MemberFilter } from './MemberFilter.js'
 import { PanelMeasure } from './PanelMeasure.js'
-import { actorName } from './parts.js'
 import { type Clock, nextSpeed, play, playhead } from './playback.js'
 import { ReplayMap, useSize } from './ReplayMap.js'
 import { OverviewStrip, PlaybackControls, Timeline, usesOf } from './ReplayTimeline.js'
@@ -38,11 +37,6 @@ const TABS: [Tab, string][] = [
   ['healing', '治疗'],
   ['buff', 'Buff'],
   ['debuff', 'Debuff'],
-]
-const ROLES: [Role, string][] = [
-  ['tank', '坦克'],
-  ['healer', '治疗'],
-  ['dps', '输出'],
 ]
 const ROLE_ORDER = { tank: 0, healer: 1, dps: 2 } as const
 const STEP_MS = 5000
@@ -85,28 +79,31 @@ export function ReplayView(props: {
       live = false
     }
   }, [command, props.visitId, props.fightId])
-  let body = <p className="mojito-empty">正在读取日志</p>
-  if (result && !result.ok)
-    body = (
-      <p className="mojito-callout replay-message" data-tone="danger">
-        无法打开这场战斗的回顾：{result.reason}
-      </p>
-    )
-  if (result?.ok) body = <Review data={result.data} statistics={props.statistics} />
+  const { visitId: _, ...head } = props
+  if (result?.ok) return <Review data={result.data} statistics={props.statistics} head={head} />
   return (
     <div className="replay">
-      <ReplayHeader {...props} />
-      {body}
+      <ReplayHeader {...head} />
+      {result ? (
+        <p className="mojito-callout replay-message" data-tone="danger">
+          无法打开这场战斗的回顾：{result.reason}
+        </p>
+      ) : (
+        <p className="mojito-empty">正在读取日志</p>
+      )}
     </div>
   )
 }
 
-function ReplayHeader(props: {
+interface HeadProps {
   fightId: string
   statistics: StatisticsState | null
   visit: VisitView | undefined
   onBack: () => void
-}) {
+}
+
+/** One line: back, the fight and its result, what is known of it, then the controls of the review on the right */
+function ReplayHeader(props: HeadProps & { children?: ReactNode }) {
   const back = useId()
   const fight = props.visit?.fights.find((item) => item.id === props.fightId)
   const facts = fight && fightFacts(fight, props.statistics)
@@ -117,7 +114,9 @@ function ReplayHeader(props: {
     summary && entered(summary.startAt, Date.now()),
     facts && duration(facts.durationMs),
     facts?.result === 'wipe' && mainEnemy?.hpPercent != null && `敌人剩余 ${percent(mainEnemy.hpPercent)}`,
-  ].filter(Boolean)
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <header className="replay-head">
       <button
@@ -133,93 +132,41 @@ function ReplayHeader(props: {
       <span id={back} popover="hint">
         返回概览
       </span>
-      <div className="replay-title">
-        <h1>
-          <span className="ellipsis">
-            {fight && <span className="number">#{fight.number}</span>} {facts?.enemy ?? '未知敌人'}
-          </span>
-          {facts && <ResultLabel result={facts.result} />}
-        </h1>
-        <p className="subtitle">{subtitle.join(' · ')}</p>
-      </div>
+      <h1 className="replay-title">
+        {fight && <span className="number">#{fight.number}</span>} {facts?.enemy ?? '未知敌人'}
+      </h1>
+      {facts && <ResultLabel result={facts.result} />}
+      <span className="subtitle ellipsis" title={subtitle}>
+        {subtitle}
+      </span>
+      <span className="grow" />
+      {props.children}
     </header>
   )
 }
 
-function FilterBar(props: {
-  data: ReplayData
-  members: FilterMember[]
-  chosen: ReadonlySet<number>
-  span: Span | null
-  showNames: boolean
-  names: Record<string, string>
-  onChosen: (chosen: ReadonlySet<number>) => void
-  onClearSpan: () => void
-  onShowNames: (show: boolean) => void
-}) {
-  const { members, chosen } = props
-  const all = isEveryone(members, chosen)
+/** The span the review is limited to, with a button that clears it */
+function SpanLabel({ span, onClear }: { span: Span; onClear: () => void }) {
   return (
-    <div className="filter-bar">
-      <span className="filter-label">角色</span>
-      <button type="button" className={`chip${all ? ' on' : ''}`} onClick={() => props.onChosen(everyone(members))}>
-        全部
+    <span className="span-label number">
+      {clockText(span.from)} – {clockText(span.to)}（{((span.to - span.from) / 1000).toFixed(1)} 秒）
+      <button type="button" data-icon data-variant="ghost" aria-label="清除时间段" onClick={onClear}>
+        <X />
       </button>
-      {ROLES.map(([role, label]) => (
-        <button
-          key={role}
-          type="button"
-          className={`chip${roleOn(members, chosen, role) ? ' on' : ''}`}
-          onClick={() => props.onChosen(chooseRole(members, role))}
-        >
-          {label}
-        </button>
-      ))}
-      {members.map((member) => {
-        const actor = props.data.actors[member.index]
-        return (
-          <button
-            key={member.index}
-            type="button"
-            className={`chip actor${chosen.has(member.index) ? ' on' : ''}`}
-            aria-pressed={chosen.has(member.index)}
-            onClick={() => props.onChosen(chooseMember(members, chosen, member.index))}
-          >
-            <JobIcon job={actor.job} abbreviation={props.names[`job:${actor.job}`]} />
-            {actorName(actor)}
-          </button>
-        )
-      })}
-      <span className="separator" />
-      <button
-        type="button"
-        role="switch"
-        aria-checked={props.showNames}
-        className={`switch${props.showNames ? ' on' : ''}`}
-        onClick={() => props.onShowNames(!props.showNames)}
-      >
-        <i />
-        显示角色名
-      </button>
-      <span className="separator" />
-      <span className="filter-label">时间</span>
-      {props.span ? (
-        <span className="span-chip number">
-          {clockText(props.span.from)} – {clockText(props.span.to)}（
-          {((props.span.to - props.span.from) / 1000).toFixed(1)} 秒）
-          <button type="button" data-variant="ghost" aria-label="清除时间段" onClick={props.onClearSpan}>
-            <X />
-          </button>
-        </span>
-      ) : (
-        <span className="span-chip whole">整场</span>
-      )}
-    </div>
+    </span>
   )
 }
 
 /** The page once its data is there */
-const Review = memo(function Review({ data, statistics }: { data: ReplayData; statistics: StatisticsState | null }) {
+const Review = memo(function Review({
+  data,
+  statistics,
+  head,
+}: {
+  data: ReplayData
+  statistics: StatisticsState | null
+  head: HeadProps
+}) {
   const durationMs = data.fight.durationMs
   const names = statistics?.names ?? {}
   const summary = statistics?.selected?.id === data.fight.fightId ? statistics.selected : null
@@ -261,6 +208,8 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
   const [fitted, setFitted] = useState<{ scope: Scope; width: number } | null>(null)
   const [bottomDragged, setBottomDragged] = useState<number | null>(null)
   const [showNames, setShowNames] = useState(false)
+  const [mapHidden, setMapHidden] = useState(false)
+  const showMapTip = useId()
   /** Bumped when the user moves the time, so the event list follows the playhead again */
   const [moved, setMoved] = useState(0)
 
@@ -456,7 +405,7 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
     const chrome = Math.max(0, panel.current.offsetWidth - body.clientWidth)
     setFitted({ scope, width: box.getBoundingClientRect().width + chrome })
   }, [measuring, scope])
-  const side = panelWidth(middleSize.width, expanded, panelDragged, fitted?.width ?? null)
+  const side = panelWidth(middleSize.width, expanded, panelDragged, fitted?.width ?? null, mapHidden)
   const bottom = timelineOpen ? bottomHeight(mainSize.height, bottomDragged) : null
   // Until it is dragged, the timeline takes the height of its content, so a drag starts from the height it has on screen.
   const resizePanel = (down: React.PointerEvent) => {
@@ -485,6 +434,23 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
 
   const tabs = (shown: typeof TABS) => (
     <div className="panel-tabs">
+      {mapHidden && (
+        <>
+          <button
+            type="button"
+            data-icon
+            data-variant="ghost"
+            aria-label="显示地图"
+            interestfor={showMapTip}
+            onClick={() => setMapHidden(false)}
+          >
+            <MapIcon />
+          </button>
+          <span id={showMapTip} popover="hint">
+            显示地图
+          </span>
+        </>
+      )}
       <div className="mojito-tabs" role="tablist">
         {shown.map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
@@ -554,27 +520,30 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
     )
 
   return (
-    <div className="review">
-      <FilterBar
-        data={data}
-        members={members}
-        chosen={chosen}
-        span={span}
-        showNames={showNames}
-        names={names}
-        onChosen={setChosen}
-        onClearSpan={() => setSpan(null)}
-        onShowNames={setShowNames}
-      />
+    <div className="replay review">
+      <ReplayHeader {...head}>
+        {span && <SpanLabel span={span} onClear={() => setSpan(null)} />}
+        <MemberFilter data={data} members={members} chosen={chosen} names={names} onChosen={setChosen} />
+      </ReplayHeader>
       <div className="review-main" ref={main}>
         <div className="middle" ref={middle}>
-          <ReplayMap data={data} time={time} chosen={chosen} showNames={showNames} names={names} />
+          {!mapHidden && (
+            <ReplayMap
+              data={data}
+              time={time}
+              chosen={chosen}
+              showNames={showNames}
+              names={names}
+              onShowNames={setShowNames}
+              onHide={() => setMapHidden(true)}
+            />
+          )}
           <aside
-            className={`side-panel${expanded ? ' expanded' : ''}`}
+            className={`side-panel${expanded ? ' expanded' : ''}${mapHidden ? ' alone' : ''}`}
             ref={panel}
             style={{ width: side ?? undefined, '--now': `${(time / (durationMs || 1)) * 100}%` } as CSSProperties}
           >
-            {expanded && <div className="panel-grip" onPointerDown={resizePanel} />}
+            {expanded && !mapHidden && <div className="panel-grip" onPointerDown={resizePanel} />}
             {tabs(expanded ? TABS : TABS.slice(0, 1))}
             <div className="panel-body">{content}</div>
             {measuring && (

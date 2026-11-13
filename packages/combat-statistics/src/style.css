@@ -527,7 +527,7 @@ body {
   display: none;
 }
 
-/* Fight review: header, filter bar, then the map and panel above the timeline; the map keeps its minimum size. */
+/* Fight review: a header line, then the map and panel above the timeline; the map keeps its minimum size. */
 .replay {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -537,19 +537,83 @@ body {
 .replay-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 10px;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--mojito-border);
+  white-space: nowrap;
+}
+/* Only the subtitle gives way when the line is short */
+.replay-head > :not(.subtitle, .grow) {
+  flex: none;
 }
 .replay-title {
-  min-width: 0;
-}
-.replay-title h1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-size: var(--mojito-text-lg);
   line-height: 24px;
+}
+.span-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--mojito-control-height);
+  padding-left: 10px;
+  border-radius: var(--mojito-radius-control);
+  background: var(--mojito-ok-bg);
+  font-size: var(--mojito-text-sm);
+}
+.member-filter-button {
+  max-width: 260px;
+  gap: 4px;
+}
+.member-filter-icons {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.member-filter-icons .icon {
+  width: 20px;
+  height: 20px;
+}
+/* The base popover under its button; it scrolls inside once the members are more than the window holds */
+.member-filter {
+  width: 280px;
+  padding: 12px;
+}
+.member-filter-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--mojito-border);
+}
+.member-filter-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.member-filter-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.member-filter-list label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  font-weight: 400;
+}
+.member-filter-list .icon {
+  width: 20px;
+  height: 20px;
+}
+.member-filter-list button {
+  height: 26px;
+  padding: 0 8px;
+  font-size: var(--mojito-text-xs);
 }
 .replay-message {
   margin-top: 12px;
@@ -562,44 +626,6 @@ body {
 .grow {
   flex: 1;
 }
-.filter-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--mojito-border);
-  font-size: var(--mojito-text-xs);
-}
-.filter-label {
-  margin-right: 2px;
-  color: var(--mojito-fg-tertiary);
-}
-.separator {
-  width: 1px;
-  height: 20px;
-  margin: 0 6px;
-  background: var(--mojito-border);
-}
-.span-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 2px 0 10px;
-  border-radius: var(--mojito-radius-control);
-  background: var(--mojito-ok-bg);
-  color: var(--mojito-fg);
-}
-.span-chip.whole {
-  padding-right: 10px;
-  background: var(--mojito-bg-subtle);
-}
-.span-chip button {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-}
 
 .review-main {
   display: flex;
@@ -609,7 +635,7 @@ body {
 .middle {
   display: flex;
   flex: 1;
-  min-height: 220px;
+  min-height: 120px;
 }
 .map-wrapper {
   position: relative;
@@ -676,8 +702,8 @@ svg.map .grid {
   transform: translate(-50%, -50%);
 }
 .map-member .icon {
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
 }
 .map-member.unchosen {
   opacity: 0.18;
@@ -688,7 +714,65 @@ svg.map .grid {
 }
 .map-member.only {
   border-radius: 50%;
-  box-shadow: 0 0 0 3px var(--mojito-accent);
+  box-shadow: 0 0 0 2px var(--mojito-accent);
+}
+/* What sits in the corners of the map takes a backing of the page, so the grid does not run through it */
+.boss-line,
+.map-scale,
+.map-buttons {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--mojito-bg) 85%, transparent);
+}
+.boss-line {
+  top: 8px;
+  left: 8px;
+  gap: 6px;
+  max-width: calc(100% - 96px);
+  padding: 2px 8px;
+  border-radius: var(--mojito-radius-small);
+  font-size: var(--mojito-text-xs);
+  line-height: 20px;
+}
+.boss-hp {
+  flex: none;
+  width: 80px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--mojito-bg-strong);
+}
+.boss-hp i {
+  display: block;
+  height: 100%;
+  background: var(--mojito-danger-fg);
+}
+.boss-absent {
+  color: var(--mojito-fg-tertiary);
+}
+.map-scale {
+  bottom: 8px;
+  left: 8px;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: var(--mojito-radius-small);
+  font-size: var(--mojito-text-xs);
+  line-height: 16px;
+  color: var(--mojito-fg-secondary);
+}
+.map-scale i {
+  height: 6px;
+  border: 1.5px solid var(--mojito-fg-secondary);
+  border-top: 0;
+}
+.map-buttons {
+  top: 6px;
+  right: 6px;
+  gap: 4px;
+  padding: 2px;
+  border-radius: var(--mojito-radius-control);
 }
 .map-name {
   position: absolute;
@@ -714,6 +798,10 @@ svg.map .grid {
   min-height: 0;
   border-left: 1px solid var(--mojito-border);
   background: var(--mojito-bg);
+}
+.side-panel.alone {
+  flex: 1;
+  border-left: 0;
 }
 .panel-grip {
   position: absolute;
@@ -1477,7 +1565,7 @@ select.potency-member {
 
 /* Buttons this page draws itself (list rows, the review's event rows, expanders and timeline marks) keep their own
    look: no key edges from mojito-base.css and no press movement. */
-:is(.visit-head, .fight, .uptime-toggle, .span-chip button, .event, .event-mark, .cast, .potency-member) {
+:is(.visit-head, .fight, .uptime-toggle, .event, .event-mark, .cast, .potency-member) {
   box-shadow: none;
 }
 :is(.visit-head, .fight, .event, .event-mark, .cast):active {

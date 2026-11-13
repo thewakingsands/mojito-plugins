@@ -1,7 +1,9 @@
 /** The map never gets narrower or the middle row lower than this */
 export const MIN_MAP_WIDTH = 260
-export const MIN_MIDDLE_HEIGHT = 220
+export const MIN_MIDDLE_HEIGHT = 120
 export const PANEL_COLLAPSED = 300
+/** The collapsed panel never takes more than this share of the middle row */
+export const PANEL_SHARE = 0.4
 export const MIN_BOTTOM = 190
 
 /** The widest the side panel may be in a middle row of this width */
@@ -10,17 +12,19 @@ export function panelLimit(middleWidth: number): number {
 }
 
 /**
- * The width of the side panel in a middle row of this width: expanded, what it was dragged to, otherwise the width its
- * content was measured to need; null while neither is known.
+ * The width of the side panel in a middle row of this width: the whole row while the map is hidden; expanded, what it
+ * was dragged to, otherwise the width its content was measured to need, null while neither is known.
  */
 export function panelWidth(
   middleWidth: number,
   expanded: boolean,
   dragged: number | null,
   fitted: number | null = null,
+  mapHidden = false,
 ): number | null {
+  if (mapHidden) return middleWidth
   const limit = panelLimit(middleWidth)
-  const least = Math.min(PANEL_COLLAPSED, limit)
+  const least = Math.min(PANEL_COLLAPSED, middleWidth * PANEL_SHARE, limit)
   if (!expanded) return least
   const wanted = dragged ?? fitted
   if (wanted === null) return null

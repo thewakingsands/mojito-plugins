@@ -1,16 +1,17 @@
-import { memo, type RefObject, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronsLeft, Type } from 'lucide-react'
+import { memo, type RefObject, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReplayActor, ReplayData } from '../../view-model.js'
 import { percent } from '../format.js'
 import { JobIcon } from '../icons.js'
-import { type Box, fitBounds, gridLines, project } from './bounds.js'
+import { type Box, fitBounds, GRID_METERS, gridLines, project } from './bounds.js'
 import { ringRotation } from './facing.js'
-import { actorName } from './parts.js'
+import { actorName, Diamond } from './parts.js'
 import { buildMapScene, deathTimes, enemyPane, type MapPane, paneLayout, sceneAt } from './scene.js'
 import { enemyShown, isDown, memberShown, poseAt } from './tracks.js'
 
-const MEMBER_SIZE = 30
-const MAIN_SIZE = 40
-const ENEMY_SIZE = 22
+const MEMBER_SIZE = 22
+const MAIN_SIZE = 28
+const ENEMY_SIZE = 18
 
 /** The size of an element, following it as it changes */
 export function useSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
@@ -49,10 +50,51 @@ export function EnemyMarker(props: { actor: ReplayActor; x: number; y: number; r
       <title>{label}</title>
       <path className="ring" d={ringPath(size)} transform={`rotate(${ringRotation(props.rotation)})`} />
       <path className="diamond-mark" d={`M0 ${-half}L${half} 0L0 ${half}L${-half} 0Z`} />
-      <text className="map-label" y={half + 22}>
-        {label}
-      </text>
+      {!props.actor.main && (
+        <text className="map-label" y={half + 20}>
+          {label}
+        </text>
+      )}
     </g>
+  )
+}
+
+/** The main enemy in the corner of its pane, where the members' icons never cover it */
+interface Boss {
+  actor: ReplayActor
+  /** NaN when the log has no HP; null while the enemy is not there */
+  hp: number | null
+}
+function BossLine({ boss }: { boss: Boss }) {
+  const hp = boss.hp
+  return (
+    <div className="boss-line">
+      <Diamond main size={12} />
+      <span className="ellipsis">{actorName(boss.actor)}</span>
+      {hp === null ? (
+        <span className="boss-absent">不在场</span>
+      ) : (
+        !Number.isNaN(hp) && (
+          <>
+            <span className="boss-hp" role="presentation">
+              <i style={{ width: `${Math.max(0, Math.min(1, hp)) * 100}%` }} />
+            </span>
+            <span className="number">{percent(hp * 100)}</span>
+          </>
+        )
+      )}
+    </div>
+  )
+}
+
+/** How long one square of the grid is, in the pane's bottom left corner */
+function MapScale({ pixels }: { pixels: number }) {
+  if (!Number.isFinite(pixels) || pixels <= 0) return null
+  return (
+    <div className="map-scale">
+      <i style={{ width: pixels }} />
+      <span>{GRID_METERS} 米</span>
+    </div>
   )
 }
 
@@ -69,6 +111,7 @@ function MapPaneView(props: {
   single: boolean
   showNames: boolean
   names: Record<string, string>
+  boss: Boss | null
 }) {
   const { data, pane, time, deaths, chosen } = props
   const { left, top, width, height } = props.place
@@ -93,6 +136,8 @@ function MapPaneView(props: {
           return <EnemyMarker key={actor.index} actor={actor} x={x} y={y} rotation={pose.rotation} hp={pose.hp} />
         })}
       </svg>
+      {props.boss && <BossLine boss={props.boss} />}
+      <MapScale pixels={at(bounds.minX + GRID_METERS, 0)[0] - at(bounds.minX, 0)[0]} />
       {pane.members.map((index) => {
         const actor = data.actors[index]
         if (!memberShown(actor.track, time)) return null
@@ -130,6 +175,8 @@ export const ReplayMap = memo(function ReplayMap(props: {
   chosen: ReadonlySet<number>
   showNames: boolean
   names: Record<string, string>
+  onShowNames: (show: boolean) => void
+  onHide: () => void
 }) {
   const { data, time, chosen } = props
   // Measured here rather than by the parent: a parent's ref is still unset when this child's layout effect runs on mount
@@ -137,16 +184,58 @@ export const ReplayMap = memo(function ReplayMap(props: {
   const { width, height } = useSize(wrapper)
   const scene = useMemo(() => buildMapScene(data), [data])
   const deaths = useMemo(() => deathTimes(data.events), [data])
+  const nameTip = useId(),
+    hideTip = useId()
+  const buttons = (
+    <div className="map-buttons">
+      {scene.segments.length > 0 && (
+        <>
+          <button
+            type="button"
+            data-icon
+            aria-label="显示角色名"
+            aria-pressed={props.showNames}
+            interestfor={nameTip}
+            onClick={() => props.onShowNames(!props.showNames)}
+          >
+            <Type />
+          </button>
+          <span id={nameTip} popover="hint">
+            显示角色名
+          </span>
+        </>
+      )}
+      <button type="button" data-icon aria-label="收起地图" interestfor={hideTip} onClick={props.onHide}>
+        <ChevronsLeft />
+      </button>
+      <span id={hideTip} popover="hint">
+        收起地图
+      </span>
+    </div>
+  )
   if (!scene.segments.length)
     return (
       <div className="map-wrapper" ref={wrapper}>
         <p className="placeholder map-empty">这场战斗没有位置记录</p>
+        {buttons}
       </div>
     )
   const views = sceneAt(scene, time)
   const panes = views.map((view) => view.pane)
   const layout = paneLayout(views.length, width, height)
   const single = chosen.size === 1
+  const main = data.actors.find((actor) => actor.kind === 'enemy' && actor.main)
+  let boss: Boss | null = null
+  let bossPane = 0
+  if (main) {
+    const died = deaths.get(main.index)?.[0] ?? null
+    const pose = enemyShown(main.track, died, time) ? poseAt(main.track, time) : null
+    // Once defeated it is no longer drawn, but it is not away either
+    const hp = died !== null && time >= died ? 0 : pose ? pose.hp : null
+    boss = { actor: main, hp }
+    const pane = pose && enemyPane(panes, data.actors, pose.x, pose.z, time)
+    bossPane = Math.max(0, pane ? panes.indexOf(pane) : 0)
+  }
   return (
     <div className={`map-wrapper${views.length > 1 ? ' split' : ''}`} ref={wrapper}>
       {views.map((view, i) => (
@@ -163,8 +252,10 @@ export const ReplayMap = memo(function ReplayMap(props: {
           single={single}
           showNames={props.showNames}
           names={props.names}
+          boss={i === bossPane ? boss : null}
         />
       ))}
+      {buttons}
     </div>
   )
 })

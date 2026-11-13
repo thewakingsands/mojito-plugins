@@ -109,6 +109,20 @@ const press = (element: Element) => {
 const event = (title: string) =>
   within(document.querySelector<HTMLElement>('.events')!).getByText(title).closest('button')!
 const tab = (name: string) => screen.getByRole('tab', { name })
+/** The popover of the member filter; closed in jsdom, so what it holds counts as hidden */
+const memberFilter = () => document.querySelector<HTMLElement>('.member-filter')!
+/** The checkboxes of the member filter, in its order */
+const memberBoxes = () => within(memberFilter()).getAllByRole<HTMLInputElement>('checkbox', { hidden: true })
+const memberBox = (name: string) => screen.getByRole('checkbox', { hidden: true, name })
+const only = (name: string) => screen.getByRole('button', { hidden: true, name: `只看${name}` })
+/** 100 ms a pixel over the fight of 60 seconds, for the curves and the ruler */
+function mockLaneRect() {
+  const rect = HTMLElement.prototype.getBoundingClientRect
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (!this.classList.contains('curve') && !this.classList.contains('ruler')) return rect.call(this)
+    return { ...rect.call(this), left: 0, width: 600 }
+  })
+}
 
 it('closes the popover of a selected event and expands the panel with one press of the expand button', async () => {
   await open()
@@ -278,6 +292,47 @@ it('draws a pane for each place the members are at', async () => {
   }
 })
 
+it('writes the main enemy in the corner of the map instead of under its mark', async () => {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+  try {
+    await open(
+      replayData({
+        fight: { visitId: 'v', fightId: 'f', durationMs: 60_000 },
+        actors: [
+          member(0, 19, '骑士', track([[0, 0, 0]])),
+          enemy(1, true, track([[0, 0, -5, 0, 0.5]])),
+          enemy(2, false, track([[0, 5, -5]])),
+        ],
+      }),
+    )
+    const line = document.querySelector('.boss-line')!
+    expect(line.textContent).toContain('敌人1')
+    expect(line.textContent).toContain('50')
+    const labels = [...document.querySelectorAll('.map-label')].map((label) => label.textContent)
+    expect(labels.some((label) => label?.includes('敌人1'))).toBe(false)
+    expect(labels.some((label) => label?.includes('敌人2'))).toBe(true)
+    expect(document.querySelector('.map-scale')!.textContent).toContain('米')
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('hides the map and shows it again from the panel', async () => {
+  await open()
+  const show = screen.getByRole('button', { name: '显示角色名' })
+  expect(show.getAttribute('aria-pressed')).toBe('false')
+  press(show)
+  expect(screen.getByRole('button', { name: '显示角色名' }).getAttribute('aria-pressed')).toBe('true')
+  expect(screen.queryByRole('button', { name: '显示地图' })).toBeNull()
+  press(screen.getByRole('button', { name: '收起地图' }))
+  expect(document.querySelector('.map-wrapper')).toBeNull()
+  expect(document.querySelector('.side-panel.alone')).toBeTruthy()
+  press(screen.getByRole('button', { name: '显示地图' }))
+  expect(document.querySelector('.map-wrapper')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: '显示地图' })).toBeNull()
+})
+
 it('keeps the skill icons of the lanes in place while playback scrolls the window', async () => {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
@@ -371,41 +426,88 @@ it('asks again for an icon whose request failed when the review opens again', as
   expect(requested.filter((key) => key === 'job:38')).toHaveLength(2)
 })
 
-it('changes the filter only from the filter bar', async () => {
+it('changes the filter only from the member filter', async () => {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
   try {
     await open()
-    const pressed = () =>
-      [...document.querySelectorAll('.filter-bar .chip.actor')].map((chip) => chip.getAttribute('aria-pressed'))
-    const all = pressed()
-    expect(all).toEqual(['true', 'true', 'true'])
+    const checked = () => memberBoxes().map((box) => box.checked)
+    const all = checked()
+    expect(all).toEqual([true, true, true])
     press(screen.getByRole('button', { name: '详细数据' }))
     const row = document.querySelector('tr.actor')!
     press(row.querySelector('.icon')!)
-    expect(pressed()).toEqual(all)
+    expect(checked()).toEqual(all)
     expect(document.querySelector('tr.actor')!.getAttribute('aria-expanded')).toBe('true')
     press(tab('Buff'))
     press(document.querySelector('.uptime-head .icon-slot .icon')!)
-    expect(pressed()).toEqual(all)
+    expect(checked()).toEqual(all)
     press(document.querySelector('.map-member')!)
-    expect(pressed()).toEqual(all)
+    expect(checked()).toEqual(all)
     press(screen.getByRole('button', { name: '技能轴' }))
     press(document.querySelector('.label.member')!)
-    expect(pressed()).toEqual(all)
+    expect(checked()).toEqual(all)
   } finally {
     vi.restoreAllMocks()
   }
 })
 
-it('puts the switch of the names between the members and the time', async () => {
+it('opens the member filter from its button and changes the members in it', async () => {
   await open()
-  const bar = [...document.querySelector('.filter-bar')!.children]
-  const at = bar.findIndex((child) => child.getAttribute('role') === 'switch')
-  expect(bar[at - 1].className).toBe('separator')
-  expect(bar[at - 2].className).toContain('chip actor')
-  expect(bar[at + 1].className).toBe('separator')
-  expect(bar[at + 2].textContent).toBe('时间')
+  const trigger = screen.getByRole('button', { name: '角色：全部' })
+  const dialog = memberFilter()
+  expect(trigger.getAttribute('popovertarget')).toBe(dialog.id)
+  expect(dialog.getAttribute('popover')).toBe('auto')
+  expect(dialog.getAttribute('role')).toBe('dialog')
+  expect(dialog.getAttribute('aria-label')).toBe('选择角色')
+  const filter = within(dialog)
+  const pressed = (name: string) => filter.getByRole('button', { hidden: true, name }).getAttribute('aria-pressed')
+  expect(pressed('全部')).toBe('true')
+  // Unchecking one of everyone leaves the others
+  press(memberBox('白魔'))
+  expect(memberBoxes().map((box) => box.checked)).toEqual([true, false, true])
+  expect(pressed('全部')).toBe('false')
+  expect(screen.getByRole('button', { name: /^角色：/ }).textContent).not.toContain('全部')
+  press(only('诗人'))
+  expect(memberBoxes().map((box) => box.checked)).toEqual([false, false, true])
+  // Unchecking the last one goes back to everyone
+  press(memberBox('诗人'))
+  expect(memberBoxes().map((box) => box.checked)).toEqual([true, true, true])
+  press(filter.getByRole('button', { hidden: true, name: '治疗' }))
+  expect(memberBoxes().map((box) => box.checked)).toEqual([false, true, false])
+  expect(pressed('治疗')).toBe('true')
+  press(filter.getByRole('button', { hidden: true, name: '全部' }))
+  expect(pressed('全部')).toBe('true')
+})
+
+it('shows the span in the header once one is selected, with a button that clears it', async () => {
+  mockLaneRect()
+  try {
+    await open()
+    expect(document.querySelector('.span-label')).toBeNull()
+    const ruler = document.querySelector<HTMLElement>('.lane.ruler')!
+    fireEvent.pointerDown(ruler, { clientX: 100 })
+    fireEvent.pointerMove(document, { clientX: 250 })
+    fireEvent.pointerUp(document, { clientX: 250 })
+    const label = document.querySelector('.replay-head .span-label')!
+    expect(label.textContent).toContain('0:10.0 – 0:25.0（15.0 秒）')
+    press(screen.getByRole('button', { name: '清除时间段' }))
+    expect(document.querySelector('.span-label')).toBeNull()
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+it('keeps the back button and the title while the review loads', async () => {
+  const command = () => new Promise<Value>(() => {})
+  render(
+    <Bridge.Provider value={{ view: {} as ViewBridge, command }}>
+      <ReplayView visitId="v" fightId="f" statistics={statistics} visit={undefined} onBack={() => {}} />
+    </Bridge.Provider>,
+  )
+  expect(screen.getByText('正在读取日志').className).toBe('mojito-empty')
+  const back = screen.getByRole('button', { name: '返回概览' })
+  expect(document.getElementById(back.getAttribute('interestfor')!)!.getAttribute('popover')).toBe('hint')
 })
 
 it('keeps the sizes the panels were dragged to while the review is open', async () => {
@@ -452,7 +554,7 @@ it('keeps the sizes the panels were dragged to while the review is open', async 
 
     press(screen.getByRole('button', { name: '技能轴' }))
     expect(bottom().style.height).toBe('')
-    expect(bottom().style.maxHeight).toBe('580px')
+    expect(bottom().style.maxHeight).toBe('680px')
     dragBy(document.querySelector('.grip')!, 0, -300)
     expect(bottom().style.height).toBe('300px')
     press(screen.getByRole('button', { name: '技能轴' }))
@@ -636,17 +738,6 @@ const pickPotency = (name: string) => {
 const potencyLane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
 const potencyTip = () => document.querySelector<HTMLElement>('.floating-tip.potency-tip')
 const expandTimeline = () => press(screen.getByRole('button', { name: '技能轴' }))
-const chip = (name: string) =>
-  within(document.querySelector<HTMLElement>('.filter-bar')!).getByRole('button', { name: new RegExp(name) })
-/** 100 ms a pixel over the fight of 60 seconds */
-function mockLaneRect() {
-  const rect = HTMLElement.prototype.getBoundingClientRect
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    if (!this.classList.contains('curve')) return rect.call(this)
-    return { ...rect.call(this), left: 0, width: 600 }
-  })
-}
-
 it('shows the curves only while the timeline is expanded', async () => {
   await open(potencyData)
   expect(screen.queryByText('每秒伤害')).toBeNull()
@@ -672,20 +763,20 @@ it('draws the damage per second and the damage per potency, for the members that
   pickPotency('诗人')
   expect(potencyMembers()).toEqual({ options: ['骑士', '诗人'], picked: '诗人' })
   // Only the white mage: no samples
-  press(chip('白魔'))
+  press(only('白魔'))
   expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
   expect(screen.getByText('没有每威力数据：记录时宿主没有提供，或选中的角色没有可推断威力的命中')).toBeTruthy()
   // The bard was picked; chosen with the knight again, the knight is the default
-  press(chip('骑士'))
-  press(chip('诗人'))
+  press(memberBox('骑士'))
+  press(memberBox('诗人'))
   expect(potencyMembers()).toEqual({ options: ['骑士', '诗人'], picked: '骑士' })
 })
 
 it('names the only member with samples instead of offering a choice', async () => {
   await open(potencyData)
   expandTimeline()
-  press(chip('白魔'))
-  press(chip('诗人'))
+  press(only('白魔'))
+  press(memberBox('诗人'))
   expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
   expect(document.querySelector('.potency-member')!.textContent).toBe('诗人')
 })
@@ -724,7 +815,7 @@ it('seeks on a click and selects a span on a drag over the curves', async () => 
     fireEvent.pointerDown(potency, { clientX: 100 })
     fireEvent.pointerMove(document, { clientX: 300 })
     fireEvent.pointerUp(document, { clientX: 300 })
-    expect(document.querySelector('.filter-bar .span-chip')!.textContent).toContain('0:10.0 – 0:30.0')
+    expect(document.querySelector('.replay-head .span-label')!.textContent).toContain('0:10.0 – 0:30.0')
   } finally {
     vi.restoreAllMocks()
   }
