@@ -82,7 +82,7 @@ describe('rows', () => {
     )
     const records: LogRecord[] = [
       { kind: 'source', value: source },
-      { kind: 'settings', value: { mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'party' } },
+      { kind: 'settings', value: { quietSeconds: 10, mergePets: true, scope: 'party' } },
       {
         kind: 'carry',
         value: {

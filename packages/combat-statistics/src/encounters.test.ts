@@ -66,9 +66,9 @@ it('keeps delayed ticks and post revisions in the original encounter and cannot 
   )
   expect(encounters.completed).toHaveLength(0)
 })
-it('manual mode survives a long transition while a source boundary marks incomplete and seals pending work', () => {
+it('a replayed manual-mode log survives a long transition while a source boundary marks incomplete and seals pending work', () => {
   const { encounters } = setup()
-  encounters.config.mode = 'manual'
+  encounters.manual = true
   encounters.accept(sample(effect(1), 1000), 1000)
   encounters.advance(100000)
   expect(encounters.active).not.toBeNull()
@@ -146,14 +146,14 @@ it('initial false does not swallow the first transition and same-timestamp subse
   encounters.accept(sample(combat(7, false), 1000), 1000)
   expect(encounters.completed).toHaveLength(2)
 })
-it('manual mode ignores false, switching to auto does not replay it, and future transitions work', () => {
+it('a replayed manual-mode log ignores false, leaving it does not replay it, and future transitions work', () => {
   const { encounters } = setup()
-  encounters.config.mode = 'manual'
+  encounters.manual = true
   encounters.accept(sample(effect(1), 1000), 1000)
   encounters.accept(sample(combat(2, false), 2000), 2000)
   encounters.advance(100000)
   expect(encounters.deadline()).toBeNull()
-  encounters.config.mode = 'auto'
+  encounters.manual = false
   encounters.accept(sample(combat(3, false), 3000), 3000)
   expect(encounters.active).not.toBeNull()
   encounters.accept(sample(combat(4, true), 3000), 3000)
@@ -423,7 +423,6 @@ it('reports fight starts and ends to the hooks in order', () => {
   encounters.accept(sample(effect(1), 1000), 1000)
   encounters.accept(sample(effect(2), 12000), 12000)
   encounters.end('battle-2', 13000)
-  encounters.config = { ...encounters.config, mode: 'auto' }
   encounters.accept(sample(effect(3), 14000), 14000)
   encounters.accept(sample(combat(4, true), 14100), 14100)
   encounters.accept(sample(combat(5, false), 14200), 14200)

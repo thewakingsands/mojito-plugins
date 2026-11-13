@@ -79,7 +79,7 @@ it.each([
     () => 'duration',
     () => {},
   )
-  encounters.config.mode = 'manual'
+  encounters.manual = true
   encounters.updateActors(actors())
   encounters.accept(sample(effect(1, 100), 1000), 1000)
   encounters.accept(sample(effect(2, 200), 1000 + Number(seconds) * 1000), 1000 + Number(seconds) * 1000)
@@ -104,7 +104,7 @@ it('keeps fractional durations and formats a late participant using their own cl
     () => 'precise',
     () => {},
   )
-  encounters.config.mode = 'manual'
+  encounters.manual = true
   encounters.updateActors(actors())
   encounters.accept(sample(effect(1, 100, 2), 1000), 1000)
   encounters.accept(sample(effect(2, 100), 61000), 61000)

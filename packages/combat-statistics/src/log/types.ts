@@ -112,7 +112,8 @@ export type LogRecord =
       members: Member[]
     }
   | { kind: 'source'; value: SourceRecord }
-  | { kind: 'settings'; value: Settings }
+  /** Logs written before the manual mode was removed also have the mode */
+  | { kind: 'settings'; value: Settings & { mode?: 'auto' | 'manual' } }
   | { kind: 'carry'; value: Carry }
   | { kind: 'player'; origin: 'watch' | 'get'; value: Partial<PlayerState>; t: number }
   | { kind: 'party'; value: GameTopics['party'] }

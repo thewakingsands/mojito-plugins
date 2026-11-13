@@ -10,7 +10,7 @@ function encounter() {
     () => 'synthetic',
     () => {},
   )
-  model.config.mode = 'manual'
+  model.manual = true
   model.updateActors(actors())
   model.accept(sample(effect(1, 100), 1000), 1000)
   return model
@@ -128,7 +128,7 @@ it('does not project incoming-only encounters and starts timing on the first qua
     () => 'incoming',
     () => {},
   )
-  model.config.mode = 'manual'
+  model.manual = true
   model.updateActors(actors())
   model.accept(sample(effect(1, 10, 9, 1), 1000), 1000)
   const projection = new Presentation()

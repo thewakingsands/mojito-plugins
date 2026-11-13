@@ -59,7 +59,7 @@ function harness() {
     positions: (ids) => positions.push(ids),
   })
   recorder.source(session())
-  recorder.settings({ mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'party' })
+  recorder.settings({ quietSeconds: 10, mergePets: true, scope: 'party' })
   const rows = () => calls.filter((call): call is Row => typeof call !== 'string')
   /** Compact view: kind@t, #fight when inside a fight, and the bare sink calls. */
   const trace = () =>

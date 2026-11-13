@@ -40,6 +40,11 @@ interface Encounter {
 const attributionTickLimit = 1024
 export class Encounters {
   config: Settings = { ...defaults }
+  /**
+   * Set by the replay of a log written in the manual mode, which has been removed: leaving combat and the quiet time
+   * end none of its fights, so they end where the log ended them.
+   */
+  manual = false
   readonly actors = new Map<number, Actor>()
   readonly qualityReasons = new Set<string>()
   readonly completed: Encounter[] = []
@@ -136,7 +141,7 @@ export class Encounters {
     this.packetSeq = -Infinity
   }
   deadline(): number | null {
-    return this.active && this.config.mode === 'auto' && this.inCombat !== true
+    return this.active && !this.manual && this.inCombat !== true
       ? this.active.hostile + this.config.quietSeconds * 1000 + 1
       : null
   }
@@ -365,8 +370,7 @@ export class Encounters {
       this.inCombat = event.data.inCombat
       const transition = this.combatValue !== this.inCombat
       this.combatValue = this.inCombat
-      if (transition && !this.inCombat && this.config.mode === 'auto')
-        this.finish('outOfCombat', sample.meta.observedAt)
+      if (transition && !this.inCombat && !this.manual) this.finish('outOfCombat', sample.meta.observedAt)
       return
     }
     if (seq !== undefined) this.packetSeq = Math.max(this.packetSeq, seq)
@@ -424,7 +428,7 @@ export class Encounters {
       if (encounter && at < encounter.start) return
       if (!encounter) {
         // A tick after leaving combat belongs to no fight.
-        if (event.type === 'periodicTick' && this.config.mode === 'auto' && this.inCombat === false) return
+        if (event.type === 'periodicTick' && !this.manual && this.inCombat === false) return
         // An old fact after a manual end must not open a duplicate encounter.
         if (
           this.completed.some(

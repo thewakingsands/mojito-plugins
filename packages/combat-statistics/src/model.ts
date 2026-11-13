@@ -34,27 +34,23 @@ export const LIMIT_BREAK_ACTOR: Actor = {
 export const limitBreakSkill = (actionId: number, casterKey: string) => `action:${actionId}@${casterKey}`
 export type Scope = 'party' | 'alliance' | 'all'
 export interface Settings {
-  mode: 'auto' | 'manual'
   quietSeconds: number
   mergePets: boolean
   scope: Scope
 }
-export const defaults: Settings = { mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'party' }
+export const defaults: Settings = { quietSeconds: 10, mergePets: true, scope: 'party' }
+/** Checks the items in order; the first invalid one names the error. */
 export function settings(value: unknown): Settings {
-  if (!value || typeof value !== 'object') throw new Error('无效分场设置')
+  if (!value || typeof value !== 'object') throw new Error('无效设置')
   const input = value as Settings
-  if (
-    !['auto', 'manual'].includes(input.mode) ||
-    !Number.isInteger(input.quietSeconds) ||
-    input.quietSeconds < 3 ||
-    input.quietSeconds > 120 ||
-    typeof input.mergePets !== 'boolean'
-  )
-    throw new Error('静默时间必须为 3–120 秒')
+  if (!Number.isInteger(input.quietSeconds) || input.quietSeconds < 3 || input.quietSeconds > 120)
+    throw new Error('脱战判定时间必须为 3～120 秒的整数')
+  if (typeof input.mergePets !== 'boolean') throw new Error('无效合并宠物设置')
   // Settings saved before the scope option existed keep the original own-party behavior.
   const scope = input.scope ?? 'party'
   if (!['party', 'alliance', 'all'].includes(scope)) throw new Error('无效解析范围')
-  return { mode: input.mode, quietSeconds: input.quietSeconds, mergePets: input.mergePets, scope }
+  // The mode of settings saved before the manual mode was removed is dropped.
+  return { quietSeconds: input.quietSeconds, mergePets: input.mergePets, scope }
 }
 export interface Amounts {
   damage: number

@@ -79,14 +79,17 @@ export async function replay(
         }
         break
       }
-      case 'settings':
-        encounters.config = record.value
+      case 'settings': {
+        const { mode, ...value } = record.value
+        encounters.config = value
+        encounters.manual = mode === 'manual'
         scopeMembers()
         if (identities && !snapshot) {
           identities.classify(members, allPlayers())
           encounters.updateActors(identities.actors)
         }
         break
+      }
       case 'carry':
         encounters.restore(record.value.encounters)
         identities?.restore(record.value.generations)

@@ -252,7 +252,7 @@ it('replays every visit from the log into the same summaries as the live statist
   ])
   await h.commands.get('statistics')!({
     kind: 'settings',
-    value: { mode: 'auto', quietSeconds: 10, mergePets: true, scope: 'alliance' },
+    value: { quietSeconds: 10, mergePets: true, scope: 'alliance' },
   })
   await h.events([sample(effect(5, 50, 5), T + 14_000), sample(effect(6, 70, 6), T + 14_500)])
   h.at(T + 30_000)
@@ -729,4 +729,36 @@ it('replays a fight ended for an unavailable input into the same summary as the 
   for await (const record of log.read(log.list()[0].id)) records.push(record)
   const replayed = await replay(records)
   expect(replayed.map((summary) => displaySummary(summary, true))).toEqual([live])
+})
+it('replays a log written in the removed manual mode with its fights ending where the log ended them', async () => {
+  const h = await plugin()
+  await h.zone(1263)
+  await h.party([{ id: 1, ownParty: true }])
+  await h.entities()
+  h.at(T + 1000)
+  await h.events([sample(effect(1, 100), T + 1000)])
+  h.at(T + 5000)
+  await h.events([sample(effect(2, 50), T + 5000)])
+  h.at(T + 6000)
+  await h.serviceRequest('endEncounter', { encounterId: h.current() })
+  await h.dispose()
+  const log = new CombatLog(h.memory.storage, { values: {} } as unknown as Limits, {
+    createdBy: 'test',
+    actors: () => new Map(),
+    names: { zone: () => null, job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  await log.open()
+  const records: LogRecord[] = []
+  for await (const record of log.read(log.list()[0].id)) records.push(record)
+  // With a quiet time of 3 seconds, the four seconds between the effects would split the fight in the auto mode.
+  const written = (mode: 'auto' | 'manual') =>
+    records.map((record) =>
+      record.kind === 'settings' ? { ...record, value: { ...record.value, mode, quietSeconds: 3 } } : record,
+    )
+  expect((await replay(written('auto'))).map((summary) => summary.reason)).toEqual(['quiet', 'manual'])
+  const replayed = await replay(written('manual'))
+  expect(replayed).toHaveLength(1)
+  expect(replayed[0]).toMatchObject({ reason: 'manual', encounterDamage: { value: 150 } })
 })

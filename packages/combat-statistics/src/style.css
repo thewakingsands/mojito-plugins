@@ -53,11 +53,6 @@ body {
 .error {
   color: var(--mojito-danger-fg);
 }
-.hint {
-  color: var(--mojito-fg-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-}
 
 /* Visits on the left, the overview on the right; each scrolls on its own and keeps room for its scrollbar. */
 .layout {
@@ -467,12 +462,6 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
 }
 .layout[hidden] {
   display: none;

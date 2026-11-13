@@ -521,7 +521,7 @@ it('keeps a replayed fight open for its events when the source clock is already 
 })
 const scopeSettings = (scope: string) => ({
   kind: 'settings',
-  value: { mode: 'auto', quietSeconds: 10, mergePets: true, scope },
+  value: { quietSeconds: 10, mergePets: true, scope },
 })
 it.each([
   ['party', 0, 0],
