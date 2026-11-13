@@ -96,7 +96,6 @@ export function Overview(props: {
         <div className="overview-actions">
           <button
             type="button"
-            className="small"
             disabled={!!blocked}
             title={blocked || undefined}
             onClick={() => props.onReview(selection)}
@@ -250,6 +249,7 @@ function ActorRows(props: {
       >
         <td title={name}>
           <span className="name">
+            <span className="mojito-chevron" aria-hidden="true" />
             {limitBreak ? (
               props.skills.length > 0 ? (
                 <SkillIcon skill={props.skills[0].key} />

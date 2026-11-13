@@ -22,23 +22,19 @@ function setup(query: VisitQuery = DEFAULT_QUERY) {
     </Bridge.Provider>
   )
   const result = render(tree(query))
-  const head = () => result.container.querySelector('.visit-filter-head')!
+  const head = () => result.container.querySelector('summary')!
   return { ...result, sent, head, rerenderWith: (next: VisitQuery) => result.rerender(tree(next)) }
 }
 
-it('starts closed with the chevron before the title, and opens', () => {
+it('is a closed <details> with the conditions in effect beside its title', () => {
   const h = setup()
-  expect(h.head().getAttribute('aria-expanded')).toBe('false')
-  // The host's chevron, which turns with aria-expanded
-  expect(h.head().firstElementChild?.className).toBe('mojito-chevron')
+  const details = h.head().parentElement as HTMLDetailsElement
+  expect(details.tagName).toBe('DETAILS')
+  expect(details.open).toBe(false)
   expect(h.head().textContent).toBe('筛选和搜索未筛选')
-  fireEvent.click(h.head())
-  expect(h.head().getAttribute('aria-expanded')).toBe('true')
-  expect(h.head().textContent).toBe('筛选和搜索')
 })
 it('applies the conditions on 搜索 or Enter only', () => {
   const h = setup()
-  fireEvent.click(h.head())
   fireEvent.change(screen.getByLabelText('副本名'), { target: { value: '歼灭战' } })
   fireEvent.change(screen.getByLabelText('角色名'), { target: { value: 'Alice' } })
   expect(h.sent).toEqual([])
@@ -51,43 +47,34 @@ it('applies the conditions on 搜索 or Enter only', () => {
 })
 it('resets to the default query at once', () => {
   const h = setup({ ...DEFAULT_QUERY, duty: 'a' })
-  fireEvent.click(h.head())
   fireEvent.click(screen.getByText('重置'))
   expect(h.sent).toEqual([{ kind: 'visits', query: DEFAULT_QUERY, page: 0 }])
   expect((screen.getByLabelText('副本名') as HTMLInputElement).value).toBe('')
 })
 it('sums up the jobs with / for the own job and with + for the party', () => {
   const h = setup()
-  fireEvent.click(h.head())
-  fireEvent.click(screen.getByText('职业：全部'))
-  fireEvent.click(screen.getByRole('button', { name: '骑士' }))
-  fireEvent.click(screen.getByRole('button', { name: '白魔法师' }))
-  expect(screen.getByRole('button', { name: '骑士' }).getAttribute('aria-pressed')).toBe('true')
+  fireEvent.click(screen.getByRole('button', { name: '骑士', hidden: true }))
+  fireEvent.click(screen.getByRole('button', { name: '白魔法师', hidden: true }))
+  expect(screen.getByRole('button', { name: '骑士', hidden: true }).getAttribute('aria-pressed')).toBe('true')
   expect(screen.getByText('自己的职业是所选之一')).not.toBeNull()
   fireEvent.click(screen.getByText('搜索'))
   h.rerenderWith(h.sent[0].kind === 'visits' ? h.sent[0].query : DEFAULT_QUERY)
-  fireEvent.click(h.head())
   expect(h.head().textContent).toContain('自己：骑士/白魔法师')
-  fireEvent.click(h.head())
   fireEvent.click(screen.getByLabelText('仅自己'))
   fireEvent.click(screen.getByText('搜索'))
   h.rerenderWith(h.sent[1].kind === 'visits' ? h.sent[1].query : DEFAULT_QUERY)
-  fireEvent.click(h.head())
   expect(h.head().textContent).toContain('队伍：骑士+白魔法师')
 })
-it('closes the job picker on a click outside of it', () => {
+it('opens the job picker as a popover of its button', () => {
   const h = setup()
-  fireEvent.click(h.head())
-  fireEvent.click(screen.getByText('职业：全部'))
-  expect(screen.queryByRole('dialog')).not.toBeNull()
-  fireEvent.pointerDown(screen.getByRole('dialog'))
-  expect(screen.queryByRole('dialog')).not.toBeNull()
-  fireEvent.pointerDown(document.body)
-  expect(screen.queryByRole('dialog')).toBeNull()
+  // Closed until its button opens it; the browser places it and closes it on Esc or a click outside
+  const picker = h.container.querySelector('[popover]')!
+  expect(picker.getAttribute('popover')).toBe('auto')
+  expect(picker.getAttribute('aria-label')).toBe('选择职业')
+  expect(screen.getByText('职业：全部').getAttribute('popovertarget')).toBe(picker.id)
 })
 it('applies the dates on 搜索 or Enter', () => {
   const h = setup()
-  fireEvent.click(h.head())
   fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-10-01' } })
   fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-10-07' } })
   fireEvent.click(screen.getByText('搜索'))
@@ -98,7 +85,6 @@ it('applies the dates on 搜索 or Enter', () => {
 })
 it('sends a cleared date as null, and clears both dates on 重置', () => {
   const h = setup({ ...DEFAULT_QUERY, from: '2026-10-01', to: '2026-10-07' })
-  fireEvent.click(h.head())
   fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '' } })
   fireEvent.click(screen.getByText('搜索'))
   expect(h.sent[0]).toEqual({ kind: 'visits', query: { ...DEFAULT_QUERY, to: '2026-10-07' }, page: 0 })

@@ -96,6 +96,8 @@ export function SettingsPage() {
           <input
             id="pets"
             type="checkbox"
+            role="switch"
+            aria-checked={form.mergePets}
             checked={form.mergePets}
             onChange={(event) => edit({ mergePets: event.target.checked })}
           />

@@ -104,23 +104,27 @@ body {
   color: var(--mojito-fg-secondary);
 }
 
+/* A <details> in a frame; while it is closed, the conditions in effect stand beside its title. */
 .visit-filter {
   flex: none;
   margin-bottom: 8px;
   border: 1px solid var(--mojito-border);
   border-radius: var(--mojito-radius-control);
 }
-.visit-filter-head {
-  justify-content: flex-start;
-  gap: 6px;
-  width: 100%;
-  border: 0;
-  background: transparent;
+.visit-filter > summary {
+  height: var(--mojito-control-height);
+  padding: 0 8px;
+}
+.visit-filter[open] > summary {
+  margin-bottom: 0;
 }
 .visit-filter-summary {
   margin-left: auto;
   font: 400 12px / 18px var(--mojito-font-sans);
   color: var(--mojito-fg-tertiary);
+}
+.visit-filter[open] .visit-filter-summary {
+  display: none;
 }
 .visit-filter-body {
   display: flex;
@@ -155,21 +159,11 @@ body {
   justify-content: flex-end;
   gap: 8px;
 }
-.job-picker {
-  position: relative;
-  display: flex;
-  flex: 1;
-  min-width: 0;
-}
 .job-picker-button {
   flex: 1;
   justify-content: flex-start;
   min-width: 0;
   overflow: hidden;
-}
-.job-picker-button.on {
-  border-color: var(--mojito-accent);
-  background: var(--mojito-ok-bg);
 }
 .job-picker-icons {
   display: flex;
@@ -177,26 +171,19 @@ body {
   min-width: 0;
   overflow: hidden;
 }
-/* Wider than a narrow side bar; the part beyond it covers the overview. */
-.job-picker-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 20;
-  width: 300px;
-  padding: 12px;
-  border: 1px solid var(--mojito-border);
-  border-radius: var(--mojito-radius-panel);
-  background: var(--mojito-bg);
-  box-shadow: var(--mojito-shadow-popover);
+/* The base popover under its button, wider than a narrow side bar; it scrolls in the room below the button. */
+.job-picker {
+  width: 320px;
+  max-height: 100%;
+  overflow-y: auto;
 }
-.job-picker-popover h3 {
+.job-picker h3 {
   margin: 8px 0 4px;
   font-size: var(--mojito-text-xs);
   font-weight: 500;
   color: var(--mojito-fg-tertiary);
 }
-.job-picker-popover > div:first-child h3 {
+.job-picker > div:first-child h3 {
   margin-top: 0;
 }
 .job-picker-grid {
@@ -205,16 +192,7 @@ body {
   gap: 4px;
 }
 .job-picker-grid button {
-  height: 28px;
-  padding: 0 6px 0 4px;
-  font-weight: 400;
-  /* Keeps its own pressed look rather than the lime one of mojito-base.css */
-  color: var(--mojito-fg);
-  box-shadow: var(--mojito-shadow-control);
-}
-.job-picker-grid button.selected {
-  border-color: var(--mojito-accent);
-  background: var(--mojito-ok-bg);
+  padding: 0 8px 0 5px;
 }
 .job-picker-foot {
   display: flex;
@@ -256,6 +234,10 @@ body {
   border: 0;
   background: transparent;
   text-align: left;
+}
+.visit-head,
+.fight {
+  border-radius: var(--mojito-radius-control);
 }
 .visit-head:hover,
 .fight:hover {
@@ -380,8 +362,12 @@ body {
 .stats tbody tr:hover {
   background: none;
 }
-.stats tr.actor {
-  cursor: pointer;
+/* Actor rows open their skills; the chevron says so and turns while they are open */
+.stats tr.actor .mojito-chevron {
+  color: var(--mojito-fg-tertiary);
+}
+.stats tr.actor[aria-expanded="true"] .mojito-chevron {
+  rotate: 90deg;
 }
 .stats tr.actor:hover {
   background: var(--mojito-bg-hover);
@@ -389,8 +375,9 @@ body {
 .stats tr.skill td {
   color: var(--mojito-fg-secondary);
 }
+/* Skill icons under the actor's icon */
 .stats tr.skill td:first-child {
-  padding-left: 32px;
+  padding-left: 44px;
 }
 .stats tr.total td {
   background: var(--mojito-bg-subtle);
@@ -489,11 +476,6 @@ body {
 }
 .layout[hidden] {
   display: none;
-}
-button.small {
-  height: 26px;
-  padding: 0 10px;
-  font-size: var(--mojito-text-xs);
 }
 
 /* Fight review: header, filter bar, then the map and panel above the timeline; the map keeps its minimum size. */
@@ -1586,7 +1568,6 @@ table.uptime td:nth-child(2) {
 /* Buttons this page draws itself (list rows, the review's tabs, chips, switch and timeline marks) keep their own
    look: no key edges from mojito-base.css and no press movement. */
 :is(
-  .visit-filter-head,
   .visit-head,
   .fight,
   .tab,

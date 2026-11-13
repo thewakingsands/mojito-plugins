@@ -16,5 +16,9 @@ try {
     </Bridge.Provider>,
   )
 } catch (error) {
-  root.render(<p className="status">{String(error)}</p>)
+  root.render(
+    <p className="mojito-callout" data-tone="danger">
+      {String(error)}
+    </p>,
+  )
 }
