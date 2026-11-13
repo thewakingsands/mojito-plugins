@@ -1536,12 +1536,36 @@ table.uptime td:nth-child(2) {
   color: var(--mojito-fg-tertiary);
   cursor: help;
 }
-.potency-member {
+.potency-name,
+.potency-select {
   max-width: 100%;
   font-size: var(--mojito-text-xs);
 }
-select.potency-member {
+.potency-select {
   height: 26px;
+}
+.curve-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 6px;
+  width: 100%;
+}
+.curve-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  line-height: 16px;
+}
+.curve-max {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  z-index: 1;
+  font-size: var(--mojito-text-xs);
+  line-height: 16px;
+  color: var(--mojito-fg-tertiary);
+  pointer-events: none;
 }
 .curve-swatch {
   flex: none;
@@ -1665,14 +1689,19 @@ select.potency-member {
 .potency-baseline-label {
   position: absolute;
   right: 4px;
+  z-index: 1;
+  padding: 0 4px;
+  border-radius: var(--mojito-radius-small);
+  background: var(--mojito-bg);
   font-size: var(--mojito-text-xs);
+  line-height: 18px;
   color: var(--mojito-fg-tertiary);
   pointer-events: none;
 }
 
 /* Buttons this page draws itself (list rows, the review's event rows, expanders and timeline marks) keep their own
    look: no key edges from mojito-base.css and no press movement. */
-:is(.visit-head, .fight, .uptime-toggle, .event, .event-mark, .cast, .potency-member) {
+:is(.visit-head, .fight, .uptime-toggle, .event, .event-mark, .cast) {
   box-shadow: none;
 }
 :is(.visit-head, .fight, .event, .event-mark, .cast):active {

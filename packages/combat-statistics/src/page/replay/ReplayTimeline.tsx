@@ -288,7 +288,7 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
         <span className="label" />
         {props.expanded && (
           <>
-            <DpsLabel />
+            <DpsLabel data={data} curves={curves} members={props.members} />
             <PotencyLabel data={data} curves={curves} names={props.names} />
           </>
         )}

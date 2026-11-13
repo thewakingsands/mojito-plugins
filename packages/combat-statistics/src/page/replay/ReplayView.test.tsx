@@ -798,8 +798,13 @@ it('draws the damage per second and the damage per potency, for the members that
   await open(potencyData)
   expandTimeline()
   const [dpsLabel] = document.querySelectorAll<HTMLElement>('.label.curve-label')
-  expect(dpsLabel.textContent).toBe('每秒伤害')
-  expect(document.querySelector('.curve-legend')).toBeNull()
+  expect(dpsLabel.firstElementChild!.textContent).toBe('每秒伤害')
+  expect([...dpsLabel.querySelectorAll('.curve-legend > span')].map((item) => item.textContent)).toEqual([
+    '骑士',
+    '白魔',
+    '诗人',
+  ])
+  expect(document.querySelector('.curve-max')!.textContent).toMatch(/^[\d,]+$/)
   expect(screen.getByText('每威力伤害')).toBeTruthy()
   expect(document.querySelectorAll('.lane.curve path.curve-line')).toHaveLength(4)
   expect(potencyMembers()).toEqual({ options: ['骑士', '诗人'], picked: '骑士' })
@@ -822,7 +827,7 @@ it('names the only member with samples instead of offering a choice', async () =
   press(only('白魔'))
   press(memberBox('诗人'))
   expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
-  expect(document.querySelector('.potency-member')!.textContent).toBe('诗人')
+  expect(document.querySelector('.potency-name')!.textContent).toBe('诗人')
 })
 
 it('tells how the damage per potency is estimated in the hint of the question mark', async () => {
@@ -978,4 +983,39 @@ it('draws the raid buffs as bars without icons and leaves out the weaponskills p
   press(screen.getByRole('button', { name: '1 分钟' }))
   expect(document.querySelector('.lanes.dense')).toBeNull()
   expect(document.querySelectorAll('.lane.buff .lane-use')).toHaveLength(1)
+})
+
+/** Nine members, the last of them dealing the most damage */
+const raid = replayData({
+  fight: { visitId: 'v', fightId: 'f', durationMs: 60_000 },
+  actors: [...Array.from({ length: 9 }, (_, i) => member(i, 23, `成员${i + 1}`)), enemy(9, true)],
+  entries: [
+    { t: 1000, actor: 0, other: 9, skill: 'action:9', field: 'damage', amount: 2000, hit: 1 },
+    { t: 1000, actor: 4, other: 9, skill: 'action:9', field: 'damage', amount: 5000, hit: 1 },
+    { t: 1000, actor: 8, other: 9, skill: 'action:9', field: 'damage', amount: 9000, hit: 1 },
+  ],
+})
+
+it('lists seven members in the legend of the damage per second and counts them all in the eighth place', async () => {
+  await open(raid)
+  expandTimeline()
+  const legend = [...document.querySelectorAll('.curve-legend > span')].map((item) => item.textContent)
+  expect(legend).toEqual(['成员1', '成员2', '成员3', '成员4', '成员5', '成员6', '成员7', '等 9 人'])
+  expect(document.querySelectorAll('.lane.curve')[0].querySelectorAll('path.curve-line')).toHaveLength(9)
+})
+
+it('orders the members in the tip of the damage per second by their value', async () => {
+  mockLaneRect()
+  try {
+    await open(raid)
+    expandTimeline()
+    fireEvent.pointerMove(document.querySelectorAll('.lane.curve')[0], { clientX: 15 })
+    const rows = [...document.querySelectorAll('.curve-tip .curve-tip-row')].map(
+      (row) => row.querySelector('.ellipsis')!.textContent,
+    )
+    expect(rows.slice(0, 3)).toEqual(['成员9', '成员5', '成员1'])
+    expect(rows).toHaveLength(9)
+  } finally {
+    vi.restoreAllMocks()
+  }
 })

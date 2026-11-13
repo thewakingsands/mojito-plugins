@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, CircleHelp } from 'lucide-react'
 import { type PointerEvent as ReactPointerEvent, useEffect, useId, useMemo, useState } from 'react'
 import type { ReplayData } from '../../view-model.js'
+import { amount } from '../format.js'
 import { SkillIcon } from '../icons.js'
 import type { Span } from './aggregate.js'
 import { dpsCurves } from './curves.js'
@@ -18,6 +19,10 @@ const CURVE_COLORS = 8
 const INSET = 4
 /** Past this x the hover tip opens to the left of the pointer */
 const TIP_WIDTH = 180
+/** Two columns of four fit under the label of the damage per second */
+const LEGEND_ITEMS = 8
+/** The line height of the baseline's label, which stays inside its lane */
+const BASELINE_LABEL_HEIGHT = 18
 
 /** The color of a member follows its place in the filter bar, so choosing others does not repaint it */
 export const curveColor = (members: readonly FilterMember[], actor: number) =>
@@ -106,10 +111,29 @@ const timeAt = (down: { clientX: number; currentTarget: HTMLElement }, window: S
   return window.from + ((down.clientX - rect.left) / (rect.width || 1)) * (window.to - window.from)
 }
 
-export function DpsLabel() {
+/** The members with a curve, in the order of the filter, which is also the order of their colors */
+const curveMembers = (curves: Curves, members: readonly FilterMember[]) =>
+  members.filter((member) => curves.dps.has(member.index)).map((member) => member.index)
+
+/** The label with a legend of the lines; past eight members the last place counts them all */
+export function DpsLabel(props: { data: ReplayData; curves: Curves; members: readonly FilterMember[] }) {
+  const shown = curveMembers(props.curves, props.members)
+  const cut = shown.length > LEGEND_ITEMS
+  const listed = cut ? shown.slice(0, LEGEND_ITEMS - 1) : shown
   return (
     <span className="label curve-label" style={{ height: DPS_HEIGHT }}>
       <span>每秒伤害</span>
+      {shown.length > 0 && (
+        <span className="curve-legend">
+          {listed.map((actor) => (
+            <span key={actor}>
+              <i className="curve-swatch" style={{ background: curveColor(props.members, actor) }} />
+              <span className="ellipsis">{actorName(props.data.actors[actor])}</span>
+            </span>
+          ))}
+          {cut && <span>等 {shown.length} 人</span>}
+        </span>
+      )}
     </span>
   )
 }
@@ -130,6 +154,7 @@ export function DpsLane(props: LaneBase) {
     return { actor, d: path(points) }
   })
   const second = hover === null ? null : Math.max(0, Math.floor(hover / 1000))
+  const valueAt = (curve: Float64Array) => (second === null ? 0 : (curve[Math.min(curve.length - 1, second)] ?? 0))
   return (
     <div
       className="lane curve"
@@ -154,16 +179,21 @@ export function DpsLane(props: LaneBase) {
           ))}
         </svg>
       )}
+      {props.chosen.size > 0 && curves.dps.size > 0 && (
+        <span className="curve-max number">{amount(curves.dpsMax)}</span>
+      )}
       {hover !== null && second !== null && curves.dps.size > 0 && (
         <Tip x={x(hover)} width={width} height={DPS_HEIGHT}>
           <b className="number">{clockText(hover)}</b>
-          {[...curves.dps].map(([actor, curve]) => (
-            <span key={actor} className="curve-tip-row">
-              <i className="curve-swatch" style={{ background: curveColor(props.members, actor) }} />
-              <span className="ellipsis">{actorName(props.data.actors[actor])}</span>
-              <span className="number">{Math.round(curve[Math.min(curve.length - 1, second)] ?? 0)}</span>
-            </span>
-          ))}
+          {[...curves.dps]
+            .sort(([, a], [, b]) => valueAt(b) - valueAt(a))
+            .map(([actor, curve]) => (
+              <span key={actor} className="curve-tip-row">
+                <i className="curve-swatch" style={{ background: curveColor(props.members, actor) }} />
+                <span className="ellipsis">{actorName(props.data.actors[actor])}</span>
+                <span className="number">{amount(valueAt(curve))}</span>
+              </span>
+            ))}
         </Tip>
       )}
     </div>
@@ -186,41 +216,38 @@ function HelpIcon() {
   )
 }
 
-/** The member of the damage per potency: a select with the members that have samples, or the name of the only one */
-function PotencyMember(props: { data: ReplayData; curves: Curves; names: Record<string, string> }) {
+/** The label with the member of the damage per potency: a select of the members with samples, or the only one's name */
+export function PotencyLabel(props: { data: ReplayData; curves: Curves; names: Record<string, string> }) {
   const { data, curves } = props
   const label = (index: number) => {
     const actor = data.actors[index]
     const job = actor?.job == null ? undefined : props.names[`job:${actor.job}`]
     return job ? `${actorName(actor)}（${job}）` : actorName(actor)
   }
-  if (curves.options.length === 1)
-    return <span className="potency-member ellipsis">{actorName(data.actors[curves.options[0]])}</span>
-  return (
-    <select
-      className="potency-member"
-      aria-label="每威力伤害的角色"
-      value={curves.actor ?? undefined}
-      onChange={(change) => curves.pick(Number(change.target.value))}
-    >
-      {curves.options.map((actor) => (
-        <option key={actor} value={actor}>
-          {label(actor)}
-        </option>
-      ))}
-    </select>
-  )
-}
-
-export function PotencyLabel(props: { data: ReplayData; curves: Curves; names: Record<string, string> }) {
-  const { curves } = props
   return (
     <span className="label curve-label" style={{ height: POTENCY_HEIGHT }}>
       <span className="potency-title">
         <span>每威力伤害</span>
         <HelpIcon />
       </span>
-      {curves.options.length > 0 && <PotencyMember data={props.data} curves={curves} names={props.names} />}
+      {curves.options.length === 1 ? (
+        <span className="potency-name ellipsis">{actorName(data.actors[curves.options[0]])}</span>
+      ) : (
+        curves.options.length > 1 && (
+          <select
+            className="potency-select"
+            aria-label="每威力伤害的角色"
+            value={curves.actor ?? undefined}
+            onChange={(change) => curves.pick(Number(change.target.value))}
+          >
+            {curves.options.map((actor) => (
+              <option key={actor} value={actor}>
+                {label(actor)}
+              </option>
+            ))}
+          </select>
+        )
+      )}
     </span>
   )
 }
@@ -336,7 +363,15 @@ export function PotencyLane(props: LaneBase) {
             ))}
           <path d={line} className="curve-line" style={{ stroke: curveColor(props.members, curves.actor!) }} />
         </svg>
-        <span className="potency-baseline-label number" style={{ top: y(analysis.baseline) - 16 }}>
+        <span
+          className="potency-baseline-label number"
+          style={{
+            top: Math.max(
+              0,
+              Math.min(POTENCY_HEIGHT - BASELINE_LABEL_HEIGHT, y(analysis.baseline) - BASELINE_LABEL_HEIGHT),
+            ),
+          }}
+        >
           基准 {analysis.baseline.toFixed(1)}
         </span>
       </>
