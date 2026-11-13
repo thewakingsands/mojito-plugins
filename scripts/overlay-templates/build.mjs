@@ -78,8 +78,13 @@ const sources = {
     revision: 'c3c84948e9e57ef9cbd613be7f91a42715813b5d',
     output: 'dist',
     lock: 'cmskin-package-lock.json',
-    command: ['npm', 'run', 'build'],
-    env: { NODE_OPTIONS: '--openssl-legacy-provider' },
+    async build(work) {
+      run('node', ['node_modules/roadhog/bin/roadhog.js', 'build'], work, {
+        NODE_OPTIONS: '--openssl-legacy-provider',
+        ESLINT: 'none',
+      })
+      run('npx', ['--no-install', 'gulp', 'html'], work)
+    },
   },
   mopimopi1: {
     client: true,
