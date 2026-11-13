@@ -43,6 +43,7 @@
 | `--mojito-tank-bg` `-fg`，`healer`，`dps` | | 防护、治疗、输出职能 |
 | `--mojito-chart-grid` `-axis` | | 图表网格线、坐标轴 |
 | `--mojito-shadow-raised` `-popover` | | 选中项 / 插件自己的弹出层 |
+| `--mojito-shadow-popover-edge` | | 弹出层顶边的亮线，和 `-popover` 一起写：`box-shadow: var(--mojito-shadow-popover-edge), var(--mojito-shadow-popover)` |
 | `--mojito-shadow-control` `-primary` `-card` | | 按钮、下拉框边缘的亮线和暗线 / 主按钮的边缘 / 面板的轻投影 |
 | `--mojito-border-heavy` | | 复选框边框、输入框悬停 |
 | `--mojito-bg-strong` `-selected` `-chip` | | 开关悬停和不可用的填充 / 选中项的底色 / 中性标签的底色 |
@@ -86,11 +87,15 @@
 - `body`：底色、文字颜色、字体和 `--mojito-space-page` 内边距。不想要内边距时自己覆盖。
 - 标题、段落、链接、`small`、分隔线、`code`/`kbd`、焦点框、选中文字、滚动条。
 - `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。所有按钮都有这层质感；插件自己画的按钮（列表行、时间轴上的标记等）不需要时，在自己的样式里写 `box-shadow: none`，按下时不想移动就写 `transform: none`。
+- 可按下的按钮：带 `aria-pressed` 的按钮，例如“显示角色名”、职业选择里的职业。`aria-pressed="true"` 是青柠色，`"false"` 的文字比普通按钮浅一些。
 - `input`、`select`、`textarea`：30px 高，悬停时边框加深，焦点时是强调色边框加一圈浅色光圈；`select` 用宿主的上下箭头。
 - 复选框和单选框：选中时是青柠色；`<input type="checkbox" role="switch">` 是开关，用于立即生效的设置。滑块、`progress`、`meter` 用宿主的颜色。
 - `label`、`fieldset`、`legend`；`details`/`summary` 是宿主“高级”那样的折叠区，箭头随展开旋转。`<span class="mojito-chevron">` 放在带 `aria-expanded` 的按钮里，也会跟着旋转。
 - `code`、`pre`、`kbd`（键帽）、`mark`、`blockquote`、列表、`dialog`。
-- `table`：表头、行高 36px、悬停、等宽数字。
+- `table`：表头、行高 36px、悬停、等宽数字。数字列在 `th` 和 `td` 上写 `data-align="end"`，靠右对齐。
+- 可排序的表头：`<th aria-sort="descending"><button>伤害</button></th>`。当前排序的列写 `ascending` 或 `descending`，显示方向箭头；其他可排序的列写 `none`，悬停时才显示排序记号。靠右的列箭头在标签左边，标签和数字保持对齐。排序本身由插件处理。
+- 弹出层：带 `popover` 属性的元素，用 `popovertarget` 指向它的按钮打开。弹出层显示在按钮下方并左对齐，下方放不下时自动翻到上方，右边放不下时改为右对齐；按 Esc 或点击外部会关闭，外观和宿主的弹出层一样。脚本打开时写 `element.showPopover({ source: button })`，否则没有对齐的按钮。这些都是浏览器自带的功能（`popover` 属性和 CSS 锚点定位），不需要脚本或第三方库。
+- 提示：`<span popover="hint">` 加上指向它的 `interestfor`，指针停留或键盘聚焦时显示，深色底、浅色字，和宿主的提示一样，位置在元素正下方居中。提示里的 `small` 是浅色的次要文字。插件自己定位的提示（例如跟随指针的曲线读数）写 `role="tooltip"`，外观相同，位置由插件决定。
 - 类：
   - `.mojito-panel`：带边框的容器，12px 圆角。
   - `.mojito-field`：一行设置，左边标签和说明，右边控件；相邻的自动加分隔线。
@@ -118,6 +123,23 @@
 </form>
 <button data-variant="primary">保存</button>
 ```
+
+一个工具栏：
+
+```html
+<button aria-pressed="true">显示角色名</button>
+<button popovertarget="jobs">职业</button>
+<div id="jobs" popover>
+  <button aria-pressed="true">骑士</button>
+  <button aria-pressed="false">战士</button>
+</div>
+<button data-icon data-variant="ghost" interestfor="tip" aria-label="说明"><svg class="lucide">…</svg></button>
+<span id="tip" popover="hint">按受到的增益分摊后的伤害</span>
+```
+
+### 图标
+
+图标用 [Lucide](https://lucide.dev)，和宿主相同：React 用 `lucide-react`，其他情况用 `lucide` 或直接复制 SVG。线宽保持默认的 2，颜色用 `currentColor`。基础样式会把按钮里的 Lucide 图标（`svg.lucide`）设为 14px，大按钮里设为 16px。不要用 ←、▶、✕ 这类字符或 emoji 代替图标。
 
 ### 在 JS 里取颜色
 
@@ -158,7 +180,7 @@ OverlayPlugin 兼容模板是第三方页面，宿主不给它们注入变量。
 保证（版本 1 内不会删除或改名）：
 
 - `--mojito-*` 变量的名字和用途，`--mojito-contract`。
-- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的类名（`.mojito-panel`、`.mojito-field`、`.mojito-chip`、`.mojito-secondary`、`.mojito-callout`、`.mojito-segmented`、`.mojito-tabs`、`.mojito-empty`、`.mojito-facts`、`.mojito-chevron`），`data-variant`、`data-size`、`data-tone`、`data-icon` 属性和 `role="switch"`。
+- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的类名（`.mojito-panel`、`.mojito-field`、`.mojito-chip`、`.mojito-secondary`、`.mojito-callout`、`.mojito-segmented`、`.mojito-tabs`、`.mojito-empty`、`.mojito-facts`、`.mojito-chevron`），`data-variant`、`data-size`、`data-tone`、`data-icon`、`data-align` 属性，`role="switch"`、`role="tooltip"`、`aria-pressed`、`aria-sort` 和 `popover` 的样式。
 - 字体地址 `/host/fonts/`。
 
 不保证：

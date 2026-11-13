@@ -208,6 +208,9 @@ body {
   height: 28px;
   padding: 0 6px 0 4px;
   font-weight: 400;
+  /* Keeps its own pressed look rather than the lime one of mojito-base.css */
+  color: var(--mojito-fg);
+  box-shadow: var(--mojito-shadow-control);
 }
 .job-picker-grid button.selected {
   border-color: var(--mojito-accent);
@@ -813,6 +816,7 @@ svg.map .grid {
   border: 0;
   border-radius: var(--mojito-radius-control);
   background: none;
+  color: var(--mojito-fg);
   font-weight: 400;
   line-height: 18px;
   text-align: left;
@@ -1593,7 +1597,8 @@ table.uptime td:nth-child(2) {
   .span-chip button,
   .event,
   .event-mark,
-  .cast
+  .cast,
+  .potency-member
 ) {
   box-shadow: none;
 }
