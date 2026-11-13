@@ -192,10 +192,11 @@ body {
   min-width: 0;
   overflow: hidden;
 }
-/* The base popover under its button, wider than a narrow side bar; it scrolls in the room below the button. */
+/* The base popover under its button, wider than a narrow side bar; it scrolls in the room below the button. The room
+   leaves out the base's 6px margins: filling all of it, the browser shifts the popover up over its button. */
 .job-picker {
   width: 320px;
-  max-height: 100%;
+  max-height: calc(100% - 12px);
   overflow-y: auto;
 }
 .job-picker h3 {

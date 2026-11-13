@@ -10,10 +10,11 @@ export function fightFacts(fight: FightEntry, statistics: StatisticsState | null
   const live = statistics?.activeFightId === fight.id ? statistics.current : null
   const selected = !live && statistics?.selected?.id === fight.id ? statistics.selected.outcome : null
   const result: ResultTag = live ? 'running' : (selected?.result ?? fight.result ?? 'ended')
-  const enemy = live ? live.outcome.mainEnemy : selected ? selected.mainEnemy : fight.mainEnemy
+  // A recomputed summary may lack the main enemy; the logged one then stands in, for the name and the HP alike.
+  const enemy = live ? live.outcome.mainEnemy : (selected?.mainEnemy ?? fight.mainEnemy)
   return {
     result,
-    enemy: (live ? enemy?.name : (enemy?.name ?? fight.mainEnemy?.name)) ?? '未知敌人',
+    enemy: enemy?.name ?? '未知敌人',
     /** The main enemy's HP left, in percent */
     hpPercent: enemy?.hpPercent ?? null,
     durationMs: live ? (live.durationMs ?? 0) : (fight.durationMs ?? 0),

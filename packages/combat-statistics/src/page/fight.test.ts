@@ -38,6 +38,8 @@ it('takes the HP left of the main enemy from the live, the selected or the logge
   expect(fightFacts({ ...fight, mainEnemy: enemy(3.4) }, state(null)).hpPercent).toBe(3.4)
   const selected = { id: 'fight-1', outcome: { result: 'wipe', mainEnemy: enemy(12) } } as Partial<Summary>
   expect(fightFacts({ ...fight, mainEnemy: enemy(3.4) }, state(selected)).hpPercent).toBe(12)
+  const without = { id: 'fight-1', outcome: { result: 'wipe', mainEnemy: null } } as Partial<Summary>
+  expect(fightFacts({ ...fight, mainEnemy: enemy(3.4) }, state(without)).hpPercent).toBe(3.4)
   const live = {
     activeFightId: 'fight-1',
     current: { durationMs: 1000, rows: [], outcome: { result: null, mainEnemy: enemy(50) } },
