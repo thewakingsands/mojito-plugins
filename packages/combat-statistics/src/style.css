@@ -10,7 +10,8 @@ body,
 body {
   box-sizing: border-box;
 }
-/* The colors of the members in the curves of the review, in the order of the filter bar */
+/* The colors of the members in the curves of the review, in the order of the filter bar. The host has no variables for
+   a categorical palette, so these are the only fixed colors of the page. */
 :root {
   --curve-1: #2a78d6;
   --curve-2: #eb6834;
@@ -551,7 +552,7 @@ body {
   line-height: 24px;
 }
 .replay-message {
-  padding: 24px 0;
+  margin-top: 12px;
 }
 .review {
   display: grid;
@@ -573,25 +574,6 @@ body {
 .filter-label {
   margin-right: 2px;
   color: var(--mojito-fg-tertiary);
-}
-.chip {
-  height: 28px;
-  padding: 0 8px;
-  font-size: var(--mojito-text-xs);
-  color: var(--mojito-fg-secondary);
-  border-color: var(--mojito-border);
-}
-.chip.on {
-  background: var(--mojito-bg-muted);
-  color: var(--mojito-fg);
-  border-color: var(--mojito-bg-muted);
-}
-.chip.actor {
-  padding: 0 6px 0 3px;
-  gap: 4px;
-}
-.chip.actor:not(.on) {
-  opacity: 0.45;
 }
 .separator {
   width: 1px;
@@ -617,44 +599,6 @@ body {
   width: 24px;
   height: 24px;
   padding: 0;
-}
-.switch {
-  height: 28px;
-  padding: 0 4px;
-  gap: 6px;
-  border: 0;
-  background: none;
-  font-size: var(--mojito-text-xs);
-  color: var(--mojito-fg-secondary);
-}
-.switch:hover {
-  background: none;
-}
-.switch i {
-  position: relative;
-  width: 32px;
-  height: 18px;
-  border-radius: 999px;
-  background: var(--mojito-bg-muted);
-  transition: background-color 150ms var(--mojito-ease);
-}
-.switch i::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--mojito-bg);
-  box-shadow: var(--mojito-shadow-raised);
-  transition: left 150ms var(--mojito-ease);
-}
-.switch.on i {
-  background: var(--mojito-primary);
-}
-.switch.on i::after {
-  left: 16px;
 }
 
 .review-main {
@@ -693,7 +637,7 @@ svg.map .grid {
   stroke-width: 1;
 }
 .map-label {
-  font: 500 11px var(--mojito-font-sans);
+  font: 500 var(--mojito-text-xs) var(--mojito-font-sans);
   fill: var(--mojito-fg);
   stroke: var(--mojito-bg);
   stroke-width: 3px;
@@ -716,6 +660,14 @@ svg.map .grid {
 }
 .diamond {
   flex: none;
+}
+.diamond.hollow path {
+  fill: none;
+  stroke: var(--mojito-fg-tertiary);
+  stroke-width: 1.5px;
+}
+.diamond.main.hollow path {
+  stroke: var(--mojito-accent);
 }
 .map-member {
   position: absolute;
@@ -743,7 +695,7 @@ svg.map .grid {
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: var(--mojito-text-xs);
   line-height: 14px;
   white-space: nowrap;
   color: var(--mojito-fg);
@@ -780,35 +732,14 @@ svg.map .grid {
   border-radius: 2px;
   background: var(--mojito-bg-muted);
 }
-.tabs {
+.panel-tabs {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 6px 8px 0;
-  border-bottom: 1px solid var(--mojito-border);
+  gap: 4px;
+  padding: 8px 8px 0;
 }
-.tab {
-  height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: none;
-  color: var(--mojito-fg-secondary);
-}
-.tab:hover {
-  background: none;
-  color: var(--mojito-fg);
-}
-.tab.on {
-  color: var(--mojito-fg);
-  font-weight: 600;
-  border-bottom-color: var(--mojito-accent);
-}
-.tabs > button[data-variant="ghost"] {
-  height: 26px;
-  padding: 0 8px;
-  font-size: var(--mojito-text-xs);
+.panel-tabs .mojito-tabs {
+  min-width: 0;
 }
 .panel-body {
   flex: 1;
@@ -879,8 +810,10 @@ svg.map .grid {
   height: 18px;
 }
 .event-icon {
-  font-weight: 700;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
 }
 .event-icon.danger {
   color: var(--mojito-danger-fg);
@@ -982,26 +915,6 @@ svg.map .grid {
   font-size: var(--mojito-text-xs);
   color: var(--mojito-fg-tertiary);
 }
-.segments {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: var(--mojito-radius-control);
-  background: var(--mojito-bg-subtle);
-}
-.segments button {
-  height: 24px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--mojito-radius-small);
-  background: none;
-  font-size: var(--mojito-text-xs);
-  color: var(--mojito-fg-secondary);
-}
-.segments button.on {
-  background: var(--mojito-bg);
-  color: var(--mojito-fg);
-  box-shadow: var(--mojito-shadow-raised);
-}
 .panel-body table.detail th,
 .panel-body table.detail td {
   height: 30px;
@@ -1023,8 +936,12 @@ svg.map .grid {
 .panel-body table.detail tbody tr:hover {
   background: none;
 }
-.panel-body table.detail tr.actor {
-  cursor: pointer;
+/* The chevron is not a child of the row's cell that carries aria-expanded, so the base rule does not turn it */
+.panel-body table.detail tr.actor .mojito-chevron {
+  color: var(--mojito-fg-tertiary);
+}
+.panel-body table.detail tr.actor[aria-expanded="true"] .mojito-chevron {
+  rotate: 90deg;
 }
 .panel-body table.detail tr.actor:hover {
   background: var(--mojito-bg-hover);
@@ -1161,7 +1078,6 @@ table.uptime td:nth-child(2) {
   margin: 0 0 4px 136px;
   border-radius: var(--mojito-radius-small);
   background: var(--mojito-bg-subtle);
-  cursor: pointer;
 }
 .overview-strip .mark {
   position: absolute;
@@ -1241,7 +1157,6 @@ table.uptime td:nth-child(2) {
 }
 .lane.ruler {
   background: var(--mojito-bg);
-  cursor: pointer;
 }
 .lane.member {
   height: 44px;
@@ -1251,7 +1166,7 @@ table.uptime td:nth-child(2) {
 .ruler .tick {
   position: absolute;
   top: 3px;
-  font-size: 11px;
+  font-size: var(--mojito-text-xs);
   color: var(--mojito-fg-tertiary);
   transform: translateX(-50%);
 }
@@ -1282,14 +1197,13 @@ table.uptime td:nth-child(2) {
   border: 0;
   border-radius: var(--mojito-radius-small);
   background: var(--mojito-bg-muted);
-  font-size: 11px;
+  font-size: var(--mojito-text-xs);
   font-weight: 400;
   line-height: 16px;
   color: var(--mojito-fg-secondary);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
 }
 .cast:hover {
   background: var(--mojito-bg-hover);
@@ -1418,58 +1332,21 @@ table.uptime td:nth-child(2) {
 .potency-title {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
+/* A small question mark beside the label, not a 30px button */
 .potency-help {
-  display: inline-flex;
-  flex: none;
-  /* Not the height of a control from mojito-base.css, which would make the title as tall as a button */
-  height: auto;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
+  width: 20px;
+  height: 20px;
   color: var(--mojito-fg-tertiary);
   cursor: help;
 }
-.potency-help:hover,
-.potency-help:focus-visible {
-  color: var(--mojito-fg-secondary);
-}
-.potency-help circle {
-  fill: none;
-  stroke: currentColor;
-}
-.potency-help text {
-  fill: currentColor;
-  font-size: 10px;
-  font-weight: 600;
-}
-.potency-members {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  max-width: 100%;
-}
 .potency-member {
-  display: inline-flex;
-  /* As tall as its icon, not as a control from mojito-base.css */
-  height: auto;
-  /* Room for the outline of the pressed one, which is drawn inside: the label cuts what is drawn outside it */
-  padding: 2px;
-  border: none;
-  border-radius: var(--mojito-radius-small);
-  background: transparent;
-  opacity: 0.55;
-  cursor: pointer;
+  max-width: 100%;
+  font-size: var(--mojito-text-xs);
 }
-.potency-member:hover {
-  opacity: 1;
-}
-.potency-member[aria-pressed="true"] {
-  opacity: 1;
-  outline: 2px solid var(--mojito-accent);
-  outline-offset: -2px;
+select.potency-member {
+  height: 26px;
 }
 .curve-swatch {
   flex: none;
@@ -1480,7 +1357,6 @@ table.uptime td:nth-child(2) {
 .lane.curve {
   background: var(--mojito-bg);
   border-bottom-color: var(--mojito-border);
-  cursor: pointer;
 }
 .lane.curve svg {
   position: absolute;
@@ -1519,20 +1395,10 @@ table.uptime td:nth-child(2) {
   max-width: 180px;
   white-space: nowrap;
 }
+/* The look is the base style's [role="tooltip"]; only the place and the inner layout are this page's */
 .curve-tip,
 .floating-tip {
-  padding: 4px 6px;
-  border: 1px solid var(--mojito-border);
-  border-radius: var(--mojito-radius-small);
-  background: var(--mojito-bg);
-  box-shadow: var(--mojito-shadow-raised);
-  font-size: 11px;
-  color: var(--mojito-fg-secondary);
   pointer-events: none;
-}
-.curve-tip b,
-.floating-tip b {
-  color: var(--mojito-fg);
 }
 /* Fixed to the viewport, so that the lanes and labels, which hide their overflow, do not cut it */
 .floating-tip {
@@ -1545,21 +1411,19 @@ table.uptime td:nth-child(2) {
   gap: 3px;
   max-width: 320px;
 }
-.floating-tip.label-tip {
-  max-width: 240px;
-  white-space: normal;
-}
-.tip-none {
-  color: var(--mojito-fg-tertiary);
-}
 .status-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px 8px;
+}
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 .status-chip .icon {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
 }
 .curve-tip-row {
   display: flex;
@@ -1568,7 +1432,6 @@ table.uptime td:nth-child(2) {
 }
 .curve-tip-row .number {
   margin-left: auto;
-  color: var(--mojito-fg);
 }
 .potency-region {
   position: absolute;
@@ -1584,10 +1447,9 @@ table.uptime td:nth-child(2) {
 }
 .potency-arrow {
   position: absolute;
-  top: 1px;
+  top: 2px;
   left: 50%;
-  font-size: 11px;
-  font-weight: 600;
+  display: flex;
   transform: translateX(-50%);
 }
 .potency-region.up .potency-arrow {
@@ -1608,30 +1470,17 @@ table.uptime td:nth-child(2) {
 .potency-baseline-label {
   position: absolute;
   right: 4px;
-  font-size: 11px;
+  font-size: var(--mojito-text-xs);
   color: var(--mojito-fg-tertiary);
   pointer-events: none;
 }
 
-/* Buttons this page draws itself (list rows, the review's tabs, chips, switch and timeline marks) keep their own
+/* Buttons this page draws itself (list rows, the review's event rows, expanders and timeline marks) keep their own
    look: no key edges from mojito-base.css and no press movement. */
-:is(
-  .visit-head,
-  .fight,
-  .tab,
-  .chip,
-  .switch,
-  .uptime-toggle,
-  .segments button,
-  .span-chip button,
-  .event,
-  .event-mark,
-  .cast,
-  .potency-member
-) {
+:is(.visit-head, .fight, .uptime-toggle, .span-chip button, .event, .event-mark, .cast, .potency-member) {
   box-shadow: none;
 }
-:is(.visit-head, .fight, .tab, .chip, .switch, .event, .event-mark, .cast):active {
+:is(.visit-head, .fight, .event, .event-mark, .cast):active {
   transform: none;
 }
 .event {

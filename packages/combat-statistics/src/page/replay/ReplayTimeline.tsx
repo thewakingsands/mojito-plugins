@@ -1,10 +1,11 @@
+import { ChevronsDown, ChevronsUp, Pause, Play } from 'lucide-react'
 import { memo, type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from 'react'
 import type { ReplayAction, ReplayData, ReplayEvent } from '../../view-model.js'
 import { duration as tickText } from '../format.js'
 import { JobIcon, SkillIcon } from '../icons.js'
 import type { Span } from './aggregate.js'
 import { DpsLabel, DpsLane, PotencyLabel, PotencyLane, useCurves } from './CurveLanes.js'
-import { eventLines } from './EventList.js'
+import { EventIcon, eventLines } from './EventList.js'
 import { cutscenesOf, isFightEvent } from './events.js'
 import type { FilterMember } from './filter.js'
 import { actionName, actorName, ROLE_CLASS } from './parts.js'
@@ -43,7 +44,8 @@ export function PlaybackControls(props: {
   return (
     <div className="playback">
       <button type="button" data-variant="primary" onClick={props.onPlay}>
-        {props.playing ? '❚❚ 暂停' : '▶ 播放'}
+        {props.playing ? <Pause /> : <Play />}
+        {props.playing ? '暂停' : '播放'}
       </button>
       <button type="button" onClick={props.onSpeed} title="播放速度">
         {props.speed}×
@@ -53,23 +55,21 @@ export function PlaybackControls(props: {
       </span>
       <span className="grow" />
       <span className="playback-label">缩放</span>
-      <div className="segments" role="radiogroup" aria-label="缩放">
+      <fieldset className="mojito-segmented" aria-label="缩放">
         {ZOOMS.map((zoom) => (
-          // biome-ignore lint/a11y/useSemanticElements: a segmented control, not a native radio input
           <button
             key={zoom.label}
             type="button"
-            role="radio"
-            aria-checked={props.zoom === zoom.ms}
-            className={props.zoom === zoom.ms ? 'on' : ''}
+            aria-pressed={props.zoom === zoom.ms}
             onClick={() => props.onZoom(zoom.ms)}
           >
             {zoom.label}
           </button>
         ))}
-      </div>
-      <button type="button" onClick={props.onExpand}>
-        {props.expanded ? '▼ 收起技能轴' : '▲ 展开技能轴'}
+      </fieldset>
+      <button type="button" aria-expanded={props.expanded} onClick={props.onExpand}>
+        {props.expanded ? <ChevronsDown /> : <ChevronsUp />}
+        技能轴
       </button>
     </div>
   )
@@ -323,7 +323,7 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
                   onPointerDown={(down) => down.stopPropagation()}
                   onClick={(click) => props.onEvent(event, click.currentTarget)}
                 >
-                  {lines.icon}
+                  <EventIcon data={data} event={event} />
                 </button>
               )
             }),

@@ -1,9 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
-import { placeTip, useLabelTip } from './FloatingTip.js'
-
-afterEach(cleanup)
+import { describe, expect, it } from 'vitest'
+import { placeTip } from './FloatingTip.js'
 
 const viewport = { width: 1000, height: 600 }
 const size = { width: 200, height: 100 }
@@ -45,41 +41,5 @@ describe('placeTip beside', () => {
 
   it('keeps off the top edge', () => {
     expect(placeTip(line(300, -50), size, 'beside', viewport)).toEqual({ left: 308, top: 8 })
-  })
-})
-
-function Labelled() {
-  const { trigger, tip } = useLabelTip('说明')
-  return (
-    <>
-      <button type="button" {...trigger}>
-        问
-      </button>
-      {tip}
-    </>
-  )
-}
-
-describe('useLabelTip', () => {
-  it('shows the tip while the pointer is on the trigger', () => {
-    render(<Labelled />)
-    const button = screen.getByRole('button')
-    expect(screen.queryByRole('tooltip')).toBeNull()
-    fireEvent.pointerEnter(button)
-    const tip = screen.getByRole('tooltip')
-    expect(tip.textContent).toBe('说明')
-    expect(button.getAttribute('aria-describedby')).toBe(tip.id)
-    fireEvent.pointerLeave(button)
-    expect(screen.queryByRole('tooltip')).toBeNull()
-    expect(button.hasAttribute('aria-describedby')).toBe(false)
-  })
-
-  it('shows the tip while the trigger has the focus', () => {
-    render(<Labelled />)
-    const button = screen.getByRole('button')
-    fireEvent.focus(button)
-    expect(screen.getByRole('tooltip').textContent).toBe('说明')
-    fireEvent.blur(button)
-    expect(screen.queryByRole('tooltip')).toBeNull()
   })
 })

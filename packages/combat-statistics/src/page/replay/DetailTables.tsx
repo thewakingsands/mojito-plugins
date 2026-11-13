@@ -61,36 +61,30 @@ function Toolbar(props: { children?: ReactNode; scopeText: string }) {
     </div>
   )
 }
-export function Segments<T extends string>(props: {
+/** The ways a table can group its rows, side by side as the host's segmented control */
+function Groups<T extends string>(props: {
   value: T
   options: readonly (readonly [T, string])[]
   onChange: (value: T) => void
   label: string
 }) {
   return (
-    <div className="segments" role="radiogroup" aria-label={props.label}>
+    <fieldset className="mojito-segmented" aria-label={props.label}>
       {props.options.map(([value, label]) => (
-        // biome-ignore lint/a11y/useSemanticElements: a segmented control, not a native radio input
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={props.value === value}
-          className={props.value === value ? 'on' : ''}
-          onClick={() => props.onChange(value)}
-        >
+        <button key={value} type="button" aria-pressed={props.value === value} onClick={() => props.onChange(value)}>
           {label}
         </button>
       ))}
-    </div>
+    </fieldset>
   )
 }
 
-function ActorCell(props: { data: ReplayData; actor: number; names: Record<string, string> }) {
+function ActorCell(props: { data: ReplayData; actor: number; names: Record<string, string>; chevron?: boolean }) {
   const actor = props.data.actors[props.actor]
   return (
     <td>
       <span className="name">
+        {props.chevron && <span className="mojito-chevron" aria-hidden="true" />}
         <ActorIcon actor={actor} names={props.names} />
         <span className="ellipsis">{actorName(actor)}</span>
       </span>
@@ -112,7 +106,7 @@ function ActorRow(props: TableProps & { actor: number; cells: ReactNode; childre
           props.onOpen(flip(props.open, props.actor))
         }}
       >
-        <ActorCell data={props.data} actor={props.actor} names={props.names} />
+        <ActorCell data={props.data} actor={props.actor} names={props.names} chevron />
         {props.cells}
       </tr>
       {open && props.children}
@@ -215,7 +209,7 @@ export const TakenTable = memo(function TakenTable(
   return (
     <>
       <Toolbar scopeText={props.scopeText}>
-        <Segments label="承伤分组" value={props.group} options={TAKEN_GROUPS} onChange={props.onGroup} />
+        <Groups label="承伤分组" value={props.group} options={TAKEN_GROUPS} onChange={props.onGroup} />
       </Toolbar>
       {props.group === 'actor' ? (
         <table className="detail">
@@ -370,7 +364,7 @@ export const HealingTable = memo(function HealingTable(
   return (
     <>
       <Toolbar scopeText={props.scopeText}>
-        <Segments label="治疗分组" value={props.group} options={HEAL_GROUPS} onChange={props.onGroup} />
+        <Groups label="治疗分组" value={props.group} options={HEAL_GROUPS} onChange={props.onGroup} />
       </Toolbar>
       {table}
     </>
@@ -414,7 +408,7 @@ export const UptimeTable = memo(function UptimeTable(props: {
                   个状态
                 </span>
                 <span className="grow" />
-                <span aria-hidden>{open ? '▾' : '▸'}</span>
+                <span className="mojito-chevron" aria-hidden="true" />
               </button>
             </div>
             {open && (

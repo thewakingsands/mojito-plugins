@@ -114,10 +114,25 @@ it('closes the popover of a selected event and expands the panel with one press 
   await open()
   press(event('死亡 · 骑士'))
   expect(screen.getByRole('dialog')).toHaveProperty('textContent', expect.stringContaining('致命一击'))
-  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(screen.getByRole('button', { name: '详细数据' }))
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(tab('伤害').getAttribute('aria-selected')).toBe('true')
-  expect(screen.getByRole('button', { name: '收起 ▶' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: '收起' })).toBeTruthy()
+})
+
+it('uses the segmented control and the tabs of the base styles', async () => {
+  await open()
+  const zoom = screen.getByRole('group', { name: '缩放' })
+  expect(zoom.className).toBe('mojito-segmented')
+  expect(within(zoom).getByRole('button', { name: '整场' }).getAttribute('aria-pressed')).toBe('true')
+  expect(within(zoom).getByRole('button', { name: '30 秒' }).getAttribute('aria-pressed')).toBe('false')
+  press(screen.getByRole('button', { name: '详细数据' }))
+  expect(screen.getByRole('tablist').className).toBe('mojito-tabs')
+  press(tab('治疗'))
+  const groups = screen.getByRole('group', { name: '治疗分组' })
+  expect(groups.className).toBe('mojito-segmented')
+  expect(within(groups).getByRole('button', { name: '按角色' }).getAttribute('aria-pressed')).toBe('true')
+  expect(document.querySelector('tr.actor .mojito-chevron')).toBeTruthy()
 })
 
 it('highlights the event that was pressed', async () => {
@@ -133,36 +148,36 @@ it('highlights the event that was pressed', async () => {
 
 it('keeps the grouping and the open rows of each table to itself', async () => {
   await open()
-  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(screen.getByRole('button', { name: '详细数据' }))
   const rows = () => [...document.querySelectorAll('tr.actor')]
   press(rows()[0])
   expect(rows()[0].getAttribute('aria-expanded')).toBe('true')
   press(tab('承伤'))
-  press(screen.getByRole('radio', { name: '按敌人技能' }))
+  press(screen.getByRole('button', { name: '按敌人技能' }))
   press(tab('治疗'))
-  expect(screen.getByRole('radio', { name: '按角色' }).getAttribute('aria-checked')).toBe('true')
+  expect(screen.getByRole('button', { name: '按角色' }).getAttribute('aria-pressed')).toBe('true')
   expect(rows().every((row) => row.getAttribute('aria-expanded') === 'false')).toBe(true)
   press(tab('承伤'))
-  expect(screen.getByRole('radio', { name: '按敌人技能' }).getAttribute('aria-checked')).toBe('true')
+  expect(screen.getByRole('button', { name: '按敌人技能' }).getAttribute('aria-pressed')).toBe('true')
   press(tab('伤害'))
   expect(rows()[0].getAttribute('aria-expanded')).toBe('true')
 })
 
 it('takes every press while playing', async () => {
   await open()
-  press(screen.getByRole('button', { name: '▶ 播放' }))
+  press(screen.getByRole('button', { name: '播放' }))
   act(() => vi.advanceTimersByTime(2000))
   expect(screen.getByText(/^0:02\.\d \/ 1:00\.0$/)).toBeTruthy()
-  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(screen.getByRole('button', { name: '详细数据' }))
   expect(tab('伤害').getAttribute('aria-selected')).toBe('true')
   act(() => vi.advanceTimersByTime(500))
   press(tab('治疗'))
   expect(tab('治疗').getAttribute('aria-selected')).toBe('true')
-  press(screen.getByRole('radio', { name: '30 秒' }))
-  expect(screen.getByRole('radio', { name: '30 秒' }).getAttribute('aria-checked')).toBe('true')
+  press(screen.getByRole('button', { name: '30 秒' }))
+  expect(screen.getByRole('button', { name: '30 秒' }).getAttribute('aria-pressed')).toBe('true')
   act(() => vi.advanceTimersByTime(500))
-  expect(screen.getByRole('button', { name: '❚❚ 暂停' })).toBeTruthy()
-  press(screen.getByRole('button', { name: '收起 ▶' }))
+  expect(screen.getByRole('button', { name: '暂停' })).toBeTruthy()
+  press(screen.getByRole('button', { name: '收起' }))
   press(event('死亡 · 骑士'))
   expect(event('死亡 · 骑士').getAttribute('aria-pressed')).toBe('true')
   expect(screen.getByText('0:20.0 / 1:00.0')).toBeTruthy()
@@ -171,7 +186,7 @@ it('takes every press while playing', async () => {
 
 it('starts buff and debuff groups closed, and opens them separately', async () => {
   await open()
-  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(screen.getByRole('button', { name: '详细数据' }))
   press(tab('Buff'))
   const toggle = () => document.querySelector('.uptime-toggle')!
   expect(toggle().getAttribute('aria-expanded')).toBe('false')
@@ -195,7 +210,7 @@ it('names reflected damage in the skills of a member', async () => {
       ],
     }),
   )
-  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(screen.getByRole('button', { name: '详细数据' }))
   press(document.querySelector('tr.actor')!)
   expect(screen.getByText('反伤')).toBeTruthy()
 })
@@ -208,9 +223,9 @@ it('names a summed tick in the damage taken by skill', async () => {
       entries: [{ t: 1000, actor: 0, other: -1, skill: 'status:0', field: 'taken', amount: 800 }],
     }),
   )
-  press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  press(screen.getByRole('button', { name: '详细数据' }))
   press(tab('承伤'))
-  press(screen.getByRole('radio', { name: '按敌人技能' }))
+  press(screen.getByRole('button', { name: '按敌人技能' }))
   expect(screen.getByText('持续伤害')).toBeTruthy()
   expect(screen.queryByText('状态 #0')).toBeNull()
 })
@@ -286,9 +301,9 @@ it('keeps the skill icons of the lanes in place while playback scrolls the windo
         },
       }),
     )
-    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
-    press(screen.getByRole('radio', { name: '30 秒' }))
-    press(screen.getByRole('button', { name: '▶ 播放' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
+    press(screen.getByRole('button', { name: '30 秒' }))
+    press(screen.getByRole('button', { name: '播放' }))
     // Past 90% of the first window, so playback has begun to move it.
     act(() => vi.advanceTimersByTime(29_000))
     const use = () => document.querySelector('.use[title^="0:30.0 "]')
@@ -320,7 +335,7 @@ it('draws the bars of the sustained raid buffs faint and under the others, and e
         uses: { t: Uint32Array.from([1000, 2000]), actor: new Uint16Array(2), action: Uint16Array.from([0, 1]) },
       }),
     )
-    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
     const name = (item: Element) => item.getAttribute('title')?.split(' · ')[0]
     const drawn = [...document.querySelectorAll('.lane.buff .lane-bar, .lane.buff .lane-use')]
     // In the order they are drawn: the bars, then the icons, so that no bar covers an icon
@@ -365,7 +380,7 @@ it('changes the filter only from the filter bar', async () => {
       [...document.querySelectorAll('.filter-bar .chip.actor')].map((chip) => chip.getAttribute('aria-pressed'))
     const all = pressed()
     expect(all).toEqual(['true', 'true', 'true'])
-    press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+    press(screen.getByRole('button', { name: '详细数据' }))
     const row = document.querySelector('tr.actor')!
     press(row.querySelector('.icon')!)
     expect(pressed()).toEqual(all)
@@ -375,7 +390,7 @@ it('changes the filter only from the filter bar', async () => {
     expect(pressed()).toEqual(all)
     press(document.querySelector('.map-member')!)
     expect(pressed()).toEqual(all)
-    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
     press(document.querySelector('.label.member')!)
     expect(pressed()).toEqual(all)
   } finally {
@@ -403,7 +418,7 @@ it('keeps the sizes the panels were dragged to while the review is open', async 
   }
   const side = () => document.querySelector<HTMLElement>('.side-panel')!
   const bottom = () => document.querySelector<HTMLElement>('.bottom')!
-  const expand = () => press(screen.getByRole('button', { name: '◀ 展开详细数据' }))
+  const expand = () => press(screen.getByRole('button', { name: '详细数据' }))
   const measured: { skills: number; tables: number }[] = []
   const rect = HTMLElement.prototype.getBoundingClientRect
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
@@ -414,7 +429,7 @@ it('keeps the sizes the panels were dragged to while the review is open', async 
     })
     return { ...rect.call(this), width: 520 }
   })
-  const collapse = () => press(screen.getByRole('button', { name: '收起 ▶' }))
+  const collapse = () => press(screen.getByRole('button', { name: '收起' }))
   try {
     await open()
     expect(document.querySelector('.panel-grip')).toBeNull()
@@ -435,21 +450,21 @@ it('keeps the sizes the panels were dragged to while the review is open', async 
     expand()
     expect(side().style.width).toBe('450px')
 
-    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
     expect(bottom().style.height).toBe('')
     expect(bottom().style.maxHeight).toBe('580px')
     dragBy(document.querySelector('.grip')!, 0, -300)
     expect(bottom().style.height).toBe('300px')
-    press(screen.getByRole('button', { name: '▼ 收起技能轴' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
     expect(bottom().style.height).toBe('')
-    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
     expect(bottom().style.height).toBe('300px')
 
     cleanup()
     await open()
     expand()
     expect(side().style.width).toBe('520px')
-    press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+    press(screen.getByRole('button', { name: '技能轴' }))
     expect(bottom().style.height).toBe('')
   } finally {
     vi.restoreAllMocks()
@@ -608,17 +623,19 @@ const potencyData = (() => {
   }
 })()
 const POTENCY_NOTE = '基准值和每威力伤害根据角色威力表和已知 buff 效果估算，仅供参考。'
-/** The job icon buttons that pick the member of the damage per potency */
-const potencyMembers = () =>
-  [...document.querySelectorAll<HTMLButtonElement>('.potency-members button')].map((button) => ({
-    name: button.getAttribute('aria-label'),
-    pressed: button.getAttribute('aria-pressed'),
-  }))
-const potencyMember = (name: string) =>
-  within(document.querySelector<HTMLElement>('.potency-members')!).getByRole('button', { name })
+/** The members the damage per potency can show, and the one it shows */
+const potencySelect = () => screen.getByRole('combobox', { name: '每威力伤害的角色' }) as HTMLSelectElement
+const potencyMembers = () => ({
+  options: [...potencySelect().options].map((option) => option.textContent),
+  picked: potencySelect().selectedOptions[0]?.textContent,
+})
+const pickPotency = (name: string) => {
+  const option = [...potencySelect().options].find((item) => item.textContent?.startsWith(name))!
+  fireEvent.change(potencySelect(), { target: { value: option.value } })
+}
 const potencyLane = () => document.querySelectorAll<HTMLElement>('.lane.curve')[1]
 const potencyTip = () => document.querySelector<HTMLElement>('.floating-tip.potency-tip')
-const expandTimeline = () => press(screen.getByRole('button', { name: '▲ 展开技能轴' }))
+const expandTimeline = () => press(screen.getByRole('button', { name: '技能轴' }))
 const chip = (name: string) =>
   within(document.querySelector<HTMLElement>('.filter-bar')!).getByRole('button', { name: new RegExp(name) })
 /** 100 ms a pixel over the fight of 60 seconds */
@@ -638,7 +655,7 @@ it('shows the curves only while the timeline is expanded', async () => {
   expect(document.querySelectorAll('.lane.curve')).toHaveLength(2)
   fireEvent.pointerEnter(document.querySelector('.potency-region')!)
   expect(screen.queryByRole('dialog')).toBeNull()
-  press(screen.getByRole('button', { name: '▼ 收起技能轴' }))
+  press(screen.getByRole('button', { name: '技能轴' }))
   expect(document.querySelector('.lane.curve')).toBeNull()
 })
 
@@ -650,54 +667,37 @@ it('draws the damage per second and the damage per potency, for the members that
   expect(document.querySelector('.curve-legend')).toBeNull()
   expect(screen.getByText('每威力伤害')).toBeTruthy()
   expect(document.querySelectorAll('.lane.curve path.curve-line')).toHaveLength(4)
-  expect(potencyMembers()).toEqual([
-    { name: '骑士', pressed: 'true' },
-    { name: '诗人', pressed: 'false' },
-  ])
+  expect(potencyMembers()).toEqual({ options: ['骑士', '诗人'], picked: '骑士' })
   expect(screen.getByText('基准 50.0')).toBeTruthy()
-  press(potencyMember('诗人'))
-  expect(potencyMembers()).toEqual([
-    { name: '骑士', pressed: 'false' },
-    { name: '诗人', pressed: 'true' },
-  ])
+  pickPotency('诗人')
+  expect(potencyMembers()).toEqual({ options: ['骑士', '诗人'], picked: '诗人' })
   // Only the white mage: no samples
   press(chip('白魔'))
-  expect(document.querySelector('.potency-members')).toBeNull()
+  expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
   expect(screen.getByText('没有每威力数据：记录时宿主没有提供，或选中的角色没有可推断威力的命中')).toBeTruthy()
   // The bard was picked; chosen with the knight again, the knight is the default
   press(chip('骑士'))
   press(chip('诗人'))
-  expect(potencyMembers()).toEqual([
-    { name: '骑士', pressed: 'true' },
-    { name: '诗人', pressed: 'false' },
-  ])
+  expect(potencyMembers()).toEqual({ options: ['骑士', '诗人'], picked: '骑士' })
 })
 
-it('names the member of a job icon in a tip of its own, not the browser one', async () => {
+it('names the only member with samples instead of offering a choice', async () => {
   await open(potencyData)
   expandTimeline()
-  const bard = potencyMember('诗人')
-  expect(bard.hasAttribute('title')).toBe(false)
-  fireEvent.pointerEnter(bard)
-  expect(screen.getByRole('tooltip').textContent).toBe('诗人')
-  fireEvent.pointerLeave(bard)
-  expect(screen.queryByRole('tooltip')).toBeNull()
+  press(chip('白魔'))
+  press(chip('诗人'))
+  expect(screen.queryByRole('combobox', { name: '每威力伤害的角色' })).toBeNull()
+  expect(document.querySelector('.potency-member')!.textContent).toBe('诗人')
 })
 
-it('tells how the damage per potency is estimated in the tip of the question mark', async () => {
+it('tells how the damage per potency is estimated in the hint of the question mark', async () => {
   await open(potencyData)
   expandTimeline()
-  const help = document.querySelector<HTMLElement>('.potency-help')!
+  const help = screen.getByRole('button', { name: '说明' })
+  const hint = document.getElementById(help.getAttribute('interestfor')!)!
+  expect(hint.getAttribute('popover')).toBe('hint')
+  expect(hint.textContent).toBe(POTENCY_NOTE)
   expect(help.hasAttribute('title')).toBe(false)
-  expect(help.querySelector('title')).toBeNull()
-  fireEvent.pointerEnter(help)
-  expect(screen.getByRole('tooltip').textContent).toBe(POTENCY_NOTE)
-  fireEvent.pointerLeave(help)
-  expect(screen.queryByRole('tooltip')).toBeNull()
-  fireEvent.focus(help)
-  expect(screen.getByRole('tooltip').textContent).toBe(POTENCY_NOTE)
-  fireEvent.blur(help)
-  expect(screen.queryByRole('tooltip')).toBeNull()
 })
 
 it('says so when no member is chosen', async () => {
@@ -744,12 +744,12 @@ it('tells the time, the damage per potency, the baseline and the statuses of the
     expect(text).toContain('角色状态')
     expect(text).toContain('首领状态 · 敌人3')
     const [own, boss] = [...tip.querySelectorAll('.status-chips')].map((chips) =>
-      [...chips.querySelectorAll('.status-chip')].map((item) => item.getAttribute('aria-label')),
+      [...chips.querySelectorAll('.status-chip')].map((item) => item.textContent),
     )
     // 战意 counts once; 增益 ended at 10 seconds
     expect(own).toEqual(['坚守', '战意'])
     expect(boss).toEqual(['易伤'])
-    for (const name of ['坚守', '战意', '易伤']) expect(text).not.toContain(name)
+    expect(tip.getAttribute('role')).toBe('tooltip')
     for (const gone of ['换算', '窗口', '暴击倍率', '暴击样本不足', '偏离']) expect(text).not.toContain(gone)
 
     // The samples from 58.5 seconds hit no target
@@ -767,8 +767,8 @@ it('keeps the background and the arrow of a region, with the tip of the lane ove
   expandTimeline()
   const region = document.querySelector<HTMLElement>('.potency-region')!
   expect(region.className).toContain('up')
-  expect(region.textContent).toBe('↑')
-  expect(region.querySelector('.potency-arrow')!.hasAttribute('title')).toBe(false)
+  expect(region.querySelector('.potency-arrow')!.getAttribute('aria-label')).toBe('高于基准')
+  expect(region.querySelector('.potency-arrow svg.lucide')).toBeTruthy()
   fireEvent.pointerEnter(region)
   fireEvent.pointerMove(region)
   expect(screen.queryByRole('dialog')).toBeNull()

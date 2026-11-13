@@ -1,3 +1,4 @@
+import { Check, Clapperboard, Skull, TriangleAlert, Zap } from 'lucide-react'
 import { memo, type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import type { Hit, ReplayData, ReplayEvent, StatusNote } from '../../view-model.js'
 import { amount, percent } from '../format.js'
@@ -7,9 +8,11 @@ import { actionName, actorName, Diamond, sourceName, statusName } from './parts.
 import { clockText } from './timeline.js'
 import { poseAt } from './tracks.js'
 
-const BOSS_TITLES = { bossIn: '出现', bossOut: '离开', bossDown: '被击败' } as const
+const BOSS_TITLES = { bossIn: '首领出现', bossOut: '首领离开', bossDown: '首领被击败' } as const
 const OUT_REASONS = { untargetable: '不可选中', left: '离开场地' } as const
 const CUTSCENE_TITLES = { start: '过场动画开始', end: '过场动画结束' } as const
+/** Not in a button of the base styles, which would size it */
+const ICON = 14
 
 /** The HP share of a boss right before the event, or when it came */
 function bossHp(data: ReplayData, event: BossEvent) {
@@ -18,44 +21,88 @@ function bossHp(data: ReplayData, event: BossEvent) {
 }
 const hitText = (data: ReplayData, hit: Hit) =>
   `${sourceName(data, hit.source, hit.sourceName)} · ${hit.periodic ? statusName(data, hit.actionId ?? 0, hit.name) : actionName(data, hit.actionId, hit.name)}`
+const hitShare = (hit: Hit, maxHp: number) => Math.round((hit.amount / maxHp) * 100)
 
-/** The icon, the first line and the second line of an event in the list */
-export function eventLines(data: ReplayData, event: ReplayEvent): { icon: ReactNode; title: string; detail: string } {
-  if (event.kind === 'cutscene')
-    return { icon: <span className="event-icon muted">▶</span>, title: CUTSCENE_TITLES[event.edge], detail: '' }
+/** The icon of an event, in the list and on the timeline */
+export function EventIcon({ data, event }: { data: ReplayData; event: ReplayEvent }) {
+  switch (event.kind) {
+    case 'cutscene':
+      return (
+        <span className="event-icon muted">
+          <Clapperboard size={ICON} />
+        </span>
+      )
+    case 'death':
+      return (
+        <span className="event-icon danger">
+          <Skull size={ICON} />
+        </span>
+      )
+    case 'penalty':
+      return (
+        <SkillIcon
+          skill={`status:${event.statusId}`}
+          fallback={
+            <span className="event-icon warn">
+              <TriangleAlert size={ICON} />
+            </span>
+          }
+        />
+      )
+    case 'bigHit':
+      return (
+        <span className="event-icon warn">
+          <Zap size={ICON} />
+        </span>
+      )
+    case 'bossDown':
+      return (
+        <span className="event-icon accent">
+          <Check size={ICON} />
+        </span>
+      )
+    default:
+      return (
+        <span className="event-icon">
+          <Diamond main={data.actors[event.actor]?.main ?? false} hollow={event.kind === 'bossOut'} size={ICON} />
+        </span>
+      )
+  }
+}
+
+/** The first line and the second line of an event in the list; the second starts with its number */
+export function eventLines(data: ReplayData, event: ReplayEvent): { title: string; detail: string } {
+  if (event.kind === 'cutscene') return { title: CUTSCENE_TITLES[event.edge], detail: '' }
   const who = actorName(data.actors[event.actor])
   switch (event.kind) {
     case 'death':
       return {
-        icon: <span className="event-icon danger">✕</span>,
         title: `死亡 · ${who}`,
         detail: event.killingBlow
-          ? `${hitText(data, event.killingBlow)} ${amount(event.killingBlow.amount)}（致命一击）`
+          ? `${amount(event.killingBlow.amount)} · ${hitText(data, event.killingBlow)}`
           : '致命一击未知',
       }
     case 'penalty':
       return {
-        icon: <SkillIcon skill={`status:${event.statusId}`} />,
         title: `${statusName(data, event.statusId, event.name)} · ${who}`,
-        detail: `来自 ${sourceName(data, event.cause.source, event.cause.sourceName)}${
-          event.cause.actionId === null ? '' : ` · ${actionName(data, event.cause.actionId, event.cause.name)}`
-        }`,
+        detail: [
+          `来自 ${sourceName(data, event.cause.source, event.cause.sourceName)}`,
+          event.cause.actionId !== null && actionName(data, event.cause.actionId, event.cause.name),
+          event.durationMs !== null && `${Math.round(event.durationMs / 1000)} 秒`,
+          event.stacks !== null && `${event.stacks} 层`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
       }
     case 'bigHit':
       return {
-        icon: <span className="event-icon warn">!</span>,
         title: `大额伤害 · ${who}`,
-        detail: `${hitText(data, event.hit)} ${amount(event.hit.amount)}（最大 HP 的 ${Math.round((event.hit.amount / event.maxHp) * 100)}%）`,
+        detail: `${amount(event.hit.amount)}（最大 HP 的 ${hitShare(event.hit, event.maxHp)}%）· ${hitText(data, event.hit)}`,
       }
     default: {
       const hp = bossHp(data, event)
       const hpText = hp === null ? '' : `HP ${percent(hp * 100)}`
       return {
-        icon: (
-          <span className={`event-icon ${event.kind === 'bossOut' ? 'muted' : 'accent'}`}>
-            {event.kind === 'bossIn' ? '◆' : event.kind === 'bossOut' ? '◇' : '✓'}
-          </span>
-        ),
         title: `${BOSS_TITLES[event.kind]} · ${who}`,
         detail:
           event.kind === 'bossIn'
@@ -117,7 +164,7 @@ export const EventList = memo(function EventList(props: {
             onClick={(click) => props.onSelect(event, click.currentTarget)}
           >
             <span className="event-time number">{clockText(event.t)}</span>
-            {lines.icon}
+            <EventIcon data={data} event={event} />
             <span className="event-text">
               <span className="ellipsis">{lines.title}</span>
               {lines.detail && <small className="ellipsis">{lines.detail}</small>}
@@ -224,7 +271,7 @@ export function EventPopover(props: {
           <p>
             {hitText(data, event.hit)} {amount(event.hit.amount)}
           </p>
-          <p>最大 HP 的 {Math.round((event.hit.amount / event.maxHp) * 100)}%</p>
+          <p>最大 HP 的 {hitShare(event.hit, event.maxHp)}%</p>
           <Statuses data={data} title="当时身上的状态" statuses={event.statuses} />
         </>
       )

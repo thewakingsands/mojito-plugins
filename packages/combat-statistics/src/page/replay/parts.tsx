@@ -17,12 +17,15 @@ export const sourceName = (data: ReplayData, source: number | null, name: string
   source !== null ? actorName(data.actors[source]) : (name ?? '未知来源')
 
 /** The enemy mark of the map, also used in the panel next to an enemy's name */
-export function Diamond({ main, size = 14 }: { main: boolean; size?: number }) {
+export function Diamond({ main, size = 14, hollow = false }: { main: boolean; size?: number; hollow?: boolean }) {
   const half = size / 2
+  // A hollow one keeps its stroke inside the box
+  const inset = hollow ? 1 : 0
+  const classes = ['diamond', main && 'main', hollow && 'hollow'].filter(Boolean).join(' ')
   return (
-    <svg className={`diamond${main ? ' main' : ''}`} width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg className={classes} width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <title>{main ? '主要敌人' : '敌人'}</title>
-      <path d={`M${half} 0L${size} ${half}L${half} ${size}L0 ${half}Z`} />
+      <path d={`M${half} ${inset}L${size - inset} ${half}L${half} ${size - inset}L${inset} ${half}Z`} />
     </svg>
   )
 }

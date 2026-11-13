@@ -1,4 +1,15 @@
-import { type CSSProperties, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
+import {
+  type CSSProperties,
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { Role } from '../../jobs.js'
 import type { ReplayData, ReplayEvent, ReplayResult, StatisticsState, VisitView } from '../../view-model.js'
 import { useBridge } from '../bridge.js'
@@ -74,8 +85,13 @@ export function ReplayView(props: {
       live = false
     }
   }, [command, props.visitId, props.fightId])
-  let body = <p className="placeholder replay-message">正在读取日志</p>
-  if (result && !result.ok) body = <p className="placeholder error replay-message">无法回顾这场战斗：{result.reason}</p>
+  let body = <p className="mojito-empty">正在读取日志</p>
+  if (result && !result.ok)
+    body = (
+      <p className="mojito-callout replay-message" data-tone="danger">
+        无法打开这场战斗的回顾：{result.reason}
+      </p>
+    )
   if (result?.ok) body = <Review data={result.data} statistics={props.statistics} />
   return (
     <div className="replay">
@@ -91,6 +107,7 @@ function ReplayHeader(props: {
   visit: VisitView | undefined
   onBack: () => void
 }) {
+  const back = useId()
   const fight = props.visit?.fights.find((item) => item.id === props.fightId)
   const facts = fight && fightFacts(fight, props.statistics)
   const summary = props.statistics?.selected?.id === props.fightId ? props.statistics.selected : null
@@ -103,9 +120,19 @@ function ReplayHeader(props: {
   ].filter(Boolean)
   return (
     <header className="replay-head">
-      <button type="button" onClick={props.onBack}>
-        ← 返回概览
+      <button
+        type="button"
+        data-icon
+        data-variant="ghost"
+        aria-label="返回概览"
+        interestfor={back}
+        onClick={props.onBack}
+      >
+        <ArrowLeft />
       </button>
+      <span id={back} popover="hint">
+        返回概览
+      </span>
       <div className="replay-title">
         <h1>
           <span className="ellipsis">
@@ -180,8 +207,8 @@ function FilterBar(props: {
         <span className="span-chip number">
           {clockText(props.span.from)} – {clockText(props.span.to)}（
           {((props.span.to - props.span.from) / 1000).toFixed(1)} 秒）
-          <button type="button" data-variant="ghost" title="清除选区" onClick={props.onClearSpan}>
-            ✕
+          <button type="button" data-variant="ghost" aria-label="清除时间段" onClick={props.onClearSpan}>
+            <X />
           </button>
         </span>
       ) : (
@@ -457,22 +484,18 @@ const Review = memo(function Review({ data, statistics }: { data: ReplayData; st
       : { height: bottom }
 
   const tabs = (shown: typeof TABS) => (
-    <div className="tabs" role="tablist">
-      {shown.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={tab === id}
-          className={`tab${tab === id ? ' on' : ''}`}
-          onClick={() => setTab(id)}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="panel-tabs">
+      <div className="mojito-tabs" role="tablist">
+        {shown.map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
       <span className="grow" />
       <button type="button" data-variant="ghost" onClick={toggleExpanded}>
-        {expanded ? '收起 ▶' : '◀ 展开详细数据'}
+        {expanded ? <PanelRightClose /> : <PanelRightOpen />}
+        {expanded ? '收起' : '详细数据'}
       </button>
     </div>
   )

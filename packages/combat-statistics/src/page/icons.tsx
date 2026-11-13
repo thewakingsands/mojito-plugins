@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { type Role, roleOf } from '../jobs.js'
 import { useBridge } from './bridge.js'
 
@@ -73,8 +73,9 @@ export function JobIcon({ job, abbreviation }: { job: number | null; abbreviatio
 /** Stands for the limit break in the review, where a member has the icon of their job */
 export const LimitBreakIcon = () => <span className="icon job-tag limit-break">LB</span>
 
-/** The game's skill icon; without it the space stays empty so the names line up. */
-export function SkillIcon({ skill }: { skill: string }) {
+/** The game's skill icon; without it the fallback, or an empty space so the names line up. */
+export function SkillIcon({ skill, fallback }: { skill: string; fallback?: ReactNode }) {
   const url = useIcon(skill)
-  return url ? <img className="icon" src={url} alt="" /> : <span className="icon" />
+  if (url) return <img className="icon" src={url} alt="" />
+  return fallback ?? <span className="icon" />
 }

@@ -1,9 +1,10 @@
-import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, CircleHelp } from 'lucide-react'
+import { type PointerEvent as ReactPointerEvent, useEffect, useId, useMemo, useState } from 'react'
 import type { ReplayData } from '../../view-model.js'
-import { JobIcon, SkillIcon } from '../icons.js'
+import { SkillIcon } from '../icons.js'
 import type { Span } from './aggregate.js'
 import { dpsCurves } from './curves.js'
-import { FloatingTip, useLabelTip } from './FloatingTip.js'
+import { FloatingTip } from './FloatingTip.js'
 import type { FilterMember } from './filter.js'
 import { actorName } from './parts.js'
 import { analyzePotency, GAP_MS, type PotencyAnalysis, type PotencyPoint, statusesAt } from './potency.js'
@@ -90,7 +91,11 @@ function Tip(props: { x: number; width: number; height: number; children: React.
   return (
     <>
       <i className="curve-cursor" style={{ left: props.x, height: props.height }} />
-      <span className="curve-tip" style={right ? { right: props.width - props.x + 8 } : { left: props.x + 8 }}>
+      <span
+        className="curve-tip"
+        role="tooltip"
+        style={right ? { right: props.width - props.x + 8 } : { left: props.x + 8 }}
+      >
         {props.children}
       </span>
     </>
@@ -167,50 +172,43 @@ export function DpsLane(props: LaneBase) {
 
 const POTENCY_NOTE = '基准值和每威力伤害根据角色威力表和已知 buff 效果估算，仅供参考。'
 
-/** Drawn rather than typed, so that the question mark sits in the middle of the circle in any font */
 function HelpIcon() {
-  const { trigger, tip } = useLabelTip(POTENCY_NOTE)
+  const id = useId()
   return (
     <>
-      {/* A button only to take the focus; no title or <title>, which would bring the browser's own tip as well */}
-      <button type="button" className="potency-help" aria-label="说明" {...trigger}>
-        <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true">
-          <circle cx="7" cy="7" r="6.5" />
-          <text x="7" y="7" textAnchor="middle" dominantBaseline="central">
-            ?
-          </text>
-        </svg>
+      <button type="button" className="potency-help" data-icon data-variant="ghost" aria-label="说明" interestfor={id}>
+        <CircleHelp />
       </button>
-      {tip}
+      <span id={id} popover="hint">
+        {POTENCY_NOTE}
+      </span>
     </>
   )
 }
 
-function PotencyMember(props: {
-  data: ReplayData
-  actor: number
-  names: Record<string, string>
-  pressed: boolean
-  onPick: () => void
-}) {
-  const actor = props.data.actors[props.actor]
-  const name = actorName(actor)
-  const { trigger, tip } = useLabelTip(name)
-  const job = actor?.job ?? null
+/** The member of the damage per potency: a select with the members that have samples, or the name of the only one */
+function PotencyMember(props: { data: ReplayData; curves: Curves; names: Record<string, string> }) {
+  const { data, curves } = props
+  const label = (index: number) => {
+    const actor = data.actors[index]
+    const job = actor?.job == null ? undefined : props.names[`job:${actor.job}`]
+    return job ? `${actorName(actor)}（${job}）` : actorName(actor)
+  }
+  if (curves.options.length === 1)
+    return <span className="potency-member ellipsis">{actorName(data.actors[curves.options[0]])}</span>
   return (
-    <>
-      <button
-        type="button"
-        className="potency-member"
-        aria-label={name}
-        aria-pressed={props.pressed}
-        onClick={props.onPick}
-        {...trigger}
-      >
-        <JobIcon job={job} abbreviation={props.names[`job:${job}`]} />
-      </button>
-      {tip}
-    </>
+    <select
+      className="potency-member"
+      aria-label="每威力伤害的角色"
+      value={curves.actor ?? undefined}
+      onChange={(change) => curves.pick(Number(change.target.value))}
+    >
+      {curves.options.map((actor) => (
+        <option key={actor} value={actor}>
+          {label(actor)}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -222,32 +220,19 @@ export function PotencyLabel(props: { data: ReplayData; curves: Curves; names: R
         <span>每威力伤害</span>
         <HelpIcon />
       </span>
-      {curves.options.length > 0 && (
-        <span className="potency-members">
-          {curves.options.map((actor) => (
-            <PotencyMember
-              key={actor}
-              data={props.data}
-              actor={actor}
-              names={props.names}
-              pressed={actor === curves.actor}
-              onPick={() => curves.pick(actor)}
-            />
-          ))}
-        </span>
-      )}
+      {curves.options.length > 0 && <PotencyMember data={props.data} curves={curves} names={props.names} />}
     </span>
   )
 }
 
 function StatusIcons(props: { statuses: { statusId: number; name: string }[] }) {
-  if (!props.statuses.length) return <span className="tip-none">无</span>
-  // The tip takes no pointer events, so a title would never show; the name is for screen readers
+  if (!props.statuses.length) return <small>无</small>
   return (
     <span className="status-chips">
       {props.statuses.map((status) => (
-        <span key={status.statusId} className="status-chip" role="img" aria-label={status.name}>
+        <span key={status.statusId} className="status-chip">
           <SkillIcon skill={`status:${status.statusId}`} />
+          {status.name}
         </span>
       ))}
     </span>
@@ -336,7 +321,9 @@ export function PotencyLane(props: LaneBase) {
               data-region
               style={{ left: x(region.from), width: Math.max(2, x(region.to) - x(region.from)) }}
             >
-              <span className="potency-arrow">{region.deviation > 0 ? '↑' : '↓'}</span>
+              <span className="potency-arrow" role="img" aria-label={region.deviation > 0 ? '高于基准' : '低于基准'}>
+                {region.deviation > 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+              </span>
             </span>
           ))}
         <svg width={width} height={POTENCY_HEIGHT} aria-label="每威力伤害曲线">
