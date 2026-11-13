@@ -9,7 +9,6 @@ import { actorName, Diamond } from './parts.js'
 import { buildMapScene, deathTimes, enemyPane, type MapPane, paneLayout, sceneAt } from './scene.js'
 import { enemyShown, isDown, memberShown, poseAt } from './tracks.js'
 
-const MEMBER_SIZE = 22
 const MAIN_SIZE = 28
 const ENEMY_SIZE = 18
 
@@ -87,13 +86,18 @@ function BossLine({ boss }: { boss: Boss }) {
   )
 }
 
-/** How long one square of the grid is, in the pane's bottom left corner */
-function MapScale({ pixels }: { pixels: number }) {
-  if (!Number.isFinite(pixels) || pixels <= 0) return null
+const SCALE_METERS = [5, 10, 20, 50]
+/** The scale stays long enough to read as a length, not as a mark */
+const SCALE_MIN_PX = 40
+
+/** A length on the map in its bottom left corner: the first of the scale lengths that is long enough on screen */
+function MapScale({ perMeter }: { perMeter: number }) {
+  if (!Number.isFinite(perMeter) || perMeter <= 0) return null
+  const meters = SCALE_METERS.find((length) => length * perMeter >= SCALE_MIN_PX) ?? SCALE_METERS.at(-1)!
   return (
     <div className="map-scale">
-      <i style={{ width: pixels }} />
-      <span>{GRID_METERS} 米</span>
+      <i style={{ width: meters * perMeter }} />
+      <span>{meters} 米</span>
     </div>
   )
 }
@@ -137,7 +141,7 @@ function MapPaneView(props: {
         })}
       </svg>
       {props.boss && <BossLine boss={props.boss} />}
-      <MapScale pixels={at(bounds.minX + GRID_METERS, 0)[0] - at(bounds.minX, 0)[0]} />
+      <MapScale perMeter={(at(bounds.minX + GRID_METERS, 0)[0] - at(bounds.minX, 0)[0]) / GRID_METERS} />
       {pane.members.map((index) => {
         const actor = data.actors[index]
         if (!memberShown(actor.track, time)) return null
@@ -156,7 +160,7 @@ function MapPaneView(props: {
           <div
             key={actor.index}
             className={classes.filter(Boolean).join(' ')}
-            style={{ left: x, top: y, width: MEMBER_SIZE, height: MEMBER_SIZE }}
+            style={{ left: x, top: y }}
             title={`${name} · ${props.names[`job:${actor.job}`] ?? '未知职业'}${hp}`}
           >
             <JobIcon job={actor.job} abbreviation={props.names[`job:${actor.job}`]} />

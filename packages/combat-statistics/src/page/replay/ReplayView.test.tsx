@@ -129,7 +129,7 @@ const detail = () => screen.queryByRole('region', { name: '事件详情' })
 it('expands the panel with one press of the expand button while an event is expanded', async () => {
   await open()
   press(event('死亡 · 骑士'))
-  expect(detail()!.textContent).toContain('致命一击')
+  expect(detail()!.textContent).toContain('死亡前 10 秒受到的伤害')
   press(screen.getByRole('button', { name: '详细数据' }))
   expect(detail()).toBeNull()
   expect(tab('伤害').getAttribute('aria-selected')).toBe('true')
@@ -161,7 +161,7 @@ it('expands one event at a time under it in the list, and collapses it on a seco
   expect(event('伤害降低 · 白魔').getAttribute('aria-expanded')).toBe('false')
   expect(screen.getAllByRole('region', { name: '事件详情' })).toHaveLength(1)
   expect(event('死亡 · 骑士').parentElement!.contains(detail())).toBe(true)
-  expect(detail()!.textContent).toContain('致命一击')
+  expect(detail()!.textContent).toContain('死亡前 10 秒受到的伤害')
   press(event('死亡 · 骑士'))
   expect(detail()).toBeNull()
   press(event('死亡 · 骑士'))
@@ -922,6 +922,7 @@ it('opens the help of the review from its button', async () => {
   expect(help.getAttribute('popover')).toBe('auto')
   expect(help.getAttribute('role')).toBe('dialog')
   expect(help.textContent).toContain('在刻度上拖动选取时间段')
+  expect([...help.querySelectorAll('kbd')].map((key) => key.textContent)).toEqual(['空格', '←', '→', 'Esc'])
 })
 
 it('writes the name of a cast only in a bar wide enough for it', async () => {

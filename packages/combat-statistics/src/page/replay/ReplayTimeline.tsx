@@ -15,6 +15,8 @@ import { useSize } from './ReplayMap.js'
 import { castLabelShown, clockText, ICON_WINDOW_MS, pressed, ticks, ZOOMS, type Zoom } from './timeline.js'
 
 const ROLE_ORDER = { tank: 0, healer: 1, dps: 2 } as const
+/** A tick this close to the left edge writes its time right of the playhead's handle, which sits there at the start */
+const FIRST_TICK_PX = 12
 
 interface Use {
   /** Index into ReplayData.uses, the key that keeps an element on its use while the window moves */
@@ -309,7 +311,7 @@ const Lanes = memo(function Lanes(props: LaneProps & { width: number }) {
         <Ruler onPress={ruler} hint={!shade}>
           {cutscenes}
           {ticks(window).map((t) => (
-            <span key={t} className="tick" style={{ left: x(t) }}>
+            <span key={t} className={`tick${x(t) < FIRST_TICK_PX ? ' first' : ''}`} style={{ left: x(t) }}>
               {tickText(t)}
             </span>
           ))}

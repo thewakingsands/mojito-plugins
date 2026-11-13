@@ -647,6 +647,7 @@ body {
 .map-pane {
   position: absolute;
   overflow: hidden;
+  container-type: size;
 }
 .map-wrapper.split .map-pane {
   box-shadow: inset 0 0 0 1px var(--mojito-border);
@@ -701,9 +702,10 @@ svg.map .grid {
   border-radius: var(--mojito-radius-small);
   transform: translate(-50%, -50%);
 }
+/* Smaller in a small map, so the members cover less of each other and of the boss */
 .map-member .icon {
-  width: 22px;
-  height: 22px;
+  width: clamp(14px, 6cqmin, 22px);
+  height: clamp(14px, 6cqmin, 22px);
 }
 .map-member.unchosen {
   opacity: 0.18;
@@ -1352,6 +1354,9 @@ table.uptime td:nth-child(2) {
   color: var(--mojito-fg-tertiary);
   transform: translateX(-50%);
 }
+.ruler .tick.first {
+  transform: translateX(8px);
+}
 .cutscene {
   position: absolute;
   top: 0;
@@ -1421,14 +1426,15 @@ table.uptime td:nth-child(2) {
 .lane-bar.sustained {
   background: color-mix(in srgb, var(--bar) 20%, transparent);
 }
-/* Past two minutes there are no icons: fainter bars over the height of the lane, which darken where they stack */
+/* Past two minutes there are no icons: bars of one color over the height of the lane, which darken with each use
+   that covers the same time, so the lane shows where the raid is covered and where not */
 .lanes.dense .lane-bar {
   top: 4px;
   height: 14px;
-  background: color-mix(in srgb, var(--bar) 35%, transparent);
+  background: color-mix(in srgb, var(--mojito-fg) 16%, transparent);
 }
 .lanes.dense .lane-bar.sustained {
-  background: color-mix(in srgb, var(--bar) 12%, transparent);
+  background: color-mix(in srgb, var(--mojito-fg) 6%, transparent);
 }
 .lane-use {
   position: absolute;

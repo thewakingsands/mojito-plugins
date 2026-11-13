@@ -242,10 +242,6 @@ function EventDetail(props: { data: ReplayData; event: ReplayEvent }) {
     case 'death':
       body = (
         <>
-          <p>
-            致命一击：
-            {event.killingBlow ? `${hitText(data, event.killingBlow)} ${amount(event.killingBlow.amount)}` : '未知'}
-          </p>
           <h5>死亡前 10 秒受到的伤害{event.maxHp === null ? '' : `（最大 HP ${amount(event.maxHp)}）`}</h5>
           <table className="hits">
             <tbody>
