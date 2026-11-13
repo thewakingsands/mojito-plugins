@@ -1,0 +1,509 @@
+diff --git a/components/layout/navbar.vue b/components/layout/navbar.vue
+index e873d53..4883275 100644
+--- a/components/layout/navbar.vue
++++ b/components/layout/navbar.vue
+@@ -3,7 +3,7 @@
+     <div class="location">
+       <time :class="{ empty: e.duration }">
+         <span class="m">{{ ~~(e.duration / 60) | pad }}</span><!--
+-     --><span class="s">{{ (e.duration || 0) % 60 | pad }}</span>
++     --><span class="s">{{ Math.floor(e.duration || 0) % 60 | pad }}</span>
+       </time>
+       <span v-if="e.zone">
+         {{ e.zone }}
+@@ -19,7 +19,7 @@
+     </div>
+     <div class="info">
+       <span class="rank">{{ rank }}/{{ c.length }}</span><!--
+-   --><span class="rdps">{{ (e.rdps || 0) | f(show_decimals) }}</span>
++   --><span class="rdps">{{ e.rdps | f(show_decimals) }}</span>
+     </div>
+     <div class="buttons">
+       <svg
+diff --git a/components/layout/userlist.vue b/components/layout/userlist.vue
+index 0f7f42a..c661fe3 100644
+--- a/components/layout/userlist.vue
++++ b/components/layout/userlist.vue
+@@ -6,7 +6,7 @@
+         :combatant="c"
+         :topdps="topdps"
+         :tophps="tophps"
+-        :key="c.name">
++        :key="c.overlayKey">
+         <detailed-view :c="c" :e="encounter" />
+       </cell>
+     </ul>
+diff --git a/components/user/cell.vue b/components/user/cell.vue
+index fe0acbb..f3ad487 100644
+--- a/components/user/cell.vue
++++ b/components/user/cell.vue
+@@ -69,13 +69,13 @@ export default {
+           return filters.pct(value, 0)
+ 
+         case 'critcounts':
+-          return value.join('/')
++          return value.map(v => filters.decimal(v, 0)).join('/')
+         case 'critpcts':
+           value = this.combatant.critcounts
+-          return value.map(_ => (_ / this.combatant.swings * 100).toFixed(0)).join('/') + '%'
++          return value.map(_ => filters.decimal(_ / this.combatant.swings * 100, 0)).join('/') + '%'
+ 
+         default:
+-          return value
++          return typeof value === 'number' && !Number.isFinite(value) ? '—' : value
+       }
+     },
+   },
+diff --git a/components/user/detailed-view.vue b/components/user/detailed-view.vue
+index be8467c..f376e20 100644
+--- a/components/user/detailed-view.vue
++++ b/components/user/detailed-view.vue
+@@ -29,7 +29,7 @@
+         :value="c.swings / e.duration * 2.5 | decimal" /> -->
+       <row
+         title="D/!/!!!"
+-        :value="c.critcounts.join('/')"
++        :value="c.critcounts.map(value => Number.isFinite(value) ? value : '—').join('/')"
+         v-if="!reduced" />
+       <div class="row">
+         <graph type="dps-crit" :combatant="c" />
+diff --git a/components/user/details-row.vue b/components/user/details-row.vue
+index 0fc91d2..81def49 100644
+--- a/components/user/details-row.vue
++++ b/components/user/details-row.vue
+@@ -21,11 +21,8 @@ export default {
+   },
+   computed: {
+     values() {
+-      if(Array.isArray(this.value)) {
+-        return this.value
+-      } else {
+-        return [this.value]
+-      }
++      const values = Array.isArray(this.value) ? this.value : [this.value]
++      return values.map(value => value == null || (typeof value === 'number' && !Number.isFinite(value)) ? '—' : value)
+     }
+   }
+ }
+diff --git a/index.html b/index.html
+index 1180c86..8a25ddb 100644
+--- a/index.html
++++ b/index.html
+@@ -1,6 +1,7 @@
+ <!DOCTYPE html>
+ <html>
+   <head>
++<script src="/plugin/ngld.js"></script>
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title> ikegami </title>
+diff --git a/lib/layer.js b/lib/layer.js
+index 2fcd03b..6663da9 100644
+--- a/lib/layer.js
++++ b/lib/layer.js
+@@ -1,267 +1,16 @@
+-'use strict'
+-
+ import EventEmitter from './event-emitter'
+-
+-const resolveSockURI = function() {
+-  let o = /[?&]HOST_PORT=(wss?:\/\/[^&\/]+)/.exec(location.search)
+-  return o && o[1]
+-}
+-
+-const RECONNECT_TIMEOUT = 2000
+-const RECONNECT_RETRY = 5
+-
+-const WS_REQUEST_COMMAND = {
+-  'end': 'RequestEnd',
+-  'capture': 'Capture'
+-}
+-
+-const MESSAGE_STRIP = /\x02.+\x03([^\x03]|$)/
+-
+-class Layer extends EventEmitter {
+-  constructor() {
+-    super()
+-
+-    this.type = false
+-    this.features = []
+-    this.status = {}
+-
+-    window.addEventListener('message', e => {
+-      this.emit('message', {
+-        type: 'window',
+-        message: e.data
+-      })
+-    })
+-  }
+-  supports(feature) {
+-    return this.features.indexOf(feature) !== -1
+-  }
+-  connect() { return true }
+-  request(feature) { return false }
+-}
+-
+-export class WSLayer extends Layer {
+-
+-  constructor() {
+-    super()
+-
+-    this.type = 'ws'
+-    this.features = ['end', 'capture']
+-
+-    this.uri = resolveSockURI()
+-    this.ws = {}
+-
+-    if(this.uri === 'ws://:10501') {
+-      this.uri = 'ws://localhost:10501'
+-    }
+-
+-    this.canRetry = RECONNECT_RETRY
+-    this.retryTimeout = null
+-    this._overlayid = ''
+-
+-    window.addEventListener('message', e => {
+-      this.emit('message', e.data)
+-    })
+-  }
+-
++class NgldLayer extends EventEmitter {
++  constructor() { super(); this.type = 'ngld'; this.features = ['end']; this.status = {} }
++  supports(feature) { return this.features.includes(feature) }
+   connect() {
+-    if(!this.uri) return false
+-
+-    this.ws = new WebSocket(this.uri + '/MiniParse')
+-
+-    this.ws.onmessage = e => {
+-      this.canRetry = RECONNECT_RETRY
+-      this._onmessage(e)
+-    }
+-
+-    const onerror = e => {
+-      this.ws.close()
+-      console.error(e)
+-    }
+-    const onclose = e => {
+-      if(!this.canRetry) return
+-      this.emit('closed', {
+-        code: e.code,
+-        reconnecting: this.canRetry--
+-      })
+-      this.retryTimeout = setTimeout(_ => {
+-        this.connect()
+-      }, 2000)
+-    }
+-
+-    this.ws.onerror = onerror
+-    this.ws.onclose = onclose
++    window.addOverlayListener('CombatData', data => this.emit('data', data))
++    window.addOverlayListener('ChangePrimaryPlayer', data => this.emit('player', data))
++    window.addOverlayListener('OverlayStateUpdate', data => this.emit('status', { type: 'lock', message: data.isLocked }))
++    window.startOverlayEvents()
+   }
+-
+   request(feature) {
+-    if(!(feature in WS_REQUEST_COMMAND)) {
+-      return false
+-    }
+-    if('overlayWindowId' in window && this._overlayid !== overlayWindowId) {
+-      this._overlayid = window.overlayWindowId
+-      this._send({ // WHY THE FUCK
+-        type: 'set_id',
+-        id: this._overlayid
+-      })
+-    }
+-    this._send({
+-      type: 'overlayAPI',
+-      to: this._overlayid,
+-      msgtype: WS_REQUEST_COMMAND[feature],
+-      msg: undefined
+-    })
+-  }
+-
+-  _send(m) {
+-    if(this.ws.readyState === 1) {
+-      if(typeof m === 'string') {
+-        this.ws.send(m)
+-      } else {
+-        this.ws.send(JSON.stringify(m))
+-      }
+-      return true
+-    } else return false
+-  }
+-
+-  _premessage(e, responsePing = false) {
+-    if(e.data === '.') {
+-      if(responsePing) {
+-        this._send('.') // pong!
+-      }
+-      return
+-    }
+-
+-    try {
+-      return JSON.parse(e.data)
+-    } catch(err) {
+-      console.error(err, e.data)
+-      return
+-    }
+-  }
+-
+-  _onmessage(e) {
+-    const d = this._premessage(e)
+-    if(!d) return
+-
+-    if(d.type === 'send')
+-      this.emit('message', {
+-        type: 'single',
+-        from: d.from,
+-        message: d.msg
+-      })
+-
+-    else if(d.type === 'set_id')
+-      this._overlayid = d.id
+-
+-    else switch(d.msgtype) {
+-
+-      case 'broadcast':
+-        this.emit('message', {
+-          type: 'broadcast',
+-          from: d.from,
+-          message: d.msg
+-        })
+-        break
+-
+-      case 'CombatData':
+-        this.emit('data', d.msg)
+-        break
+-
+-      case 'SendCharName':
+-        this.emit('logline', {
+-          type: 2,
+-          ts: Date.now(),
+-          payload: [ d.msg.charID.toString(16), d.msg.charName ]
+-        })
+-        break
+-
+-      case 'Chat':
+-        const [ opcode, timestamp, ...tokens ] = d.msg.split('|')
+-
+-        this.emit('logline', {
+-          type: parseInt(opcode, 10),
+-          ts: timestamp,
+-          payload: tokens
+-        })
+-        break
+-
+-      // case 'AddCombatant':
+-        // (opcode: 3) id, name, job, level, max_hp, max_mp, owner_id
+-
+-    }
+-  }
+-
+-}
+-
+-export class LegacyLayer extends Layer {
+-
+-  constructor() {
+-    super()
+-    this.type = 'legacy'
+-    this.connected = false
+-    this.features = []
+-
+-    this.status.locked = false
+-    if(window.OverlayPluginApi && window.OverlayPluginApi.endEncounter) {
+-      this.features.push('end')
+-    }
+-  }
+-
+-  connect() {
+-    if(this.connected) return
+-    document.addEventListener('onOverlayDataUpdate', e => {
+-      this.emit('data', e.detail)
+-    })
+-    document.addEventListener('onOverlayStateUpdate', e => {
+-      this.status.locked = e.detail.isLocked
+-      this.emit('status', {
+-        type: 'lock',
+-        message: e.detail.isLocked
+-      })
+-    })
+-    document.addEventListener('onBroadcastMessageReceive', e => {
+-      this.emit('message', {
+-        type: 'broadcast',
+-        message: e.detail.message
+-      })
+-    })
+-    document.addEventListener('onRecvMessage', e => {
+-      this.emit('message', {
+-        type: 'single',
+-        message: e.detail.message
+-      })
+-    })
+-    document.addEventListener('onLogLine', e => {
+-      let d = e.detail
+-      if(d.opcode !== undefined) {
+-        if(d.opcode !== 56) {
+-          this.emit('logline', {
+-            type: d.opcode,
+-            ts: d.timestamp,
+-            payload: d.payload
+-          })
+-        } else {
+-          this.emit('echo', d.payload[3])
+-        }
+-      } else {
+-        this.emit('echo', d.message)
+-      }
+-    })
+-    this.connected = true
+-  }
+-
+-  request(feature) {
+-    if(feature === 'end') {
+-      window?.OverlayPluginApi?.endEncounter()
+-      return true
+-    }
++    if (feature === 'end') return window.callOverlayHandler({ call: 'endEncounter' })
+     return false
+   }
+ }
+-
+-export default function DetectLayer() {
+-  if(resolveSockURI()) { // has HOST_PORT?
+-    return WSLayer
+-  } else {
+-    return LegacyLayer
+-  }
+-}
++export default function DetectLayer() { return NgldLayer }
+diff --git a/lib/util.js b/lib/util.js
+index 6a71d22..c57d36c 100644
+--- a/lib/util.js
++++ b/lib/util.js
+@@ -7,6 +7,7 @@ const DECIMAL_POSTFIXES = {
+ 
+ const decimal = function filter_decimal(v, digit = 1, _default = 0) {
+   v = typeof v === 'number'? v : parseFloat(v)
++  if (!Number.isFinite(v)) return '—'
+   digit = +digit // loose conversion to number
+ 
+   if(digit < 0) {
+@@ -23,12 +24,12 @@ const decimal = function filter_decimal(v, digit = 1, _default = 0) {
+     }
+ 
+   } else {
+-    return (v || _default).toFixed(digit)
++    return v.toFixed(digit)
+   }
+ }
+ 
+ const pct = function filter_pct(_, decimals = 1) {
+-  return ((_ || '') * 100).toFixed(decimals) + '%'
++  return Number.isFinite(_) ? (_ * 100).toFixed(decimals) + '%' : '—'
+ }
+ 
+ const pad = function filter_pad(_, mindigit = 2) {
+diff --git a/store/_initateLayer.js b/store/_initateLayer.js
+index 03ff8f8..bf19517 100644
+--- a/store/_initateLayer.js
++++ b/store/_initateLayer.js
+@@ -5,8 +5,8 @@ export default function initateLayer(layer) {
+     store.dispatch('encounter/update', d)
+   })
+ 
+-  layer.on('logline', d => {
+-    store.dispatch('encounter/logline', d)
++  layer.on('player', d => {
++    store.commit('settings/setName', [String(d.charID), d.charName])
+   })
+ 
+   layer.on('status', d => {
+diff --git a/store/encounter.js b/store/encounter.js
+index 5fa4e84..f513ef8 100644
+--- a/store/encounter.js
++++ b/store/encounter.js
+@@ -84,9 +84,12 @@ export default {
+   },
+   mutations: {
+     setEncounter(state, encounter) {
+-      const [ user, skill, amount ] = encounter.maxhit.split('-')
++      const maximum = (encounter.maxhit || '').split('-')
++      const amount = maximum.pop()
++      const skill = maximum.pop() || '—'
++      const user = maximum.join('-')
+       Vue.set(state, 'encounter', {
+-        duration:  parseInt(encounter.DURATION),
++        duration:  parseFloat(encounter.DURATION),
+         title:              encounter.title,
+         zone:               encounter.CurrentZoneName,
+         rdps:    parseFloat(encounter.encdps),
+@@ -113,9 +116,10 @@ export default {
+           continue
+         }
+ 
+-        const [ dskill = '---', damount = '0' ] = c.maxhit.split('-')
+-        const [ hskill = '---', hamount = '0' ] = c.maxheal.split('-')
++        const [ dskill = '---', damount = '' ] = (c.maxhit || '').split('-')
++        const [ hskill = '---', hamount = '' ] = (c.maxheal || '').split('-')
+         const o = {
++          overlayKey: k,
+           job:                _job,
+           name:               _name,
+          _name:               c.name, // used by object keying
+@@ -149,7 +153,7 @@ export default {
+           o.name = dskill || hskill || o.name
+         }
+ 
+-        players[o._name] = o
++        players[k] = o
+       }
+ 
+       for(let index in players) {
+@@ -201,7 +205,7 @@ export default {
+                 break
+ 
+               default:
+-                ownerData[k] = (old + pet) || 0
++                if (typeof old === 'number' && typeof pet === 'number') ownerData[k] = old + pet
+             }
+           }
+ 
+@@ -219,7 +223,7 @@ export default {
+ 
+         o.critcounts = [ o.dh, o.ch, o.cdh ]
+ 
+-        o.ohpct = o.oh / o.healed || 0
++        o.ohpct = o.healed > 0 ? o.oh / o.healed : NaN
+       }
+ 
+       players = Object.keys(players).map(_ => players[_]).sort((a, b) => b.dps - a.dps)
+@@ -236,7 +240,7 @@ export default {
+   actions: {
+     // Listeners
+     update({ commit, rootGetters }, { Encounter, Combatant, isActive }) {
+-      if(!Encounter || Encounter.hits < 1) {
++      if(!Encounter) {
+         return
+       }
+       commit('setEncounter', Encounter)
+diff --git a/vite.config.js b/vite.config.js
+index 6797644..cafa5f8 100644
+--- a/vite.config.js
++++ b/vite.config.js
+@@ -5,12 +5,10 @@ import { tarball } from 'vite-plugin-compression2'
+ 
+ // https://vitejs.dev/config/
+ export default defineConfig(({ mode }) => ({
+-  base: './',
++  base: '/plugin/',
+   plugins: [
+     vue(),
+-    mode === 'production' && tarball({
+-      dest: `${packageinfo.name}-${packageinfo.version}`
+-    })
++    
+   ],
+   resolve: {
+     alias: {

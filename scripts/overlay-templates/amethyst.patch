@@ -1,0 +1,712 @@
+diff --git a/index.html b/index.html
+index fe887fd..d587090 100755
+--- a/index.html
++++ b/index.html
+@@ -1,10 +1,11 @@
+ <!DOCTYPE html>
+ <html>
+ 	<head>
++<script src="/plugin/ngld.js"></script>
+ 		<meta charset="utf-8">
+ 		<title>FFXIV Fancy Detail Amethyst Edition</title>
+ 		<link href="css/default.css" rel="stylesheet">
+-		<script>var wsUri = "ws://@HOST_PORT@/MiniParse"; /*DO NOT EDIT THIS VALUE*/</script>
++		
+ 		<script src="js/jquery-3.2.1.min.js" type="text/javascript"></script>
+ 		<script src="js/cleaveore.js"></script>
+ 		<link rel="shortcut icon" href="./favicon.ico">
+@@ -368,13 +369,13 @@
+ 			{
+ 				$(".encounter>.duration").text(lastCombat.Encounter.duration);
+ 				$(".encounter>.title").text(lastCombat.Encounter.title);
+-				$(".encounter>.RDPS").text(Math.floor(lastCombat.Encounter.encdps));
+-				$(".encounter>.RHPS").text(Math.floor(lastCombat.Encounter.enchps));
++				$(".encounter>.RDPS").text(displayNumber(Math.floor(lastCombat.Encounter.encdps)));
++				$(".encounter>.RHPS").text(displayNumber(Math.floor(lastCombat.Encounter.enchps)));
+ 		
+ 				$('.ncount')
+ 				.each(function()
+ 				{
+-					if(option.numbanim == !0)
++					if(option.numbanim == !0 && Number.isFinite(Number($(this).text())))
+ 					{
+ 						$(this).prop('Counter',$(this).attr("data-prev"))
+ 						.animate({
+@@ -390,8 +391,8 @@
+ 					}
+ 				});
+ 
+-				$(".encounter>.RDPS").attr("data-prev", Math.floor(lastCombat.Encounter.encdps));
+-				$(".encounter>.RHPS").attr("data-prev", Math.floor(lastCombat.Encounter.enchps));
++				$(".encounter>.RDPS").attr("data-prev", displayNumber(Math.floor(lastCombat.Encounter.encdps)));
++				$(".encounter>.RHPS").attr("data-prev", displayNumber(Math.floor(lastCombat.Encounter.enchps)));
+ 
+ 				if($(".body").is(".raid"))
+ 				{
+@@ -431,7 +432,7 @@
+ 					for(var i in e[0].Combatant)
+ 					{
+ 						var c = e[0].Combatant[i];
+-						var name = c.name.replace(/(\s|'|\.|\"|\(|\))/ig,"_");
++						var name = 'actor_' + Array.from(c.overlayKey).map(function (char) { return char.codePointAt(0).toString(16); }).join('_');
+ 						var person = ".body>." + x + ">." + name;
+ 
+ 						if($(".body>." + x).find("." + name).length == 0)
+@@ -631,6 +632,7 @@
+ 								{
+ 									var colname = e[1][ix].replace(/%/ig, '_');
+ 									var v = c.get(e[1][ix]);
++                                    if (v === undefined || v === null || (typeof v === 'number' && !Number.isFinite(v))) v = '—';
+ 									var orgcol = e[1][ix];
+ 									var width = 50;
+ 
+@@ -639,10 +641,10 @@
+ 								}
+ 
+ 								if($(".body").is(".raid"))
+-									v = parseFloat(v).toFixed(0);
++									v = Number.isFinite(parseFloat(v)) ? parseFloat(v).toFixed(0) : '—';
+ 	
+ 								if(orgcol.indexOf("%") > -1)
+-									v = parseFloat(v).toFixed(1) + "%";
++									v = Number.isFinite(parseFloat(v)) ? parseFloat(v).toFixed(1) + '%' : '—';
+ 								else if (typeof v === "number")
+ 								{
+ 									if(v>1000000)
+@@ -654,9 +656,9 @@
+ 								}
+ 	
+ 								if(colname == "maxhit")
+-									v = c.get("maxhitstr").replace(/Midare Setsugekka/, "Midare…") + "-" + c.get("maxhitval");
++									v = c.get("maxhitstr").replace(/Midare Setsugekka/, "Midare…") + "-" + displayNumber(c.get("maxhitval"));
+ 								else if(colname == "maxheal")
+-									v = c.get("maxhealstr") + "-" + c.get("maxhealval");
++									v = c.get("maxhealstr") + "-" + displayNumber(c.get("maxhealval"));
+ 	
+ 								if(classExists(person, ".data>.columns>." + colname))
+ 									$(person + ">.data>.columns").append("<span class='" + colname + "' data-prev='0'>"+v+"</span>");
+@@ -675,7 +677,7 @@
+ 						var hided = false;
+ 						for(var i in e[0].Combatant)
+ 						{
+-							var name = e[0].Combatant[i].name.replace(/(\s|'|\.|\"|\(|\))/ig,"_");
++							var name = 'actor_' + Array.from(e[0].Combatant[i].overlayKey).map(function (char) { return char.codePointAt(0).toString(16); }).join('_');
+ 							if($(this).is("."+name))
+ 							{
+ 								exists = true;
+@@ -706,7 +708,7 @@
+ 					for(var i in e[0].Combatant)
+ 					{
+ 						var c = e[0].Combatant[i];
+-						var name = c.name.replace(/(\s|'|\.|\"|\(|\))/ig,"_");
++						var name = 'actor_' + Array.from(c.overlayKey).map(function (char) { return char.codePointAt(0).toString(16); }).join('_');
+ 						var cdiv = "." + x + ">."+name;
+ 						
+ 						if(x == "hpsarea" && c.enchps == 0)
+diff --git a/js/cleaveore.js b/js/cleaveore.js
+index 0021367..6f7827b 100644
+--- a/js/cleaveore.js
++++ b/js/cleaveore.js
+@@ -28,7 +28,7 @@ String.prototype.replaceArray = function(a)
+ 
+ Number.prototype.nanFix = function()
+ {
+-	return parseFloat(isNaN(this)?0:this);
++	return Number.isFinite(Number(this)) ? Number(this) : NaN;
+ };
+ 
+ Number.prototype.numFormat = new function()
+@@ -352,15 +352,16 @@ Language = function(l)
+ },
+ Person = function(e, p)
+ {
++    this.inputRates = Object.fromEntries(['dps', 'encdps', 'hps', 'enchps'].map(key => [key, parseFloat(e[key])]));
+ 	this.recalculate = function()
+ 	{
+ 		var dur = this.DURATION;
+ 		if (dur == 0) dur = 1;
+ 
+-		this.dps = pFloat(this.mergedDamage / dur);
+-		this.encdps = pFloat(this.mergedDamage / this.parent.DURATION);
+-		this.hps = pFloat(this.mergedHealed / dur);
+-		this.enchps = pFloat(this.mergedHealed / this.parent.DURATION);
++		this.dps = inputRate(this, "dps");
++		this.encdps = inputRate(this, "encdps");
++		this.hps = inputRate(this, "hps");
++		this.enchps = inputRate(this, "enchps");
+ 
+ 		this["DAMAGE-k"] = Math.floor(this.mergedDamage / 1000);
+ 		this["DAMAGE-m"] = Math.floor(this.mergedDamage / 1000000);
+@@ -438,19 +439,20 @@ Person = function(e, p)
+ 	/* REWORK TAKEN VALUES */
+ 	for(var i in e)
+ 	{
++        if (i === 'Job' || i === 'name' || i === 'ID') { this[i] = e[i]; continue; }
+ 		if (i.indexOf("NAME") > -1) continue;
+ 		if (i == "t" || i == "n") continue;
+ 		var onlyDec = e[i].replace(/[0-9.,%]+/ig, "");
+ 		if (onlyDec != "")
+ 		{
+ 			if (onlyDec == "---" || onlyDec == "--")
+-				this[i] = 0;
++				this[i] = NaN;
+ 			else
+ 				this[i] = e[i];
+ 		}
+ 		else
+ 		{
+-			var tmp = parseFloat(e[i].replace(/[,%]+/ig, "")).nanFix().toFixed(underDot);
++			var tmp = parseFloat(e[i].replace(/[,%]+/ig, "")).nanFix();
+ 			if (e[i].indexOf("%") > 0)
+ 				this[i] = parseFloat(tmp);
+ 			else if (Math.floor(tmp) != tmp || e[i].indexOf(".") > 0)
+@@ -505,31 +507,31 @@ Person = function(e, p)
+ 	};
+ 	
+ 	this.maxhitstr = "";
+-	this.maxhitval = 0;
++	this.maxhitval = NaN;
+ 
+ 	this.maxhealstr = "";
+-	this.maxhealval = 0;
++	this.maxhealval = NaN;
+ 
+ 	/* FIX MAXHIT */
+ 	try
+ 	{
+-		this.maxhitstr = parent.langpack.get(this.maxhit.substring(0, this.maxhit.indexOf("-")));
++		this.maxhitstr = langpack.get(this.maxhit.substring(0, this.maxhit.indexOf("-")));
+ 		this.maxhitval = parseInt(this.maxhit.substring(this.maxhit.indexOf("-") + 1).replace(/[,.]/, "")).nanFix();
+ 	}
+ 	catch (ex)
+ 	{
+-		this.maxhit = "?-0";
++		this.maxhit = "—";
+ 	}
+ 
+ 	/* FIX MAXHEAL */
+ 	try
+ 	{
+-		this.maxhealstr = parent.langpack.get(this.maxheal.substring(0, this.maxheal.indexOf("-")));
++		this.maxhealstr = langpack.get(this.maxheal.substring(0, this.maxheal.indexOf("-")));
+ 		this.maxhealval = parseInt(this.maxheal.substring(this.maxheal.indexOf("-") + 1).replace(/[,.]/, "")).nanFix();
+ 	}
+ 	catch (ex)
+ 	{
+-		this.maxheal = "?-0";
++		this.maxheal = "—";
+ 	}
+ 
+ 	/* IF NAME HAVE SPACE, TO MAKE INITIAL NAME */
+@@ -551,8 +553,8 @@ Person = function(e, p)
+ 	/* FIX INFINITY */
+ 	if (this.DURATION <= 0)
+ 	{
+-		this.dps = parseFloat((this.damage / this.parent.DURATION).nanFix().toFixed(underDot));
+-		this.hps = parseFloat((this.healed / this.parent.DURATION).nanFix().toFixed(underDot));
++		this.dps = this.inputRates.dps;
++		this.hps = this.inputRates.hps;
+ 
+ 		this.DPS = Math.floor(this.dps);
+ 		this.HPS = Math.floor(this.hps);
+@@ -563,7 +565,7 @@ Person = function(e, p)
+ 		for(var i in this)
+ 		{
+ 			if (this[i] == "∞" || this[i] == "infinity")
+-				this[i] = 0;
++				this[i] = NaN;
+ 		}
+ 	}
+ 
+@@ -711,7 +713,7 @@ Combatant = function(e, sortkey, lang)
+ 
+ 		for (var i in tmp) 
+ 		{
+-			this.Combatant[tmp[i].val.name] = tmp[i].val;
++			this.Combatant[tmp[i].val.overlayKey] = tmp[i].val;
+ 		}
+ 
+ 		for (var i in this.Combatant) 
+@@ -813,13 +815,13 @@ Combatant = function(e, sortkey, lang)
+ 		if (onlyDec != "")
+ 		{
+ 			if (onlyDec == "---" || onlyDec == "--")
+-				this.Encounter[i] = 0;
++				this.Encounter[i] = NaN;
+ 			else
+ 				this.Encounter[i] = e.detail.Encounter[i];
+ 		}
+ 		else
+ 		{
+-			var tmp = parseFloat(e.detail.Encounter[i].replace(/[,%]+/ig, "")).nanFix().toFixed(underDot);
++			var tmp = parseFloat(e.detail.Encounter[i].replace(/[,%]+/ig, "")).nanFix();
+ 			if (e.detail.Encounter[i].indexOf("%") > 0)
+ 				this.Encounter[i] = parseFloat(tmp);
+ 			else if (Math.floor(tmp) != tmp || e.detail.Encounter[i].indexOf(".") > 0)
+@@ -832,6 +834,7 @@ Combatant = function(e, sortkey, lang)
+ 	for(var i in e.detail.Combatant)
+ 	{
+ 		this.Combatant[i] = new Person(e.detail.Combatant[i], this);
++        this.Combatant[i].overlayKey = i;
+ 	}
+ 
+ 	/* Refresh parent */
+@@ -865,214 +868,11 @@ Combatant = function(e, sortkey, lang)
+ 	this.summonerMerge = !0;
+ 	this.sortkey = sortkey;
+ 	this.isActive = e.detail.isActive;
+-	this.combatKey = this.Encounter.title.concat(this.Encounter.damage).concat(this.Encounter.healed);
++	this.combatKey = String(mojitoCombatKey);
+ 	this.persons = this.Combatant;
+ 
+ 	this.resort();
+ },
+-ActWebsocketInterface = function(uri, path)
+-{
+-	this.connect = function()
+-	{
+-		if(typeof this.websocket != "undefined" && this.websocket != null)
+-			this.close();
+-		this.activate = true;
+-		var This = this;
+-		this.websocket = new WebSocket(this.uri);
+-		this.websocket.onopen = function(evt) {This.onopen(evt);};
+-		this.websocket.onmessage = function(evt) {This.onmessage(evt);};
+-		this.websocket.onclose = function(evt) {This.onclose(evt);};
+-		this.websocket.onerror = function(evt) {This.onerror(evt);};
+-	};
+-	this.close = function()
+-	{
+-		this.activate = false;
+-		if(this.websocket != null && typeof this.websocket != "undefined")
+-		{
+-			this.websocket.close();
+-		}
+-	};
+-	this.onopen = function(evt)
+-	{
+-		// get id from useragent
+-		if(this.id != null && typeof this.id != "undefined")
+-		{
+-			this.set_id(this.id);
+-		}
+-		else
+-		{
+-			if(typeof overlayWindowId != "undefined")
+-			{
+-				this.set_id(overlayWindowId);
+-			}
+-			else
+-			{
+-				var r = new RegExp('[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}');
+-				var id = r.exec(navigator.userAgent);
+-				if(id != null && id.length == 1)
+-				{
+-					this.set_id(id[0]);
+-				}
+-			}
+-		}
+-	};
+-	this.onclose = function()
+-	{
+-		this.websocket = null;
+-		if(this.activate)
+-		{
+-			var This = this;
+-			setTimeout(function() {This.connect();}, 5000);
+-		}
+-	};
+-	this.onmessage = function(evt)
+-	{
+-		if (evt.data == ".")
+-		{
+-			// ping pong
+-			this.websocket.send(".");
+-		}
+-		else
+-		{
+-			try{
+-				var obj = JSON.parse(evt.data);
+-				var type = obj["type"];
+-				if(type == "broadcast")
+-				{
+-					var from = obj["from"];
+-					var type = obj["msgtype"];
+-					var msg = obj["msg"];
+-					document.dispatchEvent(new CustomEvent('onBroadcastMessage', { detail: obj }));
+-				}
+-				if(type == "send")
+-				{
+-					var from = obj["from"];
+-					var type = obj["msgtype"];
+-					var msg = obj["msg"];
+-					document.dispatchEvent(new CustomEvent('onRecvMessage', { detail: obj }));
+-				}
+-				if(type == "set_id")
+-				{
+-					//document.dispatchEvent(new CustomEvent('onIdChanged', { detail: obj }));
+-				}
+-			}
+-			catch(e)
+-			{
+-			}
+-		}
+-	};
+-	this.onerror = function(evt)
+-	{
+-		this.websocket.close();
+-		console.log(evt);
+-	};
+-	this.getQuerySet = function()
+-	{
+-		var querySet = {};
+-		// get query 
+-		var query = window.location.search.substring(1);
+-		var vars = query.split('&');
+-		for (var i = 0; i < vars.length; i++) {
+-			try{
+-				var pair = vars[i].split('=');
+-				querieSet[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+-			}
+-			catch(e)
+-			{
+-			}
+-		}
+-		return querySet;
+-	};
+-	this.broadcast = function(type, msg)
+-	{
+-		if(typeof overlayWindowId != 'undefined' && this.id != overlayWindowId)
+-		{
+-			this.set_id(overlayWindowId);
+-		}
+-		var obj = {};
+-		obj["type"] = "broadcast";
+-		obj["msgtype"] = type;
+-		obj["msg"] = msg;
+-		this.websocket.send(JSON.stringify(obj));
+-	};
+-	this.send = function(to, type, msg)
+-	{
+-		if(typeof overlayWindowId != 'undefined' && this.id != overlayWindowId)
+-		{
+-			this.set_id(overlayWindowId);
+-		}
+-		var obj = {};
+-		obj["type"] = "send";
+-		obj["to"] = to;
+-		obj["msgtype"] = type;
+-		obj["msg"] = msg;
+-		this.websocket.send(JSON.stringify(obj));
+-	};
+-	this.overlayAPI = function(type, msg)
+-	{
+-		var obj = {};
+-		if(typeof overlayWindowId != 'undefined' && this.id != overlayWindowId)
+-		{
+-			this.set_id(overlayWindowId);
+-		}
+-		obj["type"] = "overlayAPI";
+-		obj["to"] = overlayWindowId;
+-		obj["msgtype"] = type;
+-		obj["msg"] = msg;
+-		this.websocket.send(JSON.stringify(obj));
+-	};
+-	this.set_id = function(id)
+-	{
+-		var obj = {};
+-		obj["type"] = "set_id";
+-		obj["id"] = id;
+-		this.id = overlayWindowId;
+-		this.websocket.send(JSON.stringify(obj));
+-	};
+-	this.onRecvMessage = function(e)
+-	{
+-		onRecvMessage(e);
+-	}
+-
+-	this.onBroadcastMessage = function(e)
+-	{
+-		onBroadcastMessage(e);
+-	}
+-
+-	if(path == undefined) 
+-		path = "MiniParse";
+-
+-	var querySet = this.getQuerySet();
+-	var This = this;
+-	if(typeof querySet["HOST_PORT"] !== 'undefined')
+-		uri = querySet["HOST_PORT"] + path;
+-
+-	this.uri = uri;
+-	this.id = null;
+-	this.active = false;
+-	
+-	document.addEventListener('onBroadcastMessage', function(evt) 
+-	{
+-		This.onBroadcastMessage(evt);
+-	});
+-
+-	document.addEventListener('onRecvMessage', function(evt) 
+-	{
+-		This.onRecvMessage(evt);
+-	});
+-	
+-	window.addEventListener('message', function (e) 
+-	{
+-		if (e.data.type === 'onBroadcastMessage') 
+-		{
+-			This.onBroadcastMessage(e.data);
+-		}
+-		if (e.data.type === 'onRecvMessage') 
+-		{
+-			This.onRecvMessage(e.data);
+-		}
+-	});
+-},
+ langpack = new Language("ko");
+ onACTWebSocket = !1,
+ combatLog = [],
+@@ -1104,100 +904,38 @@ specialist = {
+ managedKeys = {"damage":"mergedDamage","hits":"mergedHits","misses":"mergedMisses","swings":"mergedSwings","crithits":"mergedCrithits","DirectHitCount":"mergedDirectHitCount","CritDirectHitCount":"mergedCritDirectHitCount","damagetaken":"mergedDamagetaken","heals":"mergedHeals","healed":"mergedHealed","critheals":"mergedCritheals","healstaken":"mergedHealstaken","damageShield":"mergedDamageShield","overHeal":"mergedOverHeal","absorbHeal":"mergedAbsorbHeal","Last10DPS":"mergedLast10DPS","Last30DPS":"mergedLast30DPS","Last60DPS":"mergedLast60DPS","Last180DPS":"mergedLast180DPS"},
+ host_port = QueryString.HOST_PORT;
+ 
+-try
+-{
+-	if(window.navigator.userAgent.indexOf("OverlayWindow") > -1 && window.navigator.userAgent.indexOf("QtWebEngine") > -1)
+-	{
+-		onACTWebSocket = true;
+-		console.warn("Running on ACTWebSocket Overlay Process");
+-		console.log("%cHello! <" + document.title + " is with Cleave-ORE.js>\nversion 2.0", "font-size:24px; color:#FFF; text-shadow:0px 0px 3px black, 0px 0px 3px black; background:url(https://github.com/laiglinne-ff/FFXIV_Chamsucript/blob/master/fell-cleave.png?raw=true);");
+-	}
+-	else
+-	{
+-		onACTWebSocket = false;
+-	}
+-	
+-	if (document.addEventListener) 
+-	{
+-		document.addEventListener("DOMContentLoaded", function () 
+-		{
+-			document.removeEventListener("DOMContentLoaded", arguments.callee, !1);
+-			domReady();
+-		}, !1);
+-		
+-		window.onbeforeunload = function() 
+-		{
+-			webs.close();
+-		};
+-		
+-		window.addEventListener("unload", function() 
+-		{
+-			webs.close();
+-		}, !1);
+-	}
+-	else if (document.attachEvent) 
+-	{
+-		// Internet Explorer
+-		document.attachEvent("onreadystatechange", function () 
+-		{
+-			if (document.readyState === "complete") 
+-			{
+-				document.detachEvent("onreadystatechange", arguments.callee);
+-				domReady();
+-			}
+-		});
+-	}
+-
+-	if(typeof(host_port) === "undefined")
+-	{
+-		/* FOR LOCAL TEST */
+-		if (document.location.href.indexOf("file")>-1)
+-		{
+-			wsUri = "ws://127.0.0.1:10501/MiniParse";
+-		}
+-	}
+-	else
+-	{
+-		while (host_port.endsWith('/')) 
+-		{
+-			host_port = host_port.substring(0, host_port.length - 1);
+-		}
+-	
+-		if (wsUri.indexOf("//") == 0) 
+-		{
+-			wsUri = wsUri.substring(2);
+-		}
+-	
+-		if (wsUri.indexOf("ws://") == 0 || wsUri.indexOf("wss://") == 0) 
+-		{
+-			if (host_port.indexOf("ws://") == 0 || host_port.indexOf("wss://") == 0)
+-				wsUri = wsUri.replace(/(ws|wss):\/\/@HOST_PORT@/im, host_port);
+-			else
+-				wsUri = wsUri.replace(/@HOST_PORT@/im, host_port);
+-		} 
+-		else 
+-		{
+-			if (host_port.indexOf("ws://") == 0 || host_port.indexOf("wss://") == 0)
+-				wsUri = wsUri.replace(/@HOST_PORT@/im, host_port);
+-			else
+-				wsUri = "ws://" + wsUri.replace(/@HOST_PORT@/im, host_port);
+-		}
+-	}
++var mojitoCombatKey = 0;
++var mojitoWasActive = false;
++document.addEventListener('DOMContentLoaded', domReady, { once: true });
++function receiveCombat(data) {
++    const active = data.isActive === true || data.isActive === 'true';
++    if (!mojitoCombatKey || (active && !mojitoWasActive)) mojitoCombatKey++;
++    mojitoWasActive = active;
++    lastCombatRaw = data;
++    onOverlayDataUpdate({ detail: data });
++    if (lastCombat && lastCombat.Combatant.YOU && myName) lastCombat.Combatant.YOU.displayName = myName;
++}
++function domReady() {
++    if (typeof onDocumentLoad === 'function') onDocumentLoad();
++    window.addOverlayListener('CombatData', receiveCombat);
++    window.addOverlayListener('ChangePrimaryPlayer', function (data) {
++        myName = data.charName;
++        document.dispatchEvent(new CustomEvent('onCharacterNameRecive', { detail: data }));
++        if (lastCombatRaw) onOverlayDataUpdate({ detail: lastCombatRaw });
++    });
++    window.addOverlayListener('OverlayStateUpdate', function (data) {
++        if (typeof onOverlayStateUpdate === 'function') onOverlayStateUpdate({ detail: data });
++    });
++    window.startOverlayEvents();
++}
++function displayNumber(value) {
++    return value !== undefined && value !== null && Number.isFinite(Number(value)) ? String(value) : '—';
++}
++function inputRate(person, key) {
++    let rate = person.inputRates[key];
++    for (const pet of Object.values(person.pets)) rate += pet.inputRates[key];
++    return rate;
+ }
+-catch(ex) { }
+-
+-window.addEventListener('message', function (e) 
+-{
+-	if (e.data.type === 'onBroadcastMessage') 
+-	{
+-		onBroadcastMessage(e.data);
+-	}
+-	if (e.data.type === 'onRecvMessage') 
+-	{
+-		onRecvMessage(e.data);
+-	}
+-});
+-
+ function getLog(e)
+ {
+ 	for(var i in CombatLog)
+@@ -1268,7 +1006,7 @@ function saveLog(e)
+ 
+ function pFloat(num)
+ {
+-	return parseFloat(num.nanFix().toFixed(underDot));
++	return parseFloat(num.nanFix());
+ }
+ 
+ function loadSetting(key)
+@@ -1327,89 +1065,6 @@ function dbg(v)
+ 	}
+ };
+ 
+-function domReady() 
+-{
+-	/* ACTWebSocket 적용 */
+-	try
+-	{
+-		webs = new ActWebsocketInterface(wsUri);
+-		webs.connect();
+-	}
+-	catch(ex)
+-	{
+-
+-	}
+-
+-	// Logline
+-	try { document.addEventListener('beforeLogLineRead', beforeLogLineRead); } catch (ex) { }
+-	try { document.addEventListener('onLogLineRead', onLogLineRead); } catch (ex) { }
+-
+-	// On
+-	try { document.addEventListener('onOverlayDataUpdate', onOverlayDataUpdate); } catch (ex) { console.log("Core Error : onOverlayUpdate is not defined."); }
+-	try { document.addEventListener('onOverlayStateUpdate', onOverlayStateUpdate); } catch (ex) { }
+-
+-	// ReadyEvent
+-	try { onDocumentLoad(); } catch(ex) { }
+-}
+-
+-function onRecvMessage(e)
+-{
+-	if (e.detail.msgtype == "Chat")
+-	{
+-		document.dispatchEvent(new CustomEvent("onChatting",
+-		{
+-			detail: e.detail.msg
+-		}));
+-	} 
+-	else
+-	{
+-		console.log(e.detail.msgtype + ":" + e.detail.msg);
+-	}
+-}
+-
+-/* MESSAGE */
+-function onBroadcastMessage(e)
+-{
+-	if(e.detail.msgtype == "CombatData")
+-	{
+-		lastCombatRaw = e.detail.msg;
+-		lastCombat = new Combatant({detail:lastCombatRaw}, sortKey);
+-
+-		if (lastCombat != null && myName != "" && myName != undefined && myName != null)
+-		{
+-			lastCombat.Combatant["YOU"].displayName = myName;
+-		}
+-
+-		document.dispatchEvent(new CustomEvent('onOverlayDataUpdate',{detail:lastCombatRaw}));
+-	}
+-	else
+-	{
+-		switch(e.detail.msgtype)
+-		{
+-			case "SendCharName":
+-				document.dispatchEvent(new CustomEvent("onCharacterNameRecive",{detail:e.detail.msg}));
+-				myName = e.detail.msg.charName;
+-				break;
+-			case "Chat":
+-				document.dispatchEvent(new CustomEvent("onChatting",
+-				{
+-					detail: e.detail.msg
+-				}));
+-				break;
+-			case "ChangeZone":
+-				//console.log(e.detail.msg);
+-				curzone = e.detail.msg.zoneID;
+-				break;
+-			default:
+-				try
+-				{
+-					document.dispatchEvent(new CustomEvent("onMessage"), e);
+-				}
+-				catch(ex) { }
+-				break;
+-		}
+-	}
+-}
+ 
+ function getsortKey(e)
+ {
+diff --git a/popup.html b/popup.html
+index 36e0a5a..d9fbc47 100755
+--- a/popup.html
++++ b/popup.html
+@@ -128,7 +128,6 @@
+ 								<input type="hidden" name="hosted_button_id" value="4UVRYAGJE5DMW">
+ 								<img src="image/paypal.png" style="margin:0 auto; width:100px; margin-bottom:10px; display:block;"/>
+ 								<button name="submit" style="width:240px; height:30px; border-radius:15px; color:#FFF; border:none; background:#9C77D5; box-sizing:border-box; line-height:30px; padding:0px; font-size:15px; font-weight:bold; margin:0px;">DONATE</button>
+-								<img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
+ 							</form>
+ 						</div>
+ 						<div style="margin-left:40px; margin-right:40px; padding:5px; text-align:center; border-top:2px solid #9C77D5; border-bottom:2px solid #9C77D5; margin-top:30px; text-align:center; color:#9C77D5;">

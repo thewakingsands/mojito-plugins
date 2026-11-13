@@ -1,0 +1,246 @@
+diff --git a/.env-cmdrc b/.env-cmdrc
+index 1fdc651..90b004b 100644
+--- a/.env-cmdrc
++++ b/.env-cmdrc
+@@ -1,37 +1,37 @@
+ {
+-	"default": {
+-		"REACT_APP_ROUTER_BASE": "/ember",
+-		"REACT_APP_HTTP_BASE": "/ember",
+-		"REACT_APP_REDIRECT_URL": "https://overlays.ffcafe.cn/ember",
+-		"REACT_APP_VERSION": "0.1.0",
+-		"REACT_APP_GITHUB_URL": "https://github.com/ffcafe-overlays/ffxiv-ember-overlay",
+-		"REACT_APP_DISCORD_URL": "https://discord.gg/invite",
+-		"REACT_APP_AUTHOR_URL": "https://github.com/GoldenChrysus/ffxiv-ember-overlay",
+-		"REACT_APP_TWITCH_API_CLIENT_ID": "your_api_client_id",
+-		"REACT_APP_CASH_DONATE_LINK": "https://cash.app/$username",
+-		"REACT_APP_PAYPAL_DONATE_LINK": "https://paypal.me/username",
+-		"REACT_APP_STREAMLABS_DONATE_LINK": "https://streamlabsurl.com",
+-		"REACT_APP_KOFI_DONATE_LINK": "https://ko-fi.com/username",
+-		"REACT_APP_PATREON_DONATE_LINK": "https://www.patreon.com/username",
+-		"REACT_APP_PAYPAY_DONATE_LINK": "https://qr.paypay.ne.jp/paypay_code",
+-		"REACT_APP_PAYPAY_DONATE_ID": "your_paypay_id"
+-	},
+-	"development": {
+-		"REACT_APP_PAGE_TITLE": "Development Environment",
+-		"REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF3",
+-		"REACT_APP_ENV": "development"
+-	},
+-	"staging": {
+-		"REACT_APP_PAGE_TITLE": "Staging Environment",
+-		"REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF2",
+-		"REACT_APP_ENV": "staging"
+-	},
+-	"production": {
+-		"REACT_APP_PAGE_TITLE": "Production Environment",
+-		"REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF1",
+-		"REACT_APP_ENV": "production"
+-	},
+-	"nonssl": {
+-		"REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF4"
+-	}
++  "default": {
++    "REACT_APP_ROUTER_BASE": "/plugin",
++    "REACT_APP_HTTP_BASE": "/plugin",
++    "REACT_APP_REDIRECT_URL": "",
++    "REACT_APP_VERSION": "0.1.0",
++    "REACT_APP_GITHUB_URL": "https://github.com/ffcafe-overlays/ffxiv-ember-overlay",
++    "REACT_APP_DISCORD_URL": "https://discord.gg/invite",
++    "REACT_APP_AUTHOR_URL": "https://github.com/GoldenChrysus/ffxiv-ember-overlay",
++    "REACT_APP_TWITCH_API_CLIENT_ID": "your_api_client_id",
++    "REACT_APP_CASH_DONATE_LINK": "https://cash.app/$username",
++    "REACT_APP_PAYPAL_DONATE_LINK": "https://paypal.me/username",
++    "REACT_APP_STREAMLABS_DONATE_LINK": "https://streamlabsurl.com",
++    "REACT_APP_KOFI_DONATE_LINK": "https://ko-fi.com/username",
++    "REACT_APP_PATREON_DONATE_LINK": "https://www.patreon.com/username",
++    "REACT_APP_PAYPAY_DONATE_LINK": "https://qr.paypay.ne.jp/paypay_code",
++    "REACT_APP_PAYPAY_DONATE_ID": "your_paypay_id"
++  },
++  "development": {
++    "REACT_APP_PAGE_TITLE": "Development Environment",
++    "REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF3",
++    "REACT_APP_ENV": "development"
++  },
++  "staging": {
++    "REACT_APP_PAGE_TITLE": "Staging Environment",
++    "REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF2",
++    "REACT_APP_ENV": "staging"
++  },
++  "production": {
++    "REACT_APP_PAGE_TITLE": "Production Environment",
++    "REACT_APP_GOOGLE_TAG_MANAGER_ID": "",
++    "REACT_APP_ENV": "production"
++  },
++  "nonssl": {
++    "REACT_APP_GOOGLE_TAG_MANAGER_ID": "GTM-ABCDEF4"
++  }
+ }
+diff --git a/src/components/Parser/PlayerTable.js b/src/components/Parser/PlayerTable.js
+index 07e2e2f..c0d1cc8 100644
+--- a/src/components/Parser/PlayerTable.js
++++ b/src/components/Parser/PlayerTable.js
+@@ -55,7 +55,7 @@ class PlayerTable extends React.Component {
+ 
+ 				if (Constants.PlayerMetricsSummable.indexOf(key) !== -1) {
+ 					footer.push(
+-						<div className='column' key={key}>{GameDataProcessor.convertToLocaleFormat(key, Number(this.props.encounter[key]) || 0)}</div>,
++						<div className='column' key={key}>{GameDataProcessor.convertToLocaleFormat(key, this.props.encounter[key])}</div>,
+ 					);
+ 				} else {
+ 					footer.push(
+@@ -151,7 +151,7 @@ class PlayerTable extends React.Component {
+ 			}
+ 
+ 			const blur       = (player_blur && !player._is_current);
+-			const player_obj = <Player key={"player-component-" + player._name} percent={player._percent} percent_bars={percent_bars} player={player} players={sorted_players} encounter={this.props.encounter} columns={this.props.table_columns[table_type]} type={this.props.type} blur={blur} icon_blur={this.props.icon_blur} short_names={short_names} horizontal={this.props.horizontal} detail_data={this.props.detail_data} onClick={this.changeViewing.bind(this, "player", player)}/>;
++			const player_obj = <Player key={"player-component-" + player.overlayKey} percent={player._percent} percent_bars={percent_bars} player={player} players={sorted_players} encounter={this.props.encounter} columns={this.props.table_columns[table_type]} type={this.props.type} blur={blur} icon_blur={this.props.icon_blur} short_names={short_names} horizontal={this.props.horizontal} detail_data={this.props.detail_data} onClick={this.changeViewing.bind(this, "player", player)}/>;
+ 
+ 			if (player._is_pet) {
+ 				pet_rows.push(player_obj);
+diff --git a/src/components/Parser/SpellGrid/Spell.js b/src/components/Parser/SpellGrid/Spell.js
+index 0b7cb2e..ed082f8 100644
+--- a/src/components/Parser/SpellGrid/Spell.js
++++ b/src/components/Parser/SpellGrid/Spell.js
+@@ -1,4 +1,5 @@
+ import React from "react";
++import iconPaths from "../../../data/icon-paths.json";
+ import ReactTooltip from "react-tooltip";
+ 
+ import EmberComponent from "../../EmberComponent";
+@@ -76,7 +77,7 @@ class Spell extends EmberComponent {
+ 		const icon       = (!this.props.show_icon && this.props.layout !== "icon")
+ 			? ""
+ 			: <div key={"spell-icon-" + this.props.base_key} className={"icon " + type}>
+-				<img src={"img/icons/" + main_type + "s/" + id + ".jpg"} alt={main_type + "-" + id}/>
++				<img src={iconPaths[main_type + "s/" + id + ".jpg"]} alt={main_type + "-" + id}/>
+ 			</div>;
+ 		const attributes = {
+ 			key       : "spell-container-" + this.props.base_key,
+diff --git a/src/processors/GameDataProcessor.js b/src/processors/GameDataProcessor.js
+index 98d941a..a20a686 100644
+--- a/src/processors/GameDataProcessor.js
++++ b/src/processors/GameDataProcessor.js
+@@ -40,10 +40,6 @@ class GameDataProcessor {
+ 	normalizeGameData(data, language, current_state, loading_sample) {
+ 		data.Encounter.name             = LocalizationService.getOverlayText("encounter", language);
+ 		data.Encounter.Job              = "ENC";
+-		data.Encounter.OverHealPct      = "0%";
+-		data.Encounter.BlockPct         = "0%";
+-		data.Encounter.DirectHitPct     = "0%";
+-		data.Encounter.CritDirectHitPct = "0%";
+ 		data.Encounter["damage%"]       = "100%";
+ 		data.Encounter["healed%"]       = "100%";
+ 
+@@ -196,6 +192,7 @@ class GameDataProcessor {
+ 	}
+ 
+ 	convertToLocaleFormat(key, value, state) {
++        if (value === undefined || value === null || !Number.isFinite(Number(value))) return '—';
+ 		state = state || store.getState();
+ 
+ 		const accuracy          = state.settings.interface.decimal_accuracy;
+diff --git a/src/processors/PlayerProcessor.js b/src/processors/PlayerProcessor.js
+index b3d06a5..8b159d6 100644
+--- a/src/processors/PlayerProcessor.js
++++ b/src/processors/PlayerProcessor.js
+@@ -71,7 +71,7 @@ class PlayerProcessor {
+ 		} else if (return_sortable_value) {
+ 			const number_regex = /((([\d]{1,3},)?(([\d]{3},)+)?[\d]{3})|[\d]+)(\.[\d]+)?(%|K)?$/;
+ 			const matches      = String(value).match(number_regex);
+-			const match        = (matches && matches.length) ? matches[0] : 0;
++			const match        = (matches && matches.length) ? matches[0] : NaN;
+ 
+ 			value = String(match).replace(/[%,]/g, "");
+ 
+@@ -82,7 +82,7 @@ class PlayerProcessor {
+ 			value = Number(value);
+ 		}
+ 
+-		return value;
++		return value === undefined || value === null || (typeof value === 'number' && !Number.isFinite(value)) ? (return_sortable_value ? NaN : '—') : value;
+ 	}
+ 
+ 	sortPlayers(players, encounter, sort_column, current_state) {
+@@ -90,7 +90,7 @@ class PlayerProcessor {
+ 		const self         = this;
+ 
+ 		for (const key in players) {
+-			sorted_players.push(players[key]);
++			sorted_players.push({ ...players[key], overlayKey: key });
+ 		}
+ 
+ 		const players_copy = JSON.parse(JSON.stringify(sorted_players));
+diff --git a/src/redux/reducers/index.js b/src/redux/reducers/index.js
+index a056789..38a346c 100644
+--- a/src/redux/reducers/index.js
++++ b/src/redux/reducers/index.js
+@@ -136,23 +136,13 @@ function rootReducer(state, action) {
+ 			break;
+ 
+ 		case "parseGameData":
+-			// When the encounter is inactive and the new data is also inactive, do nothing
+-			if (
+-				state.internal.game &&
+-				state.internal.game.isActive === action.payload.isActive &&
+-				(action.payload.isActive === false || action.payload.isActive === "false")
+-			) {
+-				break;
+-			}
+ 
+ 			const new_history = (
+ 				!action.payload.Encounter ||
+ 				!state.internal.encounter_history.length ||
+ 				!state.internal.encounter_history[0].game.Encounter ||
+-				(
+-					Number(action.payload.Encounter.DURATION) < Number(state.internal.encounter_history[0].game.Encounter.DURATION) &&
+-					Number(action.payload.Encounter.DURATION) === 0
+-				)
++                ((action.payload.isActive === true || action.payload.isActive === 'true') &&
++                 (state.internal.encounter_history[0].game.isActive === false || state.internal.encounter_history[0].game.isActive === 'false'))
+ 			);
+ 
+ 			if (state.internal.mode === "stats") {
+diff --git a/src/services/PluginService.js b/src/services/PluginService.js
+index cebe5b2..aafd40f 100644
+--- a/src/services/PluginService.js
++++ b/src/services/PluginService.js
+@@ -2,8 +2,8 @@ import store from "../redux/store";
+ 
+ import PluginServiceAbstract from "./PluginService/PluginServiceAbstract";
+ import OverlayPluginService from "./PluginService/OverlayPluginService";
+-import OverlayProcService from "./PluginService/OverlayProcService";
+-import SocketService from "./PluginService/SocketService";
++
++
+ import UsageService from "./UsageService";
+ import MessageProcessor from "../processors/MessageProcessor";
+ 
+@@ -11,24 +11,10 @@ class PluginService extends PluginServiceAbstract {
+ 	constructor() {
+ 		super();
+ 
+-		const socket_service        = new SocketService();
+-		const overlayplugin_service = new OverlayPluginService();
+-		const settings              = {
+-			is_websocket     : socket_service.isSocketRequested(),
+-			is_overlayplugin : overlayplugin_service.isOverlayPlugin(),
+-			is_ngld          : overlayplugin_service.isNgld(),
+-			socket_service,
+-		};
+-
+-		Object.assign(this, settings);
+-
+-		this.events         = [];
+-		this.plugin_service = (this.is_websocket && !this.is_overlayplugin)
+-			? socket_service
+-			: ((this.is_overlayplugin)
+-				? new OverlayPluginService(settings)
+-				: new OverlayProcService(settings)
+-			);
++        const settings = { is_websocket: false, is_overlayplugin: true, is_ngld: true };
++        Object.assign(this, settings);
++        this.events = [];
++        this.plugin_service = new OverlayPluginService(settings);
+ 	}
+ 
+ 	isConnected() {
