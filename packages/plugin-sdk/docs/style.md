@@ -88,13 +88,20 @@
 - 标题、段落、链接、`small`、分隔线、`code`/`kbd`、焦点框、选中文字、滚动条。
 - `button`：默认是次要按钮，边缘有一道很淡的亮线和暗线，按下时下沉；`data-variant="primary"`、`"ghost"`、`"danger"`；`data-size="large"` 用 34px；`data-icon` 是方形的图标按钮。不可用的主按钮变成灰色。所有按钮都有这层质感；插件自己画的按钮（列表行、时间轴上的标记等）不需要时，在自己的样式里写 `box-shadow: none`，按下时不想移动就写 `transform: none`。
 - 可按下的按钮：带 `aria-pressed` 的按钮，例如“显示角色名”、职业选择里的职业。`aria-pressed="true"` 是青柠色，`"false"` 的文字比普通按钮浅一些。
-- `input`、`select`、`textarea`：30px 高，悬停时边框加深，焦点时是强调色边框加一圈浅色光圈；`select` 用宿主的上下箭头。
-- 复选框和单选框：选中时是青柠色；`<input type="checkbox" role="switch">` 是开关，用于立即生效的设置。滑块、`progress`、`meter` 用宿主的颜色。
+- `input`、`select`、`textarea`：30px 高，悬停时边框加深，焦点时是强调色边框加一圈浅色光圈。
+- `select`：用宿主的上下箭头，展开后的列表也和宿主的选择框一样（圆角弹出层、选中项前面有对勾、悬停高亮），不再是系统的下拉菜单。这是 Chromium 的可定制 `select`（`appearance: base-select`），`option` 里可以放图标等元素。`optgroup` 显示为浅色的分组标题。`multiple` 和 `size` 大于 1 的列表框保持原来的样子。
+- 其他输入框：`type="search"` 前面有放大镜，清除按钮是宿主的叉号；`type="number"` 用等宽数字，不显示系统的上下箭头，方向键仍可增减；日期和时间输入框用宿主的日历和时钟图标，正在输入的部分用选中文字的颜色，但点开后的日历是系统自带的，无法定制；`type="file"` 的按钮是次要按钮；`type="color"` 是和输入框一样高的色块。
+- 复选框和单选框：选中时是青柠色；`<input type="checkbox" role="switch">` 是开关，用于立即生效的设置。滑块、`progress`、`meter` 用宿主的颜色。不带 `value` 的 `progress` 表示进度未知，一小段在轨道上来回滑动；系统设置了减少动态效果时改为一条变淡的整条。
+- 进行中：`<span class="mojito-spinner"></span>` 是宿主的加载圈，颜色跟随文字。按钮在执行时写 `aria-busy="true"` 和 `disabled`，标签前面出现加载圈，主按钮保持青柠色。
 - `label`、`fieldset`、`legend`；`details`/`summary` 是宿主“高级”那样的折叠区，箭头随展开旋转。`<span class="mojito-chevron">` 放在带 `aria-expanded` 的按钮里，也会跟着旋转。
-- `code`、`pre`、`kbd`（键帽）、`mark`、`blockquote`、列表、`dialog`。
+- `code`、`pre`、`kbd`（键帽）、`mark`、`blockquote`、列表。
+- `details` 展开和收起时有高度动画，和宿主的折叠区一样。
+- `dialog`：打开和关闭时淡入淡出，遮罩同样渐变。确认框按宿主的结构写：`<header>` 里是标题和一句说明，`<footer>` 里是靠右的操作按钮，主要操作放最后；也可以都放在 `<form method="dialog">` 里。
+- `<dl>`：标签和值左右两列，标签列 96px，标签是浅色；需要时把每组 `dt`/`dd` 放在一个 `<div>` 里。`.mojito-facts` 是另一种排法，见下面。
 - `table`：表头、行高 36px、悬停、等宽数字。数字列在 `th` 和 `td` 上写 `data-align="end"`，靠右对齐。
 - 可排序的表头：`<th aria-sort="descending"><button>伤害</button></th>`。当前排序的列写 `ascending` 或 `descending`，显示方向箭头；其他可排序的列写 `none`，悬停时才显示排序记号。靠右的列箭头在标签左边，标签和数字保持对齐。排序本身由插件处理。
 - 弹出层：带 `popover` 属性的元素，用 `popovertarget` 指向它的按钮打开。弹出层显示在按钮下方并左对齐，下方放不下时自动翻到上方，右边放不下时改为右对齐；按 Esc 或点击外部会关闭，外观和宿主的弹出层一样。脚本打开时写 `element.showPopover({ source: button })`，否则没有对齐的按钮。这些都是浏览器自带的功能（`popover` 属性和 CSS 锚点定位），不需要脚本或第三方库。
+- 菜单：`<div popover role="menu">` 里放 `role="menuitem"` 的按钮，和宿主的“更多操作”菜单一样。图标 16px、浅色；行末的 `small` 或 `kbd` 靠右，用来写快捷键；`data-variant="danger"` 是危险操作，放在最后，前面用 `<hr>` 隔开；`role="menuitemcheckbox"` 加 `aria-checked` 是开关项，选中时前面有对勾；`h3` 是分组标题。菜单的键盘操作（方向键移动、选中后关闭）由插件处理。
 - 提示：`<span popover="hint">` 加上指向它的 `interestfor`，指针停留或键盘聚焦时显示，深色底、浅色字，和宿主的提示一样，位置在元素正下方居中。提示里的 `small` 是浅色的次要文字。插件自己定位的提示（例如跟随指针的曲线读数）写 `role="tooltip"`，外观相同，位置由插件决定。
 - 类：
   - `.mojito-panel`：带边框的容器，12px 圆角。
@@ -105,7 +112,9 @@
   - `.mojito-segmented`：几个选项并排，里面是带 `aria-pressed` 的按钮，或包着单选框的 `label`；选中的一项是青柠色。
   - `.mojito-tabs`：同一页面的几个视图，里面是带 `aria-selected="true"` 或 `aria-current="page"` 的按钮或链接。
   - `.mojito-panel > header`：面板的标题行，最后一个子元素靠右（放操作按钮）。
-  - `.mojito-empty`：没有内容时的一行说明，居中、浅色。
+  - `.mojito-empty`：没有内容时的说明，居中、浅色。可以先写一个 `h3` 标题，再写一段 `p` 说明，最后一个 `div` 里放按钮。
+  - `.mojito-badge`：比状态标签小一号的标签，例如“推荐”“2 个可更新”，没有记号；`data-tone="ok|warn|danger"`。表示状态时用 `.mojito-chip`。
+  - `.mojito-list`：`<ul class="mojito-list">`，每个 `li` 是一行，行间有分隔线，整体有边框和圆角；放在 `.mojito-panel` 里时去掉自己的边框。行里的 `strong` 是标题，`small` 是下面的说明；`aria-selected="true"` 或 `aria-current` 的行是选中的；只包着一个链接或按钮的行悬停时高亮。
   - `.mojito-facts`：`<dl>` 里每组 `<div><dt>…</dt><dd>…</dd></div>`，标签在上、值在下，按宽度自动分列。
 
 一个设置页：
@@ -180,7 +189,7 @@ OverlayPlugin 兼容模板是第三方页面，宿主不给它们注入变量。
 保证（版本 1 内不会删除或改名）：
 
 - `--mojito-*` 变量的名字和用途，`--mojito-contract`。
-- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的类名（`.mojito-panel`、`.mojito-field`、`.mojito-chip`、`.mojito-secondary`、`.mojito-callout`、`.mojito-segmented`、`.mojito-tabs`、`.mojito-empty`、`.mojito-facts`、`.mojito-chevron`），`data-variant`、`data-size`、`data-tone`、`data-icon`、`data-align` 属性，`role="switch"`、`role="tooltip"`、`aria-pressed`、`aria-sort` 和 `popover` 的样式。
+- `/host/mojito-base.css` 的地址，它在 `mojito` 层里、插件样式总是优先；里面的类名（`.mojito-panel`、`.mojito-field`、`.mojito-chip`、`.mojito-secondary`、`.mojito-callout`、`.mojito-segmented`、`.mojito-tabs`、`.mojito-empty`、`.mojito-facts`、`.mojito-chevron`、`.mojito-badge`、`.mojito-list`、`.mojito-spinner`），`data-variant`、`data-size`、`data-tone`、`data-icon`、`data-align` 属性，`role="switch"`、`role="tooltip"`、`role="menu"` 和菜单项的 `role`、`aria-pressed`、`aria-sort`、`aria-busy` 和 `popover` 的样式，`dialog` 里的 `header` 和 `footer`。
 - 字体地址 `/host/fonts/`。
 
 不保证：
