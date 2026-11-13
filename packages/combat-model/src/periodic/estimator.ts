@@ -9,6 +9,7 @@ import {
 } from '../defs.js'
 import type { PeriodicRevisionEvent, PeriodicShare, PeriodicTickEvent, PotencySampleEvent } from '../events.js'
 import type { CombatInput, StatusChange } from '../input.js'
+import type { TelemetrySample } from '../telemetry.js'
 import type { CombatWorld } from '../world.js'
 import { CalibrationSamples, samplePerPotency } from './calibration.js'
 import { ElementTracker } from './elements.js'
@@ -187,6 +188,14 @@ export class PeriodicEstimator {
   private nextTickId = 1
   private nextSnapshotId = 1
   private samples: PotencySampleEvent[] = []
+  telemetryEnabled = false
+  private telemetry: TelemetrySample[] = []
+
+  takeTelemetry(): TelemetrySample[] {
+    const samples = this.telemetry
+    this.telemetry = []
+    return samples
+  }
   /** Kept when the zone changes: the attributes may come just before the event of the change */
   private playerStats: { actorId: number; criticalHit: number; directHit: number } | null = null
 
@@ -387,6 +396,36 @@ export class PeriodicEstimator {
           ) {
             const potency = samplePotency(sampleAction, this.level(caster), this.defs.maxLevel, entity.bonusPercent)
             if (potency !== null) {
+              if (this.telemetryEnabled && !critical && !direct && modifiers.telemetryComplete && info.attackType) {
+                const profile = this.combatants.get(caster)
+                const corrected = entity.amount / (potency * modifiers.potencyFactor * modifiers.multiplier)
+                if (
+                  profile.classJob &&
+                  profile.level &&
+                  !profile.ownerId &&
+                  potency > 0 &&
+                  modifiers.potencyFactor > 0 &&
+                  modifiers.multiplier > 0 &&
+                  Number.isFinite(corrected) &&
+                  corrected >= 0
+                ) {
+                  const unknown = new Map<string, { id: number; param: number }>()
+                  for (const status of this.combatants.getBuffs(caster)) {
+                    if (!this.defs.periodic.has(status.id) && !this.defs.modifiers.has(status.id))
+                      unknown.set(`${status.id}:${status.stacks}`, { id: status.id, param: status.stacks })
+                  }
+                  this.telemetry.push({
+                    casterId: caster,
+                    targetId: combatant,
+                    classJob: profile.classJob,
+                    level: profile.level,
+                    actionId: action,
+                    damageType: info.attackType,
+                    correctedDamagePerPotency: corrected,
+                    unknownStatuses: [...unknown.values()].sort((a, b) => a.id - b.id || a.param - b.param),
+                  })
+                }
+              }
               this.samples.push({
                 eventType: 'PotencySampleEvent',
                 eventTime: event.time,
