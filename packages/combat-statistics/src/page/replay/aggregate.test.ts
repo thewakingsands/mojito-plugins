@@ -126,6 +126,21 @@ it('orders by DPS and leaves rDPS out when the fight has none', () => {
   ])
 })
 
+it('orders by DPS when the fight has rDPS as well', () => {
+  const given = replayData({
+    actors,
+    entries: [
+      { t: 0, actor: 0, other: 3, skill: 'action:1', field: 'damage', amount: 2000 },
+      { t: 0, actor: 1, other: 3, skill: 'action:2', field: 'damage', amount: 2500 },
+      { t: 0, actor: 1, skill: 'action:2', field: 'given', amount: -1500 },
+      { t: 0, actor: 0, skill: 'status:786', field: 'received', amount: 1500 },
+    ],
+  })
+  const rows = damageRows(given, scope(), true)
+  expect(rows.map((row) => row.actor)).toEqual([1, 0])
+  expect(rows[0].rdps!).toBeLessThan(rows[1].rdps!)
+})
+
 it('merges pets into their owners or keeps them apart', () => {
   expect(damageRows(damage, scope({ mergePets: false }), true).map((row) => [row.actor, row.total])).toEqual([
     [0, 2550],
@@ -137,8 +152,8 @@ it('merges pets into their owners or keeps them apart', () => {
 it('counts from the start of a span up to its end, without it', () => {
   const rows = damageRows(damage, scope({ span: { from: 1000, to: 3000 }, lengthMs: 2000 }), true)
   expect(rows.map((row) => [row.actor, row.total])).toEqual([
-    [0, 1500],
     [1, 2000],
+    [0, 1500],
   ])
 })
 

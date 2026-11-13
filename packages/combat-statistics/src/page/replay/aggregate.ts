@@ -195,8 +195,8 @@ export function damageRows(data: ReplayData, scope: Scope, rdps: boolean): Damag
         skills: lines,
       }
     })
-  const order = (row: DamageRow) => (rdps ? (row.rdps ?? 0) : (row.dps ?? 0))
-  return rows.sort((a, b) => order(b) - order(a))
+  // By DPS as on the overview, whether or not the fight has rDPS
+  return rows.sort((a, b) => (b.dps ?? 0) - (a.dps ?? 0))
 }
 
 export interface TakenRow {
