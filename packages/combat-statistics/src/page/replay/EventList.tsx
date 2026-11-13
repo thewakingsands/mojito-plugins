@@ -148,8 +148,12 @@ export const EventList = memo(function EventList(props: {
     const item = list.current?.children[last] as HTMLElement | undefined
     item?.scrollIntoView?.({ block: 'nearest' })
   }, [props.playing, manual, last])
+  // As much of the details in view as fits, and the event itself always
   useLayoutEffect(() => {
-    if (props.expanded) list.current?.querySelector('.event-item.open')?.scrollIntoView?.({ block: 'nearest' })
+    const item = props.expanded && list.current?.querySelector('.event-item.open')
+    if (!item) return
+    item.scrollIntoView?.({ block: 'nearest' })
+    item.querySelector('.event')?.scrollIntoView?.({ block: 'nearest' })
   }, [props.expanded])
   const toggle = (type: EventType) => {
     const next = new Set(types)

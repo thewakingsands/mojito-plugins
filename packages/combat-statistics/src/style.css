@@ -850,18 +850,13 @@ svg.map .grid {
   visibility: hidden;
   pointer-events: none;
 }
-/* Stays at the top of the panel while the events scroll under it */
 .event-types {
-  position: sticky;
-  top: -8px;
-  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  margin: -8px -8px 4px;
-  padding: 8px;
+  margin: 0 -8px 4px;
+  padding: 0 8px 8px;
   border-bottom: 1px solid var(--mojito-border);
-  background: var(--mojito-bg);
   font-size: var(--mojito-text-sm);
 }
 .event-types label {
@@ -884,6 +879,7 @@ svg.map .grid {
 .event {
   display: grid;
   grid-template-columns: 52px 20px minmax(0, 1fr);
+  width: 100%;
   align-items: start;
   justify-content: stretch;
   gap: 6px;
