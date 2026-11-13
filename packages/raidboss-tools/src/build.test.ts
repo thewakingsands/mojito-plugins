@@ -62,6 +62,15 @@ it('compiles default and Options registrations without executing input or npm sc
   expect(pkg.metadata.formatVersion).toBe(1)
   expect(pkg.signer.fingerprint).toMatch(/^[a-f0-9]{64}$/)
   expect(pkg.manifest.id).toBe('CommunitySynthetic')
+  expect(pkg.manifest.apiVersion).toBe('^2.0.0')
+  expect(pkg.manifest.capabilities).toEqual([
+    'session.read',
+    'game.read',
+    'events.read',
+    'ui.register',
+    'audio.play',
+    'identity.read',
+  ])
   expect(pkg.manifest.capabilities).not.toContain('http.request')
   expect(pkg.files.has('manage.html')).toBe(true)
   expect(pkg.files.has('overlay.html')).toBe(true)

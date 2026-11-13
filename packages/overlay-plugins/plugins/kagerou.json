@@ -3,7 +3,7 @@
   "id": "OverlayKagerou",
   "name": "Kagerou",
   "description": "需要先安装并启用战斗统计。",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
