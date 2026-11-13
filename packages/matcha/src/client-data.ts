@@ -1,10 +1,12 @@
 // Copyright (c) FFCafe. Licensed under AGPL-3.0-only.
 import type { Cell, DataRow, DataService } from '@ffcafe/mojito-plugin-sdk'
+import type { ExplorationSource } from './exploration/types.js'
 import type { NotebookMapping } from './initial-data/index.js'
 import unlocks from './submarine-unlocks.json'
 
 type Names = Record<string, string>
 export interface GameCatalog {
+  exploration: ExplorationSource
   fates: Record<string, { name: Names; level: number; patch: number; location: number }>
   patches: Record<string, Names>
   territories: Record<string, Names>
@@ -77,6 +79,7 @@ export interface GameCatalog {
   >
 }
 export const emptyCatalog = (): GameCatalog => ({
+  exploration: { territories: {}, maps: {}, treasures: {}, fatePositions: {} },
   fates: {},
   patches: {},
   territories: {},
@@ -101,6 +104,10 @@ function number(row: Cell[], index: number): number {
     throw new Error(`Unsupported game data numeric column ${index}`)
   return cell.value
 }
+const optionalNumber = (row: Cell[], index: number): number | null => {
+  const cell = row[index]
+  return cell?.type === 'number' && Number.isFinite(cell.value) ? cell.value : null
+}
 function text(row: Cell[], index: number): string {
   const cell = row[index]
   if (cell?.type !== 'string') throw new Error(`Unsupported game data text column ${index}`)
@@ -115,7 +122,7 @@ const coordinate = (value: number, offset: number, size: number) => {
   return Math.round(((41 / scale) * (((value + offset) * scale + 1024) / 2048) + 1) * 10) / 10
 }
 
-/** EXH column declaration order, checked against the installed CN client. */
+/** Read EXH column declaration order, not byte-offset-sorted table exports. */
 export class ClientGameData {
   constructor(private readonly data: DataService) {}
   private async rows(sheet: string, ids: number[], language: string, signal: AbortSignal): Promise<DataRow[]> {
@@ -154,6 +161,10 @@ export class ClientGameData {
     const territories = await read('TerritoryType')
     const territoryRows = new Map(territories.map((r) => [r.rowId, cells(r)]))
     result.territories = dictionary(territories, (c) => local(places[number(c, 5)] ?? ''))
+    result.exploration.territories = dictionary(territories, (c) => ({
+      mapId: optionalNumber(c, 6),
+      weatherRateId: optionalNumber(c, 12),
+    }))
     result.patches = Object.fromEntries(
       (await read('ExVersion', true)).map((r) => [r.rowId + 2, local(text(cells(r), 0))]),
     )
@@ -169,6 +180,11 @@ export class ClientGameData {
       name: [places[number(c, 11)], places[number(c, 12)]].filter(Boolean).join(' '),
       sizeFactor: number(c, 7),
       offset: [number(c, 8), number(c, 9)] as [number, number],
+    }))
+    result.exploration.maps = dictionary(maps, (c) => ({
+      resource: c[6]?.type === 'string' ? c[6].value : '',
+      territoryId: optionalNumber(c, 15),
+      isEvent: c[17]?.type === 'boolean' ? c[17].value : null,
     }))
     const fateRows = await read('Fate', true)
     const dynamicRows = await read('DynamicEvent', true)
@@ -212,6 +228,16 @@ export class ClientGameData {
           ]
         }),
     )
+    for (const row of fateRows) {
+      const point = locations.get(number(cells(row), 9))
+      if (point)
+        result.exploration.fatePositions[row.rowId] = {
+          territoryId: point.territory,
+          mapId: point.map,
+          x: point.x,
+          z: point.z,
+        }
+    }
     const events = new Map(dynamicRows.map((r) => [r.rowId, cells(r)]))
     for (const group of await this.subrows('DynamicEventSet', null, signal)) {
       const zones = new Set(
@@ -384,12 +410,19 @@ export class ClientGameData {
       const group = spots.find((r) => r.rowId === rank.rowId)
       if (!group) continue
       const rows: GameCatalog['treasures'][string] = []
+      const raw: ExplorationSource['treasures'][number] = []
       for (const row of group.subrows) {
         const level = levels.get(number(row.cells, 0))
         if (!level) continue
         const id = number(level, 7),
           map = result.maps[id]
         if (!map) continue
+        raw[row.subrowId!] = {
+          levelId: number(row.cells, 0),
+          territoryId: optionalNumber(level, 9),
+          mapId: id,
+          world: { x: number(level, 0), y: optionalNumber(level, 1), z: number(level, 2) },
+        }
         rows[row.subrowId!] = {
           map: id,
           x: coordinate(number(level, 0), map.offset[0], map.sizeFactor),
@@ -397,6 +430,7 @@ export class ClientGameData {
         }
       }
       result.treasures[number(cells(rank), 3)] = rows
+      result.exploration.treasures[number(cells(rank), 3)] = raw
     }
     signal.throwIfAborted()
     return result

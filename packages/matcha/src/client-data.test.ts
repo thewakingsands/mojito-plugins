@@ -159,3 +159,36 @@ it('keeps submarine route keys independent of localized names and supports the i
   expect(c.submarineMap[1].spots.A).toMatchObject({ name: 'Ivory Shoals', parent: '0', location: 'A' })
   expect(c.worlds[1042]).toMatchObject({ dcName: 'Elemental', region: 'global' })
 })
+
+it('retains raw treasure height separately without changing the legacy 2D catalog', async () => {
+  const f = fixture()
+  f.sheets.Level[0].subrows[0].cells[1] = cell(-24.5)
+  const c = await f.client.load('en', new AbortController().signal)
+  expect(c.treasures[2001087]).toEqual([{ map: 4, x: 28.8, y: 22.7 }])
+  expect(c.exploration.treasures[2001087][0]).toEqual({
+    levelId: 4512071,
+    territoryId: 148,
+    mapId: 4,
+    world: { x: 364.934, y: -24.5, z: 60.0566 },
+  })
+  expect(c.exploration.fatePositions[120]).toEqual({ territoryId: 148, mapId: 4, x: 100, z: 200 })
+  f.sheets.Level[0].subrows[0].cells[1] = cell('missing')
+  const withoutHeight = await f.client.load('en', new AbortController().signal)
+  expect(withoutHeight.treasures).toEqual(c.treasures)
+  expect(withoutHeight.exploration.treasures[2001087][0].world.y).toBeNull()
+})
+it('retains zero height and leaves missing FATE scene positions unknown', async () => {
+  const f = fixture()
+  f.data.resource.mockImplementation(async () => null)
+  // Avoid unrelated subrow resource reads in this missing-scene fixture.
+  f.sheets.DynamicEventSet = []
+  const original = f.data.resource.getMockImplementation()
+  f.data.resource.mockImplementation(async (path: string) => {
+    if (path === 'exd/DynamicEventSet.exh') return new Uint8Array(32)
+    return original!(path)
+  })
+  const c = await f.client.load('en', new AbortController().signal)
+  expect(c.exploration.treasures[2001087][0].world.y).toBe(0)
+  expect(c.exploration.fatePositions[120]).toBeUndefined()
+  expect(c.fates[120].location).toBe(0)
+})

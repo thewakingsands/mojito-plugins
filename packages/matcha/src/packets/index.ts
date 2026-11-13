@@ -1,6 +1,7 @@
 // Copyright (c) FFCafe. All rights reserved.
 // Licensed under AGPL-3.0. Ported from Cafe.Matcha's NetworkMonitor and handlers.
 
+import type { FateObservation } from '../exploration/eureka-types.js'
 import type { MatchaEmitter, MatchaPacket } from '../protocol.js'
 import { Payload } from './binary.js'
 import { MarketPackets, type MatchaMarketService } from './market.js'
@@ -56,6 +57,7 @@ export class MatchaPacketHandlers {
       now?: () => number
       onDiagnostic?: (message: string) => void
       market?: MatchaMarketService
+      onFateObservation?: (observation: FateObservation) => void
     },
   ) {
     this.now = options.now ?? Date.now
@@ -129,13 +131,21 @@ export class MatchaPacketHandlers {
           break
         case 'ActorControlSelf':
           data.require(40)
-          this.actorControl(data, packet.timestamp)
+          this.actorControl(data, packet.timestamp, packet.seq)
           break
         case 'FateInfo': {
           data.require(24)
           const fate = this.fate(data.u16(0))
           const startTime = data.u32(8)
           const duration = data.u32(16)
+          this.options.onFateObservation?.({
+            kind: 'info',
+            fateId: fate.id,
+            packetSeq: packet.seq,
+            timestamp: packet.timestamp,
+            startTimeSeconds: startTime,
+            durationSeconds: duration,
+          })
           if (fate.startTime !== startTime || fate.duration !== duration) {
             fate.startTime = startTime
             fate.duration = duration
@@ -236,7 +246,7 @@ export class MatchaPacketHandlers {
     this.options.emit('MiniCactpot', { isNewGame, x, y, value }, timestamp)
   }
 
-  private actorControl(data: Payload, timestamp: number): void {
+  private actorControl(data: Payload, timestamp: number, packetSeq: number): void {
     switch (data.u16(0)) {
       case control.treasureSpot:
         this.options.emit(
@@ -253,6 +263,7 @@ export class MatchaPacketHandlers {
         break
       case control.fateStart: {
         const fate = this.fate(data.u16(4))
+        this.options.onFateObservation?.({ kind: 'start', fateId: fate.id, packetSeq, timestamp })
         this.options.emit('Fate', { type: 'start', fate: fate.id, progress: 0, extra: 0 }, timestamp)
         break
       }
@@ -263,12 +274,14 @@ export class MatchaPacketHandlers {
         if (progress !== fate.progress) {
           fate.progress = progress
         }
+        this.options.onFateObservation?.({ kind: 'progress', fateId: fate.id, packetSeq, timestamp, progress })
         this.options.emit('Fate', { type: 'progress', fate: fate.id, progress, extra: 0 }, timestamp)
         break
       }
       case control.fateEnd: {
         const id = data.u16(4)
         this.fates.delete(id)
+        this.options.onFateObservation?.({ kind: 'end', fateId: id, packetSeq, timestamp, extra: data.u16(28) })
         this.options.emit('Fate', { type: 'end', fate: id, progress: 0, extra: data.u16(28) }, timestamp)
         break
       }
