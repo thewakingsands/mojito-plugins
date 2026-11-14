@@ -273,7 +273,7 @@ importers:
         specifier: workspace:*
         version: link:../plugin-sdk
       matcha-overlay:
-        specifier: workspace:*
+        specifier: link:../../vendor/matcha-overlay
         version: link:../../vendor/matcha-overlay
     devDependencies:
       typescript:
