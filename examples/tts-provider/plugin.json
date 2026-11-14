@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "ExampleTtsProvider",
+  "name": "提示音 TTS 示例",
+  "version": "1.0.0",
+  "apiVersion": "^2.0.0",
+  "entry": {
+    "kind": "worker",
+    "path": "entry.mjs"
+  },
+  "capabilities": ["ui.register", "tts.say", "tts.provide"],
+  "tts": {
+    "channels": [{ "id": "default", "name": "提示" }, { "id": "alarm", "name": "警报" }]
+  },
+  "networkOrigins": []
+}

@@ -203,6 +203,15 @@ importers:
         specifier: 8.3.4
         version: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.108.1)
 
+  examples/tts-provider:
+    devDependencies:
+      '@ffcafe/mojito-plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      vite:
+        specifier: 8.3.4
+        version: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.108.1)
+
   packages/combat-model:
     devDependencies:
       '@ffcafe/elpis-sestring':

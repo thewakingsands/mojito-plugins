@@ -1,0 +1,12 @@
+{
+  "name": "mojito-example-tts-provider",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.ts"
+  },
+  "devDependencies": {
+    "vite": "8.3.4",
+    "@ffcafe/mojito-plugin-sdk": "workspace:*"
+  }
+}
