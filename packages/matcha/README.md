@@ -15,8 +15,8 @@ pnpm --filter @ffcafe/mojito-matcha... build
 构建结果位于 `packages/matcha/dist`。用现有 Rust CLI 和自己的 Ed25519 私钥 JWK 签名：
 
 ```sh
-mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.9.mojito lzma2
-mojito-package verify Matcha-4.0.0-mojito.9.mojito
+mojito-package pack packages/matcha/dist private-key.json Matcha-4.0.0-mojito.10.mojito lzma2
+mojito-package verify Matcha-4.0.0-mojito.10.mojito
 ```
 
 在 Mojito 的插件页安装生成的 `.mojito` 包，按需授予敏感权限，然后启用。启动后提供 **Matcha** 悬浮窗，以及“设置 › 插件设置”里的 **Matcha 设置**页。主窗口里没有 Matcha 的功能页，全部功能都在悬浮窗里。

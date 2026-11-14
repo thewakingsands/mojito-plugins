@@ -33,7 +33,7 @@ export async function buildCommunity(input: BuildInput): Promise<Buffer> {
     version: input.version,
     apiVersion: '^2.0.0',
     entry: { kind: 'worker', path: 'entry.mjs' },
-    capabilities: ['session.read', 'game.read', 'events.read', 'ui.register', 'audio.play', 'identity.read'],
+    capabilities: ['session.read', 'game.read', 'events.read', 'ui.register', 'audio.play', 'tts.say', 'identity.read'],
     networkOrigins: [],
   })
   check(metadata.id !== 'MojitoRaidbossOfficial', 'Community packages must use their own stable plugin ID')

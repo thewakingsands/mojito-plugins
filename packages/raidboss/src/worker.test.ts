@@ -66,7 +66,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   }
   const ctx = {
     config: { get: async () => null, set: async () => {} },
-    capabilities: { get: () => ({ 'audio.play': { state: 'available' } }) },
+    capabilities: { get: () => ({ 'audio.play': { state: 'available' }, 'tts.say': { state: 'available' } }) },
     clock: {
       now: () => 100000,
       state: () => ({ now: 100000, generation: 1, base: 'packet-unix', source: 'replay', paused: false }),
@@ -123,12 +123,12 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
         }
       },
     },
-    audio: {
+    tts: {
       say: async (_text: string, options: { signal: AbortSignal }) => {
         audio.push(options.signal)
       },
-      play: async () => {},
     },
+    audio: { play: async () => {} },
     log: { error: () => {} },
   }
   const dispose = await activateRaidboss(
