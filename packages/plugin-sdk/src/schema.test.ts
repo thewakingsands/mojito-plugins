@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { ttsChannels } from './manifest.js'
 import { manifest, serviceId } from './schema.js'
 
 const base = {
@@ -37,4 +38,20 @@ it('takes local service names from providers and full names from consumers', () 
   ).toThrow()
   expect(() => manifest({ ...base, services: { provides: [{ name: 'A/overlay', version: '1.0.0' }] } })).toThrow()
   expect(serviceId('CombatStatistics/overlay')).toEqual({ pluginId: 'CombatStatistics', name: 'overlay' })
+})
+
+it('takes TTS channels whose ids are service names, and always has a default channel', () => {
+  const tts = { channels: [{ id: 'alarm', name: '警报' }] }
+  expect(ttsChannels(manifest({ ...base, capabilities: ['tts.say'], tts }))).toEqual([
+    { id: 'default', name: '默认' },
+    { id: 'alarm', name: '警报' },
+  ])
+  expect(ttsChannels({ tts: { channels: [{ id: 'default', name: '通知' }] } })).toEqual([
+    { id: 'default', name: '通知' },
+  ])
+  expect(ttsChannels({})).toEqual([{ id: 'default', name: '默认' }])
+  expect(() => manifest({ ...base, tts: { channels: [{ id: 'Alarm', name: '警报' }] } })).toThrow()
+  expect(() => manifest({ ...base, tts: { channels: [{ id: 'alarm', name: '' }] } })).toThrow()
+  expect(() => manifest({ ...base, tts: { channels: [{ id: 'alarm', name: 'a', level: 1 }] } })).toThrow()
+  expect(() => manifest({ ...base, tts: { channels: [tts.channels[0], tts.channels[0]] } })).toThrow(/Duplicate/)
 })

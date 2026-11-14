@@ -151,6 +151,7 @@ export function createPluginContext(client: RpcClient, hello: Hello): PluginCont
     return handler(payload, view as unknown as ViewIdentity)
   })
   const providers = new Map<string, Parameters<PluginContext['services']['provide']>[1]>()
+  let voices: { synthesize: Parameters<PluginContext['tts']['provide']>[1] } | null = null
   const log = (level: string, message: string, fields?: Value) => {
     void call('log.write', { level, message, ...(fields === undefined ? {} : { fields }) }).catch(() => {})
   }
@@ -199,8 +200,40 @@ export function createPluginContext(client: RpcClient, hello: Hello): PluginCont
       },
     },
     audio: {
-      say: (text, opts) => call('audio.say', { text, ...options(opts) }, opts),
       play: (resource, opts) => call('audio.play', { ...resource, ...options(opts) }, opts),
+    },
+    tts: {
+      say: (text, opts) => call('tts.say', { text, ...options(opts) }, opts),
+      provide: async (list, synthesize, opts) => {
+        if (voices) throw pluginError('invalid_argument')
+        const registration = { synthesize }
+        voices = registration
+        try {
+          await call('tts.provide', { voices: list }, opts)
+        } catch (error) {
+          voices = null
+          throw error
+        }
+        let disposing: Promise<void> | null = null
+        const dispose = () =>
+          (disposing ??= (async () => {
+            opts?.signal?.removeEventListener('abort', abort)
+            if (!client.signal.aborted) await call('tts.provide.dispose', {})
+            if (voices === registration) voices = null
+          })().catch((error) => {
+            disposing = null
+            throw error
+          }))
+        const abort = () => void dispose().catch(() => {})
+        opts?.signal?.addEventListener('abort', abort, { once: true })
+        return {
+          update: async (list) => {
+            if (disposing) throw pluginError('unavailable')
+            await call('tts.provide.update', { voices: list })
+          },
+          dispose,
+        }
+      },
     },
     host: { openExternal: (url, opts) => call('host.openExternal', { url }, opts) },
     http: { request: (url, opts) => call('http.request', { url, ...options(opts) }, opts) },
@@ -278,11 +311,18 @@ export function createPluginContext(client: RpcClient, hello: Hello): PluginCont
       { signal, consumerId: request.consumerId },
     )
   })
+  client.handle('tts.synthesize', async (params, signal) => {
+    const { voice, text } = object(params)
+    if (!voices) throw pluginError('not_found')
+    if (typeof voice !== 'string' || typeof text !== 'string') throw pluginError('invalid_argument')
+    return voices.synthesize({ voice, text }, { signal })
+  })
   client.signal.addEventListener(
     'abort',
     () => {
       commands.clear()
       providers.clear()
+      voices = null
     },
     { once: true },
   )

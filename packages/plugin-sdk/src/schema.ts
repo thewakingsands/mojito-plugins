@@ -108,7 +108,7 @@ export type { Manifest } from './manifest.js'
 export function manifest(input: unknown): Manifest {
   const o = object(input)
   const required = ['schemaVersion', 'id', 'name', 'version', 'apiVersion', 'entry', 'capabilities', 'networkOrigins']
-  fields(o, [...required, 'storage', 'services', 'author', 'description', 'homepage', 'license'], required)
+  fields(o, [...required, 'storage', 'services', 'tts', 'author', 'description', 'homepage', 'license'], required)
   check(o.schemaVersion === 1, 'Unsupported manifest schema')
   id(o.id)
   text(o.name)
@@ -173,6 +173,18 @@ export function manifest(input: unknown): Manifest {
         }
       }
     }
+  }
+  if (o.tts !== undefined) {
+    const tts = object(o.tts)
+    fields(tts, ['channels'])
+    check(Array.isArray(tts.channels), 'Invalid TTS channel list')
+    const ids = tts.channels.map((item) => {
+      const channel = object(item)
+      fields(channel, ['id', 'name'])
+      text(channel.name)
+      return localServiceName(channel.id)
+    })
+    check(new Set(ids).size === ids.length, 'Duplicate TTS channel')
   }
   return o as unknown as Manifest
 }

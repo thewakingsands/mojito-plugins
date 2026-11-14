@@ -194,8 +194,39 @@ export interface ViewsService {
   ): Promise<Disposer>
 }
 export interface AudioService {
-  say(text: string, options: SubscribeOptions & { language: string }): Promise<void>
+  /** Plays a sound from the plugin's resources at once, alongside any speech */
   play(resource: { path: string }, options?: SubscribeOptions & { volume?: number }): Promise<void>
+}
+/** One voice a plugin offers to speak with */
+export interface Voice {
+  /** Unique within the plugin and stable across versions: the user's choice is saved by it */
+  id: string
+  name: string
+  /** Text spoken with this voice is sent to a network service */
+  online: boolean
+}
+export interface VoiceProvider {
+  /** Replaces the voices offered */
+  update(voices: Voice[]): Promise<void>
+  dispose(): Promise<void>
+}
+/** @since Plugin API 2.0.0 */
+export interface TtsService {
+  /**
+   * Speaks text in one of the channels the manifest declares, with the voice and playback mode the user chose for it.
+   * `channel` defaults to `default`, which every plugin with `tts.say` has.
+   */
+  say(text: string, options?: SubscribeOptions & { channel?: string }): Promise<void>
+  /**
+   * Offers voices to the user. When a chosen voice speaks, the host asks `synthesize` for encoded audio (MP3, WAV,
+   * Ogg/Opus or another format Chromium plays) and plays it. One registration per plugin; aborting `options.signal`
+   * disposes it.
+   */
+  provide(
+    voices: Voice[],
+    synthesize: (request: { voice: string; text: string }, context: { signal: AbortSignal }) => Promise<Uint8Array>,
+    options?: SubscribeOptions,
+  ): Promise<VoiceProvider>
 }
 export interface HostService {
   /** Asks the user, showing the whole address, before opening an http: or https: link in the browser */
@@ -286,6 +317,7 @@ export interface PluginContext extends CallContext {
   readonly ui: UiService
   readonly views: ViewsService
   readonly audio: AudioService
+  readonly tts: TtsService
   readonly host: HostService
   readonly http: HttpService
   readonly config: ConfigService
