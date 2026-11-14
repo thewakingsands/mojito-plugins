@@ -198,14 +198,53 @@ with `@ffcafe/mojito-combat-model` from these events:
 A plugin compares it with the version its status data is for, and stops computing when
 they differ: the game changed and the data has not followed yet.
 
+### Speech (TTS)
+
+A plugin speaks in channels, as an Android app posts notifications in channels. It says what to speak and in
+which channel; the user picks the voice and how speech plays in Mojito's TTS settings.
+
+```json
+{
+  "capabilities": ["tts.say"],
+  "tts": { "channels": [{ "id": "alarm", "name": "警报" }] }
+}
+```
+
+```ts
+await context.tts.say('分摊')                         // the default channel
+await context.tts.say('死刑', { channel: 'alarm' })
+```
+
+- Every plugin with `tts.say` has a `default` channel. Listing `default` in `tts.channels` only names it;
+  otherwise it shows as 默认. Channel IDs follow service names (`^[a-z0-9]+([._-][a-z0-9]+)*$`).
+- Mojito lists the channels from the manifest, so the user can choose voices before the plugin runs.
+- `say` resolves once the text was spoken. It rejects with `invalid_argument` for an unknown channel,
+  `unavailable` when no voice could speak, and `cancelled` when the caller aborted or other speech replaced it.
+- `audio.play` plays a sound from the package at once; it does not wait for speech.
+
+A plugin with `tts.provide` offers voices of its own. The user may choose them for any channel of any plugin;
+the host then sends the text to `synthesize` and plays the encoded audio it returns (MP3, WAV, Ogg/Opus or
+another format Chromium plays).
+
+```ts
+const provider = await context.tts.provide(
+  [{ id: 'xiaoxiao', name: '晓晓', online: true }],
+  async ({ voice, text }, { signal }) => synthesizeWithMyService(voice, text, signal),
+)
+await provider.update(voices) // e.g. after the user entered a key
+```
+
+`online: true` marks a voice that sends text to a network service. A plugin has one registration at a time;
+it ends with `dispose()`, the `signal` option or the plugin stopping.
+
 ### Plugin API 2.0
 
 Plugin API 2.0.0 (MJT-282) changes what a plugin declares and what the user decides. It is not compatible
 with 1.x: rebuild the plugin and require `apiVersion: "^2.0.0"`.
 
 - `capabilities` is one array. Ordinary capabilities (`session.read`, `game.read`, `events.read`,
-  `data.read`, `ui.register`, `ui.overlayplugin`, `ui.overlayplugin.remote`, `audio.play`,
-  `services.provide`, `services.consume`) come with the install. The user may refuse each sensitive one
+  `data.read`, `ui.register`, `ui.overlayplugin`, `ui.overlayplugin.remote`, `audio.play`, `tts.say`,
+  `tts.provide`, `services.provide`, `services.consume`) come with the install. The user may refuse each sensitive one
   (`packets.read`, `memory.read`, `http.request`, `identity.read`, `microphone.record`) at install time or
   later on the plugin's page. `host.files` and `host.openExternal` no longer exist; a name the host does not
   know rejects the package.
@@ -224,6 +263,8 @@ with 1.x: rebuild the plugin and require `apiVersion: "^2.0.0"`.
   call. `connect` returns `{ service, version }` or `null`. A consumer needs no grant; the provider answers
   with its own capabilities, and the install sheet tells the user. `dataPermissions`,
   `services.callRequest` and `services.callSubscribe` are gone.
+- Speech is `tts.say(text, { channel })` with the `tts.say` capability; `audio.say` is gone, and
+  `audio.play` only plays sounds. See Speech (TTS).
 - `host.openExternal(url)` needs no capability and asks the user each time; `http:` works too.
 - Files: `host.chooseFile`, `host.readFile` and `host.writeFile` are gone. Pages use `<input type="file">`
   and downloads, which ask where to save.

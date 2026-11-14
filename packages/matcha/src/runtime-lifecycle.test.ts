@@ -122,7 +122,7 @@ function fixture(
 ) {
   let current = options.initial ?? source()
   let now = 100000
-  let grants = ['session.read', 'packets.read', 'ui.register', 'http.request', 'audio.play', 'data.read']
+  let grants = ['session.read', 'packets.read', 'ui.register', 'http.request', 'tts.say', 'data.read']
   const capabilityOverrides: Record<string, Capability> = {}
   let sessionListener!: BatchListener<SessionSnapshot>
   let command!: (value: Value, view: ViewIdentity) => Value | Promise<Value>
@@ -217,7 +217,8 @@ function fixture(
       image: vi.fn(async () => 'mojito-plugin://runtime/icon'),
     },
     notifications: { send: vi.fn(async () => {}) },
-    audio: { say: vi.fn(async () => {}), play: vi.fn(async () => {}) },
+    audio: { play: vi.fn(async () => {}) },
+    tts: { say: vi.fn(async () => {}), provide: vi.fn() },
     host: {
       openExternal: vi.fn(async () => 'cancelled'),
     },
@@ -418,7 +419,7 @@ describe('Matcha runtime lifecycle', () => {
     await f.advance(61000)
     expect(latest(f).events.some((event) => event.type === 'Fishing')).toBe(true)
     expect(f.context.http.request).not.toHaveBeenCalled()
-    expect(f.context.audio.say).not.toHaveBeenCalled()
+    expect(f.context.tts.say).not.toHaveBeenCalled()
     expect(f.context.notifications.send).not.toHaveBeenCalled()
   })
   it('restores retained login state without replaying automatic effects from the initial packet batch', async () => {
@@ -441,7 +442,7 @@ describe('Matcha runtime lifecycle', () => {
     await flush()
     expect(latest(f).notebook?.characterName).toBe('角色一')
     expect(f.context.http.request).not.toHaveBeenCalled()
-    expect(f.context.audio.say).not.toHaveBeenCalled()
+    expect(f.context.tts.say).not.toHaveBeenCalled()
     expect(f.context.notifications.send).not.toHaveBeenCalled()
     // A new live packet still permits the configured effect after initial delivery finishes.
     await f.packet('PlayerSetup', setupData())

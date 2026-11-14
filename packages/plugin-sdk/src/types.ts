@@ -16,6 +16,8 @@ export const ordinaryCapabilities = Object.freeze([
   'ui.overlayplugin',
   'ui.overlayplugin.remote',
   'audio.play',
+  'tts.say',
+  'tts.provide',
   'services.provide',
   'services.consume',
 ] as const)

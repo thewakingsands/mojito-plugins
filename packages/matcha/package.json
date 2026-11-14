@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ffcafe/mojito-plugin-sdk": "workspace:*",
-    "matcha-overlay": "workspace:*"
+    "matcha-overlay": "link:../../vendor/matcha-overlay"
   },
   "devDependencies": {
     "vite": "^8.3.4",

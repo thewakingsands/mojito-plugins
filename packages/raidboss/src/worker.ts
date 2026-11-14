@@ -24,6 +24,7 @@ export async function activateRaidboss(
   timelines: Record<string, string>,
   upstreamCommit: string,
 ): Promise<Disposer> {
+  const granted = (name: string) => ctx.capabilities.get()[name]?.state === 'available'
   let settings = parseSettings(await ctx.config.get('settings'))
   let revision = 0,
     snapshotRevision = 0,
@@ -83,7 +84,7 @@ export async function activateRaidboss(
             sharedDataWarning: engine.sharedDataWarning,
             sourceError,
             moduleFault,
-            audioGranted: ctx.capabilities.get()['audio.play']?.state === 'available',
+            audioGranted: granted('audio.play') && granted('tts.say'),
             clock: ctx.clock.state(),
             realReplayVerified: false,
           }
@@ -109,13 +110,10 @@ export async function activateRaidboss(
       void publish()
     },
     say(text, signal) {
-      if (ctx.capabilities.get()['audio.play']?.state === 'available')
-        void ctx.audio
-          .say(text, { language: settings.language === 'cn' ? 'zh-CN' : settings.language, signal })
-          .catch((error) => audioError(error, signal))
+      if (granted('tts.say')) void ctx.tts.say(text, { signal }).catch((error) => audioError(error, signal))
     },
     play(path, volume, signal) {
-      if (ctx.capabilities.get()['audio.play']?.state === 'available')
+      if (granted('audio.play'))
         void ctx.audio.play({ path }, { volume, signal }).catch((error) => audioError(error, signal))
     },
   })

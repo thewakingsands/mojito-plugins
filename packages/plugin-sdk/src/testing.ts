@@ -14,6 +14,8 @@ export function createTestContext(
   let receive: (message: unknown) => void = () => {}
   const requests: { method: string; params: Value }[] = []
   const calls = new Map<number, AbortController>()
+  const hostCalls = new Map<number, { resolve: (value: Value) => void; reject: (error: unknown) => void }>()
+  let hostCallId = 0
   const subscriptions = new Map<
     string,
     { topic: string; params: Value; next: number; batch: number; awaiting: boolean }
@@ -34,7 +36,15 @@ export function createTestContext(
         subscriptions.clear()
       },
       send(message) {
-        if (message.kind === 'request') {
+        if (message.kind === 'response') {
+          const pending = hostCalls.get(message.id as number)
+          hostCalls.delete(message.id as number)
+          if (message.ok) pending?.resolve(message.value)
+          else {
+            const error = message.error as { code: PluginError['code']; message: string }
+            pending?.reject(pluginError(error.code, error.message))
+          }
+        } else if (message.kind === 'request') {
           const id = message.id as number
           const method = String(message.method)
           requests.push({ method, params: structuredClone(message.params) })
@@ -92,6 +102,15 @@ export function createTestContext(
           items,
         })
       }
+    },
+    /** Sends a request from the host to the plugin, as `services.call` and `tts.synthesize` arrive */
+    call(method: string, params: Value, signal?: AbortSignal): Promise<Value> {
+      const id = ++hostCallId
+      signal?.addEventListener('abort', () => send('cancel', { id }), { once: true })
+      return new Promise((resolve, reject) => {
+        hostCalls.set(id, { resolve, reject })
+        send('request', { id, method, params })
+      })
     },
     close: () => client.close(),
   }

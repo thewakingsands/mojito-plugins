@@ -13,3 +13,8 @@ minimumReleaseAgeExclude:
 
 overrides:
   'matcha-overlay>@ffcafe/mojito-plugin-sdk': 'workspace:*'
+
+# Mojito installs the SDK from a GitHub tarball of this repository, which has no submodules: Matcha
+# links matcha-overlay instead of naming it as a workspace package, and that install may update the
+# lockfile. Checks here still pass --frozen-lockfile
+frozenLockfile: false

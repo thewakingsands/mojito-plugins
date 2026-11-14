@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "Cafe.Matcha",
   "name": "Matcha",
-  "version": "4.0.0-mojito.9",
+  "version": "4.0.0-mojito.10",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
@@ -15,7 +15,7 @@
     "data.read",
     "game.read",
     "memory.read",
-    "audio.play",
+    "tts.say",
     "http.request",
     "identity.read"
   ],

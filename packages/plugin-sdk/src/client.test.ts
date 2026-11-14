@@ -161,3 +161,72 @@ it('returns a complete ordinary-sheet ID array without pagination parameters', a
   expect(fixture.requests).toEqual([{ method: 'data.rowIds', params: { sheet: 'Map', language: 'none' } }])
   fixture.close()
 })
+
+it('speaks in a channel and keeps the signal off the wire', async () => {
+  const fixture = createTestContext(hello, limits, { 'tts.say': () => null })
+  await fixture.context.tts.say('a')
+  await fixture.context.tts.say('b', { channel: 'alarm', signal: new AbortController().signal })
+  expect(fixture.requests).toEqual([
+    { method: 'tts.say', params: { text: 'a' } },
+    { method: 'tts.say', params: { text: 'b', channel: 'alarm' } },
+  ])
+  fixture.close()
+})
+it('provides voices, synthesizes for the host until disposed, and disposes when its signal aborts', async () => {
+  const fixture = createTestContext(hello, limits, {
+    'tts.provide': () => null,
+    'tts.provide.update': () => null,
+    'tts.provide.dispose': () => null,
+  })
+  const voices = [{ id: 'tone', name: 'Tone', online: false }]
+  const seen: AbortSignal[] = []
+  const controller = new AbortController()
+  const provider = await fixture.context.tts.provide(
+    voices,
+    async ({ voice, text }, { signal }) => {
+      seen.push(signal)
+      return new TextEncoder().encode(`${voice}:${text}`)
+    },
+    { signal: controller.signal },
+  )
+  await expect(fixture.context.tts.provide(voices, async () => Uint8Array.of(1))).rejects.toMatchObject({
+    code: 'invalid_argument',
+  })
+  expect(await fixture.call('tts.synthesize', { voice: 'tone', text: 'hi' })).toEqual(
+    new TextEncoder().encode('tone:hi'),
+  )
+  expect(seen[0]).toBeInstanceOf(AbortSignal)
+  await provider.update([...voices, { id: 'two', name: 'Two', online: true }])
+  controller.abort()
+  await provider.dispose()
+  await expect(fixture.call('tts.synthesize', { voice: 'tone', text: 'hi' })).rejects.toMatchObject({
+    code: 'not_found',
+  })
+  await expect(provider.update(voices)).rejects.toMatchObject({ code: 'unavailable' })
+  expect(fixture.requests.map((request) => request.method)).toEqual([
+    'tts.provide',
+    'tts.provide.update',
+    'tts.provide.dispose',
+  ])
+  await fixture.context.tts.provide(voices, async () => Uint8Array.of(1))
+  fixture.close()
+})
+it('cancels a synthesis when the host cancels its request', async () => {
+  const fixture = createTestContext(hello, limits, { 'tts.provide': () => null })
+  let aborted = false
+  await fixture.context.tts.provide([{ id: 'slow', name: 'Slow', online: false }], (_, { signal }) => {
+    return new Promise((_, reject) =>
+      signal.addEventListener('abort', () => {
+        aborted = true
+        reject(pluginError('cancelled'))
+      }),
+    )
+  })
+  const controller = new AbortController()
+  const pending = fixture.call('tts.synthesize', { voice: 'slow', text: 'x' }, controller.signal)
+  await Promise.resolve()
+  controller.abort()
+  await vi.waitFor(() => expect(aborted).toBe(true))
+  void pending.catch(() => {})
+  fixture.close()
+})

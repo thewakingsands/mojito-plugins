@@ -69,6 +69,7 @@ it('compiles default and Options registrations without executing input or npm sc
     'events.read',
     'ui.register',
     'audio.play',
+    'tts.say',
     'identity.read',
   ])
   expect(pkg.manifest.capabilities).not.toContain('http.request')
@@ -180,7 +181,8 @@ it('loads generated registrations and closures into the runtime while keeping un
         return subscription()
       },
     },
-    audio: { say: async () => {}, play: async () => {} },
+    audio: { play: async () => {} },
+    tts: { say: async () => {} },
     log: { error() {} },
   }
   const dispose = await module.activate(ctx)

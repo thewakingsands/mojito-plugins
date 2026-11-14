@@ -27,7 +27,6 @@ import { SubmarineHandler } from './submarine/index.js'
 import { sendWebhook } from './webhooks.js'
 
 const encoder = new TextEncoder()
-const languageTag: Record<string, string> = { chs: 'zh-CN', en: 'en-US', ja: 'ja-JP', de: 'de-DE', fr: 'fr-FR' }
 const identity = (s: SessionSnapshot) =>
   `${s.sessionId}:${s.characterGeneration}:${s.clock.generation}:${s.state}:${s.login}`
 
@@ -176,9 +175,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const signal = cancellation.signal
     try {
       const results = await Promise.allSettled([
-        ...(settings.output.tts && granted('audio.play')
-          ? [context.audio.say(text, { language: languageTag[settings.language], signal })]
-          : []),
+        ...(settings.output.tts && granted('tts.say') ? [context.tts.say(text, { signal })] : []),
         ...(settings.output.toast ? [context.notifications.send({ title: 'Matcha', detail: text }, { signal })] : []),
       ])
       if (!signal.aborted && results.some((result) => result.status === 'rejected'))
@@ -504,7 +501,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       case 'say': {
         const text = String(input.text)
         if (text.length > 1000) throw new Error('语音内容过长')
-        await context.audio.say(text, { language: languageTag[settings.language] })
+        await context.tts.say(text)
         return null
       }
       case 'settings.get':
@@ -561,9 +558,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       case 'test.notification': {
         requireSettings()
         const results = await Promise.allSettled([
-          ...(settings.output.tts
-            ? [context.audio.say('这是 Matcha 通知测试', { language: languageTag[settings.language] })]
-            : []),
+          ...(settings.output.tts ? [context.tts.say('这是 Matcha 通知测试')] : []),
           ...(settings.output.toast
             ? [context.notifications.send({ title: 'Matcha', detail: '这是 Matcha 通知测试' })]
             : []),
