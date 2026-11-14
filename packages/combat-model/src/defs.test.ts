@@ -1169,6 +1169,17 @@ describe('periodicDefs', () => {
     expect(periodicDefs.limitBreaks.has(7)).toBe(false)
   })
 
+  it('has Weakness and Brink of Death, which lower the damage and the healing dealt', () => {
+    for (const [id, value] of [
+      [43, -0.25],
+      [44, -0.5],
+    ])
+      expect(periodicDefs.modifiers.get(id)).toMatchObject([
+        { type: 'damageDealt', value: [{ level: 1, value }] },
+        { type: 'healingDealt', value: [{ level: 1, value }] },
+      ])
+  })
+
   it('leaves out the actions of PvP', () => {
     for (const id of [29716, 41494, 29236]) expect(periodicDefs.actionTypes.has(id)).toBe(false)
   })

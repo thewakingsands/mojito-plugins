@@ -1,1 +1,18 @@
-{ "statuses": [] }
+{
+  "statuses": [
+    {
+      "id": 43,
+      "modifiers": [
+        { "type": "damageDealt", "value": [{ "level": 1, "value": -0.25 }] },
+        { "type": "healingDealt", "value": [{ "level": 1, "value": -0.25 }] }
+      ]
+    },
+    {
+      "id": 44,
+      "modifiers": [
+        { "type": "damageDealt", "value": [{ "level": 1, "value": -0.5 }] },
+        { "type": "healingDealt", "value": [{ "level": 1, "value": -0.5 }] }
+      ]
+    }
+  ]
+}
