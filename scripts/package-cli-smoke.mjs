@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { generateKeyPairSync } from 'node:crypto'
+import { createHash, generateKeyPairSync } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -9,6 +9,34 @@ import { fileURLToPath } from 'node:url'
 const cli = fileURLToPath(
   new URL(`../target/release/mojito-package${process.platform === 'win32' ? '.exe' : ''}`, import.meta.url),
 )
+const example = fileURLToPath(new URL('../examples/catalog/', import.meta.url))
+const examplePackage = path.join(example, 'first.mojito')
+const exampleBytes = await readFile(examplePackage)
+const inspection = JSON.parse(execFileSync(cli, ['verify', examplePackage], { encoding: 'utf8' }))
+const manifest = JSON.parse(await readFile(path.join(example, 'plugin/plugin.json'), 'utf8'))
+assert.deepEqual(inspection.metadata.manifest, manifest)
+assert.equal(manifest.apiVersion, '^2.0.0')
+assert.deepEqual(manifest.capabilities, [])
+for (const file of ['plugin.json', manifest.entry.path]) {
+  assert.deepEqual(
+    execFileSync(cli, ['read', examplePackage, file]),
+    await readFile(path.join(example, 'plugin', file)),
+  )
+}
+assert.deepEqual(JSON.parse(await readFile(path.join(example, 'catalog.json'), 'utf8')), {
+  schemaVersion: 1,
+  releases: [
+    {
+      pluginId: manifest.id,
+      version: manifest.version,
+      apiVersion: manifest.apiVersion,
+      downloadUrl: 'https://plugins.example.test/first.mojito',
+      size: exampleBytes.length,
+      sha256: createHash('sha256').update(exampleBytes).digest('hex'),
+    },
+  ],
+})
+console.log('Static catalog example signature, source and metadata passed')
 const root = await mkdtemp(path.join(tmpdir(), 'package-cli-'))
 try {
   const input = path.join(root, '目录 with spaces')

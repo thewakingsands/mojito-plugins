@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "Example.StaticCatalog",
+  "name": "Static catalog example",
+  "version": "1.0.0",
+  "apiVersion": "^2.0.0",
+  "entry": { "kind": "worker", "path": "entry.mjs" },
+  "capabilities": [],
+  "networkOrigins": []
+}
