@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "releases": [
+    {
+      "pluginId": "Example.StaticCatalog",
+      "version": "1.0.0",
+      "apiVersion": "^2.0.0",
+      "downloadUrl": "https://plugins.example.test/first.mojito",
+      "size": 1073,
+      "sha256": "519ad361e4a239dce3a6ed099858c31605edda1e5f048855895a4f26f957b56c"
+    }
+  ]
+}

@@ -42,7 +42,7 @@ jobs:
                 ;;
               crates/package/src/*|crates/plugin-protocol/Cargo.toml|crates/plugin-protocol/src/*|\
               crates/plugin-protocol/tests/*|crates/plugin-protocol/examples/*|crates/plugin-protocol/fixtures/*|\
-              include/*|rustfmt.toml|scripts/package-cli-smoke.mjs|scripts/package-ffi-smoke.py)
+              include/*|rustfmt.toml|scripts/package-cli-smoke.mjs|scripts/package-ffi-smoke.py|tools/catalog/*)
                 codec=true
                 ;;
               crates/package/web/*|scripts/build-package-web.mjs)
