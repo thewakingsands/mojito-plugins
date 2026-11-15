@@ -133,7 +133,7 @@ jobs:
           name: plugin-package-web
           path: dist/package-web
   pages:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PAGES_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -168,13 +168,10 @@ jobs:
           cp -R dist/package-web/. dist/pages/
           cp -R packages/plugin-sdk/docs/.vitepress/dist/. dist/pages/docs/
       - uses: actions/configure-pages@v5
-        if: vars.PAGES_DEPLOY_ENABLED == 'true'
         with:
           enablement: false
       - uses: actions/upload-pages-artifact@v4
-        if: vars.PAGES_DEPLOY_ENABLED == 'true'
         with:
           path: dist/pages
       - uses: actions/deploy-pages@v4
-        if: vars.PAGES_DEPLOY_ENABLED == 'true'
         id: deployment

@@ -1,153 +1,214 @@
-# Style
+# Plugin style guide
 
-Feature pages, home panels, settings pages and overlays are independent web documents. The host injects `--mojito-*` CSS variables, serves optional `/host/mojito-base.css` and provides Geist fonts under `/host/fonts/`.
+Plugin pages (sidebar features, home panels and settings pages) and plugin overlays are independent web documents; host styles and components cannot reach them. To match the host's appearance, the host provides:
 
-Any web framework or canvas renderer can use these values. Variables update with the host's light/dark theme. The sans/mono variables already select Geist with system fallbacks.
+- **Style variables**: `--mojito-*` CSS variables injected automatically into every plugin page and overlay. No plugin code is needed. Values update with the light/dark theme.
+- **Base stylesheet** (optional): `/host/mojito-base.css` makes ordinary HTML buttons, inputs, switches and tables look like the host's controls. The plugin's own styles always take priority.
+- **Fonts**: bundled Geist; `--mojito-font-sans` and `--mojito-font-mono` already select it, with Microsoft YaHei as the Chinese fallback.
+
+The host supplies neither a component library nor a form-description renderer. Plugins may use any framework (React, Vue, native DOM or canvas), taking colors, type sizes, radii and dimensions from these variables.
 
 ## Principles
 
-- Take colors, type sizes, radii and control heights from host variables.
-- Interactive controls use `--mojito-radius-control` (8px), panels use `--mojito-radius-panel` (12px). Reserve capsules for status and roles.
-- Use `--mojito-control-height` (30px); large primary actions and labels-above-fields use the large value (34px). Keep control heights consistent within a row.
-- Give each region one primary action. Express status with text as well as color. Use tabular numerals and at least 12px for Chinese text.
+- Use `--mojito-*` variables for colors, type sizes, radii and control heights instead of hardcoded colors. Plugins then follow host redesigns and new themes automatically.
+- Interactive controls use an 8px radius (`--mojito-radius-control`), containers 12px (`--mojito-radius-panel`). Reserve capsules for statuses and roles, rather than buttons.
+- Controls are 30px high (`--mojito-control-height`); use 34px (`--mojito-control-height-large`) for labels-above-fields and a page's primary action. Keep heights consistent within a row.
+- Give each region at most one primary action (`--mojito-primary`). Express status with text as well as color. Use tabular numerals (`font-variant-numeric: tabular-nums`) and at least 12px for Chinese text.
 
 ## Variables
 
-Read `--mojito-contract` for the style version, currently 1. Names and meanings remain stable within that version; additions are allowed, and renamed variables retain aliases until the next version. Actual colors may change with the theme or host design.
+The style version is 1, readable from `--mojito-contract`. Within a version, variables may be added but are neither removed nor renamed; a necessary rename retains the old name as an alias until the next version and is documented here.
 
-| Variable | Value / purpose |
-| --- | --- |
-| `--mojito-font-sans`, `--mojito-font-mono` | Geist / Geist Mono with system fallbacks |
-| `--mojito-text-xs`, `-sm`, `-base`, `-lg`, `-xl` | 12 / 13 / 14 / 16 / 20px |
-| `--mojito-radius-small`, `-control`, `-panel` | 4 / 8 / 12px |
-| `--mojito-control-height`, `-large` | 30 / 34px |
-| `--mojito-space-page`, `-section`, `-group` | 20 / 24 / 12px |
-| `--mojito-ease` | Transition easing; use around 150ms |
-| `--mojito-bg` | Page background |
-| `--mojito-bg-subtle`, `-muted`, `-hover` | Subtle surfaces, tracks/disabled segments, hovered rows/buttons |
-| `--mojito-border`, `-strong` | Separators / control borders |
-| `--mojito-fg`, `-secondary`, `-tertiary` | Main / secondary / placeholder text |
-| `--mojito-accent` | Links, selected text/icons |
-| `--mojito-focus` | Focus ring |
-| `--mojito-primary`, `-hover`, `-fg` | Primary action background, hover, foreground |
-| `--mojito-ok-bg`, `-fg` | Positive status |
-| `--mojito-warn`, `-bg`, `-fg` | Attention status |
-| `--mojito-danger`, `-bg`, `-fg` | Failure / destructive action |
-| `--mojito-tank-bg`, `-fg`; `healer`, `dps` | Role colors |
-| `--mojito-chart-grid`, `-axis` | Charts |
-| `--mojito-shadow-raised`, `-popover` | Raised state / plugin popovers |
-| `--mojito-shadow-popover-edge` | Combine with popover shadow for its top edge |
-| `--mojito-shadow-control`, `-primary`, `-card` | Control edges / primary button / panel shadow |
-| `--mojito-border-heavy` | Checkbox borders and hovered fields |
-| `--mojito-bg-strong`, `-selected`, `-chip` | Strong/disabled fills, selected fills, neutral chips |
-| `--mojito-thumb`, `--mojito-shadow-thumb` | Switch thumb and shadow |
-| `--mojito-scrim` | Modal backdrop |
+| Variable | Light / dark | Purpose |
+| --- | --- | --- |
+| `--mojito-font-sans` | Geist, Microsoft YaHei fallback | Body text |
+| `--mojito-font-mono` | Geist Mono | Code, IDs and aligned numerals |
+| `--mojito-text-xs` `-sm` `-base` `-lg` `-xl` | 12 / 13 / 14 / 16 / 20px | Help / controls / body / headings / large figures |
+| `--mojito-radius-small` `-control` `-panel` | 4 / 8 / 12px | Small markers / interactive controls / containers |
+| `--mojito-control-height` `-large` | 30 / 34px | Control height |
+| `--mojito-space-page` `-section` `-group` | 20 / 24 / 12px | Page padding / sections / groups |
+| `--mojito-ease` | | Transition easing, with a duration around 150ms |
+| `--mojito-bg` | White / dark gray | Page background, matching the host frame |
+| `--mojito-bg-subtle` | | Subtle surfaces: headers, code blocks, unselected segments |
+| `--mojito-bg-muted` | | Tracks and disabled segments |
+| `--mojito-bg-hover` | Translucent | Hovered rows and buttons |
+| `--mojito-border` `-strong` | | Separators / control borders |
+| `--mojito-fg` `-secondary` `-tertiary` | | Main / secondary / placeholder text |
+| `--mojito-accent` | Green / lime | Links and selected text/icons |
+| `--mojito-focus` | | Focus ring |
+| `--mojito-primary` `-hover` `-fg` | Lime | Primary action background, hover and foreground |
+| `--mojito-ok-bg` `-fg` | | Positive status |
+| `--mojito-warn` `-bg` `-fg` | | Attention status |
+| `--mojito-danger` `-bg` `-fg` | | Failure and destructive actions |
+| `--mojito-tank-bg` `-fg`, `healer`, `dps` | | Tank, healer and damage roles |
+| `--mojito-chart-grid` `-axis` | | Chart grid and axes |
+| `--mojito-shadow-raised` `-popover` | | Selected states / plugin popovers |
+| `--mojito-shadow-popover-edge` | | Popover top edge; combine it with the popover shadow: `box-shadow: var(--mojito-shadow-popover-edge), var(--mojito-shadow-popover)` |
+| `--mojito-shadow-control` `-primary` `-card` | | Button/picker edges / primary button edges / subtle panel shadow |
+| `--mojito-border-heavy` | | Checkbox borders and hovered inputs |
+| `--mojito-bg-strong` `-selected` `-chip` | | Hovered switches and disabled fills / selected fills / neutral chips |
+| `--mojito-thumb` `--mojito-shadow-thumb` | | Switch thumb and shadow |
+| `--mojito-scrim` | | Dimmed backdrop behind a dialog |
 
-Use matching `-bg` and `-fg` pairs. In dark mode, translucent status backgrounds are intended to sit over `--mojito-bg`.
+Use matching `-bg` and `-fg` pairs. In dark mode, translucent `-bg` values are designed to sit over `--mojito-bg`.
 
-## Base stylesheet
+## Usage
+
+### Variables only
+
+```css
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+.toolbar button {
+  height: var(--mojito-control-height);
+  padding: 0 12px;
+  font: 500 var(--mojito-text-sm) var(--mojito-font-sans);
+  color: var(--mojito-fg);
+  background: var(--mojito-bg);
+  border: 1px solid var(--mojito-border-strong);
+  border-radius: var(--mojito-radius-control);
+}
+```
+
+### Include the base stylesheet
 
 ```html
 <link rel="stylesheet" href="/host/mojito-base.css">
 ```
 
-The leading slash resolves to the host resource from a `mojito-plugin://runtime/plugin/…` page, including development views. A Vite warning that it does not exist at build time is expected.
+All base rules live in the CSS layer `@layer mojito`. The plugin's unlayered styles take priority regardless of selector specificity or order, so stronger selectors are unnecessary. Keep your own styles out of the `mojito` layer.
 
-Base styles live in `@layer mojito`. Your unlayered CSS takes priority regardless of selector specificity or order; keep your own overrides outside that layer.
+Use a leading slash: from a plugin page at `mojito-plugin://runtime/plugin/…`, this resolves to the host's `mojito-plugin://runtime/host/mojito-base.css`. Vite may warn that it “doesn't exist at build time”; that is expected. Development-server views can use the same address.
 
-### Controls and content
+The base stylesheet includes:
 
-- `body` gets host type, colors and page padding. Override padding when needed. Headings, text, links, code, `kbd`, focus, selections and scrollbars are styled.
-- Buttons default to secondary, with a light/dark edge and a pressed offset. `data-variant="primary|ghost|danger"`, `data-size="large"` and `data-icon` select variants. Custom interactive drawings can override `box-shadow` and `transform`.
-- `aria-pressed` buttons use the accent color when selected. Inputs, selects and textareas have host height, hover borders and focus rings.
-- Single selects use Chromium `appearance: base-select`: rounded picker, checkmarks and hover states. Options may include icons. `optgroup` supplies muted group headings; multi-select and larger listboxes retain their native presentation.
-- Search inputs have a search icon and clear action. Number inputs use tabular numerals without spinner buttons; arrow keys still adjust them. Date/time icons and selected text use host styles, while the calendar popup stays native. File inputs use a secondary button; color inputs are control-height swatches.
-- Checkboxes, radios, ranges, progress and meters use host colors. `<input type="checkbox" role="switch">` is a switch. A `progress` without `value` animates an indeterminate segment and respects reduced motion.
-- `<span class="mojito-spinner"></span>` follows text color. A disabled button with `aria-busy="true"` shows a spinner; primary buttons retain their accent color.
-- Labels, fieldsets, legends, lists, quotes, code, preformatted text, keycaps and marks follow host styles. `details`/`summary` animate height; `.mojito-chevron` inside an `aria-expanded` button rotates with state.
-- `dialog` and its backdrop fade. A confirmation layout uses `header` for title/description and `footer` for right-aligned actions, with the primary action last; these may sit inside `<form method="dialog">`.
-- `dl` lays out a 96px label column and value column; each pair may be wrapped in a `div`. `.mojito-facts` is the stacked-label alternative.
-- Tables use 36px rows, hover feedback and tabular numerals. Set `data-align="end"` on numeric `th` and `td`. A sortable `th` contains a button and `aria-sort="ascending|descending|none"`; the plugin performs sorting.
+- `body`: background, text color, fonts and `--mojito-space-page` padding. Override padding when needed.
+- Headings, paragraphs, links, `small`, separators, `code`/`kbd`, focus rings, selected text and scrollbars.
+- `button`: secondary by default, with a subtle light/dark edge and a pressed offset; `data-variant="primary"`, `"ghost"`, `"danger"`; `data-size="large"` uses 34px; `data-icon` makes a square icon button. Disabled primary buttons turn gray. All buttons have this treatment; custom plugin buttons (list rows, timeline markers) can set `box-shadow: none` and `transform: none` to remove it.
+- Pressable buttons use `aria-pressed`, for example a “Show player names” toggle or job selection. `aria-pressed="true"` is lime; `"false"` text is lighter than ordinary button text.
+- `input`, `select`, `textarea`: 30px high, a stronger border on hover and an accent border with a light focus ring.
+- `select`: host up/down arrows and a host-style picker with rounded corners, checkmarks and hovered options. This uses Chromium customizable select (`appearance: base-select`); options can contain icons. `optgroup` has a muted group heading. `multiple` and listboxes with `size` greater than 1 retain their native presentation.
+- Other inputs: `type="search"` has a search icon and host clear button; `type="number"` uses tabular numerals without native spinner buttons, while arrow keys still adjust values. Date/time inputs use host calendar/clock icons and selection color, but the calendar popup stays native. `type="file"` uses a secondary button; `type="color"` is a control-height swatch.
+- Checkboxes and radios use lime when selected. `<input type="checkbox" role="switch">` is a switch for immediately applied settings. Ranges, `progress` and `meter` use host colors. A `progress` without `value` animates an indeterminate segment; reduced motion replaces it with a muted full track.
+- Busy state: `<span class="mojito-spinner"></span>` is the host spinner and follows text color. Use `aria-busy="true"` and `disabled` on a busy button to show a spinner before its label; primary buttons retain their lime color.
+- `label`, `fieldset`, `legend`; `details`/`summary` act like the host's advanced section, with a rotating disclosure arrow. `<span class="mojito-chevron">` inside an `aria-expanded` button rotates with that state too.
+- `code`, `pre`, `kbd` keycaps, `mark`, `blockquote` and lists.
+- `details` animates height when opening and closing, like the host's disclosure sections.
+- `dialog` and its backdrop fade in/out. A host-style confirmation uses a `header` with a title and short description and a `footer` with right-aligned actions, primary last; both can sit inside `<form method="dialog">`.
+- `dl`: a 96px muted label column and a value column; each `dt`/`dd` pair may be wrapped in a `div`. `.mojito-facts` provides the alternative below.
+- `table`: headers, 36px rows, hover states and tabular numerals. Put `data-align="end"` on both `th` and `td` in numeric columns.
+- Sortable headers: `<th aria-sort="descending"><button>Damage</button></th>`. Use `ascending` or `descending` on the sorted column for its direction arrow; use `none` elsewhere for a hover-only sort marker. End-aligned columns put the arrow before the label to keep labels and numbers aligned. The plugin implements sorting.
+- Popovers: an element with `popover` opens from a button with `popovertarget`. It aligns below/left, flips upward if needed and aligns right when necessary; Esc or an outside click closes it. From script use `element.showPopover({ source: button })` to supply the positioning anchor. These are browser features (`popover` and CSS anchor positioning), without additional scripts or libraries.
+- Menus: `<div popover role="menu">` contains `role="menuitem"` buttons, matching the host's more-actions menu. Icons are muted and 16px; trailing `small`/`kbd` shows shortcuts. Put `data-variant="danger"` actions last after `<hr>`. `role="menuitemcheckbox"` with `aria-checked` shows a checkmark when selected; `h3` labels groups. The plugin handles arrow-key navigation and closing after selection.
+- Hints: `<span popover="hint">` with a matching `interestfor` trigger appears on pointer hover or keyboard focus, dark with light text, centered below the trigger. `small` is secondary text. Custom-positioned hints, such as chart readouts following the pointer, use `role="tooltip"` for the same appearance and position themselves.
+- Classes:
+  - `.mojito-panel`: bordered container with a 12px radius.
+  - `.mojito-field`: setting row, label/description left and control right; adjacent rows get separators.
+  - `.mojito-chip`: status and role labels, `data-tone="ok|warn|danger|tank|healer|dps"`. Statuses have marks (○ neutral, ● positive, △ attention, × failure); `data-mark="check|cross|dash|dot|ring|triangle|none"` changes the mark, for example a check for a kill. Do not add ✓ or ✕ to the text. Role labels have no mark.
+  - `.mojito-secondary`: secondary text.
+  - `.mojito-callout`: a message with optional `data-tone="warn|danger"`.
+  - `.mojito-segmented`: adjacent `aria-pressed` buttons or labels wrapping radios; the selected item is lime.
+  - `.mojito-tabs`: views of one page, with `aria-selected="true"` or `aria-current="page"` buttons/links.
+  - `.mojito-panel > header`: panel heading row, with its last child aligned right for actions.
+  - `.mojito-empty`: centered, muted empty state; optional `h3`, paragraph and final `div` containing buttons.
+  - `.mojito-badge`: smaller label, such as “Recommended” or “2 updates”, without a mark; `data-tone="ok|warn|danger"`. Use `.mojito-chip` for status.
+  - `.mojito-list`: `<ul class="mojito-list">` with one row per `li`, separators, border and radius; drops its own border inside `.mojito-panel`. `strong` is the title and `small` the description. `aria-selected="true"` or `aria-current` marks selected rows. Rows wrapping a single link or button highlight on hover.
+  - `.mojito-facts`: a `dl` with each `<div><dt>…</dt><dd>…</dd></div>` pair laid out label-above-value in responsive columns.
 
-### Popovers and menus
-
-Elements with `popover` open through a `popovertarget` button, align below it, flip when needed and close with Esc/outside clicks. From script, use `element.showPopover({ source: button })` to supply the positioning anchor.
-
-A menu is `<div popover role="menu">` with `role="menuitem"` buttons. Icons are muted and 16px; trailing `small`/`kbd` shows shortcuts. Put `data-variant="danger"` last after a separator. Checkable items use `role="menuitemcheckbox"` and `aria-checked`; `h3` labels groups. The plugin handles arrow-key navigation and closing after selection.
-
-A hint uses `popover="hint"` and a matching `interestfor` trigger, appearing on hover or keyboard focus. Use `small` for secondary text. A custom-positioned hint can use `role="tooltip"` for the same appearance.
-
-### Classes
-
-| Class | Purpose |
-| --- | --- |
-| `.mojito-panel` | Bordered 12px-radius group; a direct `header` puts its last child on the right |
-| `.mojito-field` | Setting row: label/description on the left, control on the right, separators between rows |
-| `.mojito-chip` | Status or role; `data-tone="ok|warn|danger|tank|healer|dps"`; `data-mark="check|cross|dash|dot|ring|triangle|none"` selects a status mark |
-| `.mojito-secondary` | Secondary text |
-| `.mojito-callout` | A message, with optional `data-tone="warn|danger"` |
-| `.mojito-segmented` | Adjacent `aria-pressed` buttons or radio labels |
-| `.mojito-tabs` | View buttons/links with `aria-selected` or `aria-current="page"` |
-| `.mojito-empty` | Centered empty state; optional `h3`, paragraph and final action `div` |
-| `.mojito-badge` | Small label, optional `data-tone="ok|warn|danger"`; no status mark |
-| `.mojito-list` | `ul` rows with separators; `strong` title and `small` description; selection uses `aria-selected` or `aria-current` |
-| `.mojito-facts` | A `dl` of `div`-wrapped `dt`/`dd` pairs, labels above values, responsive columns |
-| `.mojito-chevron`, `.mojito-spinner` | Disclosure indicator / busy indicator |
-
-Status chips already supply their mark. Role chips have no mark. Lists inside a panel drop their own border; a row wrapping a single link/button gains hover feedback.
-
-### Example settings
+A settings page:
 
 ```html
 <form class="mojito-panel">
   <div class="mojito-field">
-    <div><label for="scope">Scope</label><small>Who is included in the overlay.</small></div>
+    <div><label for="scope">Scope</label><small>Who is included in overlays and recordings.</small></div>
     <select id="scope"><option>Party</option><option>Alliance</option></select>
   </div>
   <div class="mojito-field">
-    <div><label for="hide">Hide outside combat</label></div>
+    <div><label for="hide">Hide overlays outside combat</label><small>Fade out 10 seconds after combat.</small></div>
     <input id="hide" type="checkbox">
   </div>
 </form>
 <button data-variant="primary">Save</button>
 ```
 
-Use [Lucide](https://lucide.dev) icons: `lucide-react` for React, `lucide` or SVG elsewhere. Keep the default stroke width 2 and `currentColor`. Base styles set `svg.lucide` inside buttons to 14px, or 16px in large buttons.
+A toolbar:
 
-### Canvas and charts
+```html
+<button aria-pressed="true">Show player names</button>
+<button popovertarget="jobs">Jobs</button>
+<div id="jobs" popover>
+  <button aria-pressed="true">Paladin</button>
+  <button aria-pressed="false">Warrior</button>
+</div>
+<button data-icon data-variant="ghost" interestfor="tip" aria-label="About"><svg class="lucide">…</svg></button>
+<span id="tip" popover="hint">Damage attributed by received buffs</span>
+```
 
-Read root variables and redraw when the theme changes:
+### Icons
+
+Use [Lucide](https://lucide.dev), like the host: `lucide-react` for React, or `lucide`/copied SVG elsewhere. Keep the default stroke width 2 and `currentColor`. Base styles make button `svg.lucide` icons 14px, or 16px in large buttons. Do not substitute characters such as ←, ▶, ✕ or emoji for icons.
+
+### Read colors in JavaScript
+
+For canvas and chart libraries, read variables from the root element and redraw on theme changes:
 
 ```ts
 const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--mojito-${name}`).trim()
 const dark = matchMedia('(prefers-color-scheme: dark)')
-const draw = () => console.log(token('fg'), token('chart-grid'))
+const draw = () => chart.setOptions({ color: token('fg'), gridColor: token('chart-grid') })
 dark.addEventListener('change', draw)
 draw()
 ```
 
+Currently the host has light and dark themes only; `prefers-color-scheme` changes therefore reflect theme changes.
+
 ## Page boundaries
 
-The host draws the outer frame, border, 12px radius and title bar. The plugin draws the content below it.
+Plugin pages sit inside the host's frame. The host draws its border, 12px radius and title bar (plugin name and “Feature page”, “Home panel” or “Plugin settings”); the plugin draws the region below it.
 
-| View | Content |
+| Page | Plugin content |
 | --- | --- |
-| Sidebar feature | `--mojito-bg`, `--mojito-space-page`, internal scrolling at fixed height; start with content or a toolbar |
-| Home panel | Same boundaries; put key data in the first screen and scroll inside the panel |
-| Settings | Group rows with `.mojito-panel` and `.mojito-field`; put one primary save action at the bottom |
+| Sidebar feature | `--mojito-bg` background and `--mojito-space-page` padding. The page has fixed height; scroll inside it when needed. Keep the outer frame, radius and shadow to the host. Its title bar already has the plugin name, so start with a toolbar or content instead of repeating that name as a large heading. |
+| Home panel | Same boundaries. Put the most important figures in the first screen; height is limited, so scroll inside the panel when needed. |
+| Settings page | Same boundaries. Group settings in `.mojito-panel`, one `.mojito-field` row per item; put the save action at the bottom with one primary button for the page. |
 
-The host handles loading, failed-load and stopped-plugin frame states. Paint the page background promptly. While host popups are open, a screenshot may temporarily replace the embedded view.
+The host shows loading, load-failure and stopped-plugin states inside the frame. Paint the page background promptly to avoid a long blank region. Host popups temporarily replace the embedded page with a screenshot; this is expected.
 
 ## Overlays
 
-Overlays stay over the game and do not follow light/dark page backgrounds. Use host type, sizing, radii and status/role colors; keep backgrounds limited to actual content that needs them.
+- Overlays sit above the game and do not follow light/dark page backgrounds. Do not fill the window with `--mojito-bg`; host type, sizing, radii and role/status colors can be used.
+- Windows start transparent. When transparent and not fully click-through, painted controls, `cursor: pointer` elements, backgrounds/images, borders, text, images and opaque canvas pixels receive input; other regions pass clicks through to the game. Add backgrounds only where interaction or a backplate is needed.
+- Keep text readable over the game: white text with a shadow or translucent backplate, at least 12px, with tabular numerals.
 
-Windows start transparent. When transparent and not fully click-through, painted controls, pointer-cursor elements, backgrounds, borders, text, images and opaque canvas pixels receive input; unpainted regions pass clicks to the game. Keep text readable with white text and a shadow/backplate, at least 12px and tabular numerals.
+OverlayPlugin compatibility templates are third-party pages and do not receive injected host variables.
 
-OverlayPlugin compatibility templates are third-party pages and do not receive host variables.
+## Guarantees and limits
 
-## Stable surface
+Guaranteed within version 1 (neither removed nor renamed):
 
-Within style version 1, variable names/meanings, `/host/mojito-base.css`, its `mojito` layer, documented classes/attributes/roles and `/host/fonts/` remain available. Color values, internal host classes and frame dimensions can change.
+- Names and meanings of `--mojito-*` variables and `--mojito-contract`.
+- `/host/mojito-base.css`, its `mojito` layer and plugin override priority; documented classes (`.mojito-panel`, `.mojito-field`, `.mojito-chip`, `.mojito-secondary`, `.mojito-callout`, `.mojito-segmented`, `.mojito-tabs`, `.mojito-empty`, `.mojito-facts`, `.mojito-chevron`, `.mojito-badge`, `.mojito-list`, `.mojito-spinner`); `data-variant`, `data-size`, `data-tone`, `data-icon`, `data-align`; styles for `role="switch"`, `role="tooltip"`, `role="menu"`, menu-item roles, `aria-pressed`, `aria-sort`, `aria-busy` and `popover`; and `header`/`footer` inside `dialog`.
+- Font URLs under `/host/fonts/`.
 
-See the public [view example](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/plugin-views) for a working settings page and overlay.
+Not guaranteed:
+
+- Exact color values, which change with themes and host redesigns.
+- Internal host variables and classes, which are inaccessible from plugin pages.
+- Exact host-frame dimensions, such as title-bar height.
+
+## Checklist
+
+- [ ] Colors come from `--mojito-*`, without hardcoded color values.
+- [ ] Both light and dark themes have been checked.
+- [ ] The page has no duplicate outer frame, radius, shadow or large plugin-name heading.
+- [ ] Interactive controls use 8px radii, containers 12px; capsules indicate status only.
+- [ ] Controls in a row share a height; each region has at most one primary action.
+- [ ] Status includes text; Chinese text is at least 12px; numerals are tabular.
+- [ ] Overflow scrolls inside the page without a second host scrollbar.
+- [ ] Overlays keep backgrounds limited to content, and transparent regions pass clicks through to the game.
+
+## Example
+
+See [plugin-views](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/plugin-views) for settings, home-panel and transparent-overlay examples.

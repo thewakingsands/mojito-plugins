@@ -42,7 +42,7 @@ SDK 开发文档在 `packages/plugin-sdk/docs/`，中文位于根目录，英文
 - `pnpm test:official`：`scripts/pack-official.test.mjs`。
 - `pnpm pack:official <private.jwk> <expected-fingerprint>`：为官方插件签名打包。
 
-CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install --frozen-lockfile`、`pnpm docs:build`、`pnpm build:official`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm test:official`，并构建 `examples/overlayplugin-fixture`。改动 Rust 代码、协议、头文件或 `examples/catalog` 时，codec job 还会在 Linux 和 Windows 上运行 `cargo fmt --all --check`、`cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings`、Cargo 测试和冒烟测试。web job 在 PR 中构建受影响的验证器；main push 的 pages job 构建验证器和文档，合并为一个 Pages 产物。提交前在本地跑过对应的检查。
+CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install --frozen-lockfile`、`pnpm docs:build`、`pnpm build:official`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm test:official`，并构建 `examples/overlayplugin-fixture`。改动 Rust 代码、协议、头文件或 `examples/catalog` 时，codec job 还会在 Linux 和 Windows 上运行 `cargo fmt --all --check`、`cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings`、Cargo 测试和冒烟测试。web job 在 PR 中构建受影响的验证器；启用 `PAGES_DEPLOY_ENABLED` 后，main push 的 pages job 构建验证器和文档，合并为一个 Pages 产物并部署。提交前在本地跑过对应的检查。
 
 格式：TypeScript/JavaScript/JSON 由 biome 格式化（2 空格缩进、行宽 120、单引号、不写分号）；Rust 由 `rustfmt.toml` 约束（2 空格缩进，style edition 2024）。
 

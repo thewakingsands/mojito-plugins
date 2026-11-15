@@ -101,10 +101,10 @@ library, web assets, build script and shared Rust inputs. SDK/plugin sources and
 dependencies do not trigger these jobs. Changes to the checks workflow trigger both.
 
 The browser verifier is built into `dist/package-web` with relative Worker and WASM
-URLs, so it works under the `/mojito-plugins/` Pages path. Every push to `main` builds
-the verifier and documentation into one `dist/pages` artifact, with documentation under `docs/`.
-Deployment through the `github-pages` environment is
-enabled only when the repository variable `PAGES_DEPLOY_ENABLED` is `true`. Enable
+URLs, so it works under the `/mojito-plugins/` Pages path. When the repository variable
+`PAGES_DEPLOY_ENABLED` is `true`, each push to `main` builds the verifier and documentation
+into one `dist/pages` artifact, with documentation under `docs/`, and deploys through
+the `github-pages` environment. Enable
 Pages with GitHub Actions as its source, allow `main` in that environment, and authorize
 deployment before setting that variable; the workflow does not enable settings automatically.
 
