@@ -237,6 +237,11 @@ await provider.update(voices) // e.g. after the user entered a key
 `online: true` marks a voice that sends text to a network service. A plugin has one registration at a time;
 it ends with `dispose()`, the `signal` option or the plugin stopping.
 
+The host caches what online voices synthesize, and splits the text on the names of the current party so that each
+name and each stretch of text between names is synthesized and cached on its own. `synthesize` may therefore get
+only part of a sentence, such as one character name, and the host plays the parts back to back. Text the host
+already has is not sent to the plugin again, so the requests a plugin sees are the ones it really makes.
+
 ### Plugin API 2.0
 
 Plugin API 2.0.0 (MJT-282) changes what a plugin declares and what the user decides. It is not compatible

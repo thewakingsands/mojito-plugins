@@ -221,6 +221,9 @@ export interface TtsService {
    * Offers voices to the user. When a chosen voice speaks, the host asks `synthesize` for encoded audio (MP3, WAV,
    * Ogg/Opus or another format Chromium plays) and plays it. One registration per plugin; aborting `options.signal`
    * disposes it.
+   *
+   * For voices with `online: true`, the host caches the audio and splits the text on the names of the current party,
+   * so `synthesize` may get only part of a sentence, and is not asked again for text already cached.
    */
   provide(
     voices: Voice[],
