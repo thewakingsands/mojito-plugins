@@ -59,3 +59,9 @@ view.on('navigate-to-preference-item', ({ id, keyword }) => {
 `keyword` 是用户输入的内容（去掉首尾空白），可能是拼音或首字母。页面不认识的 `id`（例如条目刚被替换）应忽略。
 只有设置页会收到这个事件，每次选中发送一次。如果事件在页面调用 `view.on` 之前到达，SDK 会保留每种事件的最新一次，
 交给第一个监听器。`examples/plugin-views` 提交了其设置页的条目，并高亮被选中的条目。
+
+## 悬浮窗
+
+`ui.registerOverlay` 接收 ID、名称、entry 和 `defaultSize: { width, height }`，返回 disposer。用户在悬浮窗管理中添加实例并控制置顶、锁定和穿透；状态通过[页面 bridge](api/view.md)发布。
+
+OverlayPlugin 兼容页面声明 `ui.register` 和 `ui.overlayplugin`，注册时用 `compatibility` 替代 `entry`，用 `overlayProducer` 发布 `OverlayState`。包内来源列出入口和允许访问的文档；远程来源引用宿主管理的 profile，另需 `ui.overlayplugin.remote`。定义见 [overlayplugin.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/packages/plugin-sdk/src/overlayplugin.ts)。

@@ -15,7 +15,7 @@
 - **随代码更新**：改变规范或页面行为的提交，在同一个提交里更新对应的文档。文档和代码不一致时修正文档，不保留过时的段落。
 - 提交信息和代码注释用英文。
 
-本仓库的 SDK 文档 `packages/plugin-sdk/GUIDE.md`、`packages/plugin-sdk/docs/features.md` 和 `packages/plugin-sdk/docs/style.md` 只有中文一份，随 SDK 包一起发布。改动 SDK 的公开 API 或宿主行为约定时，同时更新这些文档，示例代码要与 `packages/plugin-sdk/src` 的实际导出一致。
+SDK 开发文档在 `packages/plugin-sdk/docs/`，中文位于根目录，英文位于 `en/`，`GUIDE.md` 提供入口。正文随 SDK 发布，`.vitepress/` 保存站点配置并排除在 npm 包外。改动公开 API 或宿主行为约定时，同步更新中英文正文；完整签名链接到类型定义，示例与 `packages/plugin-sdk/src` 的实际导出一致。
 
 ## 目录结构
 
@@ -34,6 +34,7 @@
 根目录 `package.json` 中的脚本：
 
 - `pnpm build`：构建 Rust CLI（`build:package`）和所有 workspace 包；`pnpm build:official` 等同于它。
+- `pnpm docs:dev`、`pnpm docs:build`、`pnpm docs:preview`：启动、构建和预览插件开发文档。
 - `pnpm build:web`：构建浏览器校验器到 `dist/package-web`（需要 `wasm32-unknown-unknown` target 和 `wasm-bindgen-cli` 0.2.129）。
 - `pnpm typecheck`、`pnpm lint`（`biome check`）、`pnpm lint:fix`（`biome check --write`）。
 - `pnpm test`：vitest 加上 `scripts/overlay-templates/*.test.mjs`。
@@ -41,7 +42,7 @@
 - `pnpm test:official`：`scripts/pack-official.test.mjs`。
 - `pnpm pack:official <private.jwk> <expected-fingerprint>`：为官方插件签名打包。
 
-CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install --frozen-lockfile`、`pnpm build:official`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm test:official`，并构建 `examples/overlayplugin-fixture`。改动 Rust 代码、协议、头文件或 `examples/catalog` 时，codec job 还会在 Linux 和 Windows 上运行 `cargo fmt --all --check`、`cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings`、Cargo 测试和冒烟测试。提交前在本地跑过对应的检查。
+CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install --frozen-lockfile`、`pnpm docs:build`、`pnpm build:official`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm test:official`，并构建 `examples/overlayplugin-fixture`。改动 Rust 代码、协议、头文件或 `examples/catalog` 时，codec job 还会在 Linux 和 Windows 上运行 `cargo fmt --all --check`、`cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings`、Cargo 测试和冒烟测试。web job 在 PR 中构建受影响的验证器；main push 的 pages job 构建验证器和文档，合并为一个 Pages 产物。提交前在本地跑过对应的检查。
 
 格式：TypeScript/JavaScript/JSON 由 biome 格式化（2 空格缩进、行宽 120、单引号、不写分号）；Rust 由 `rustfmt.toml` 约束（2 空格缩进，style edition 2024）。
 

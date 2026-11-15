@@ -2,6 +2,8 @@
 
 [English](README.md) | 简体中文
 
+[插件开发文档](https://thewakingsands.github.io/mojito-plugins/docs/)：API、权限、页面、样式、签名与发布。
+
 Mojito 插件 SDK、包格式编解码器、开发者示例和官方插件。
 需要 Node 24、pnpm 12.13.0 和 stable Rust。本仓库单独克隆即可：
 
@@ -86,11 +88,12 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 ## 编解码器与 web CI
 
 当编解码器的 Rust 源码、协议、头文件、测试脚本、`examples/catalog` 示例或共用的 Rust 构建输入发生变化时，
-CI 在 Linux 和 Windows 上校验编解码器。web 构建关注校验库、web 资源、构建脚本和共用的 Rust 输入。
+CI 在 Linux 和 Windows 上校验编解码器。PR 中的 web 构建关注校验库、web 资源、构建脚本和共用的 Rust 输入。
 SDK、插件源码和 pnpm 依赖的变化不会触发这两个 job。修改 checks 工作流会同时触发两者。
 
 浏览器校验器构建到 `dist/package-web`，Worker 和 WASM 使用相对地址，因此可以部署在 Pages 的
-`/mojito-plugins/` 路径下。相关的提交推送到 `main` 时，CI 会上传该目录。只有仓库变量
+`/mojito-plugins/` 路径下。每次推送到 `main` 时，CI 把校验器与文档构建成一个 `dist/pages` 产物，
+文档位于其中的 `docs/`。只有仓库变量
 `PAGES_DEPLOY_ENABLED` 为 `true` 时才会通过 `github-pages` environment 部署。设置该变量之前，
 先把 Pages 的来源设为 GitHub Actions、在该 environment 中允许 `main` 并授权部署；
 工作流不会自动修改这些设置。
