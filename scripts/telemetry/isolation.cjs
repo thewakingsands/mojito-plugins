@@ -195,8 +195,10 @@ async function main() {
   combat(false)
   await until(() => reports.length === 1, 'one report from Worker')
   assert.match(reports[0].eventId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
-  assert.equal(reports[0].payload.observations[0].sampleCount, 5)
-  assert.equal(reports[0].payload.observations[0].correctedDamagePerPotency, 70)
+  assert.equal(reports[0].payload.observations[0].normal.count, 5)
+  assert.equal(reports[0].payload.observations[0].normal.sum, 350)
+  assert.equal(reports[0].payload.profiles[0].critical.hits, 5)
+  assert.equal(reports[0].payload.observations[0].critical.hits, 5)
   combat(false)
   await delay(300)
   assert.equal(reports.length, 1)
@@ -204,9 +206,20 @@ async function main() {
   await host.enable(manifest.id)
   await delay(300)
   assert.equal(reports.length, 1)
+  statuses(1, null)
+  combat(true)
+  for (let i = 0; i < 5; i++) hit(20000)
+  statuses(1, 40001)
+  for (let i = 0; i < 5; i++) hit(20000)
+  combat(false)
+  await until(() => reports.length === 2, 'next encounter attempts despite the previous failure')
+  assert.equal(reports[1].payload.observations[0].normal.sum, 500)
+  assert(!/casterId|targetId|characterName|contentId|worldId/.test(JSON.stringify(reports)))
   result.checks.workerWebCryptoAndSingleAttempt = true
   result.checks.failureAndRestartDoNotRetry = true
   result.checks.realHostPermissionsAndTransport = true
+  result.checks.nextEncounterAttemptsNormally = true
+  result.checks.noDeviationThresholdOrLocalIdentifiers = true
   await host.dispose()
   host = null
   window.destroy()

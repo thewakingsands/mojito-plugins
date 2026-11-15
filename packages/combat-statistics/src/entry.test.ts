@@ -1606,11 +1606,9 @@ it('reports one anonymous encounter from the real model and finalization path', 
   const body = JSON.parse(h.http.mock.calls[0][1].body)
   expect(body.payload.observations).toEqual([
     expect.objectContaining({
-      unknownStatusIds: [40001],
-      sampleCount: 5,
-      baselineSampleCount: 5,
-      correctedDamagePerPotency: 70,
-      baselineDamagePerPotency: 100,
+      unknownStatuses: [{ id: 40001, param: 1 }],
+      normal: { count: 5, sum: 350, sumSquares: 24500, potencySum: 1000 },
+      baseline: { count: 5, sum: 500, sumSquares: 50000 },
     }),
   ])
   expect(body.payload).toMatchObject({
@@ -1624,9 +1622,9 @@ it('keeps two encounters in one input batch separate and never repeats a finaliz
   const h = await telemetrySetup()
   await h.events([...telemetryFight(2000), ...telemetryFight(3000, 130)])
   expect(h.http).toHaveBeenCalledTimes(2)
-  expect(
-    h.http.mock.calls.map((call) => JSON.parse(call[1].body).payload.observations[0].correctedDamagePerPotency),
-  ).toEqual([70, 130])
+  expect(h.http.mock.calls.map((call) => JSON.parse(call[1].body).payload.observations[0].normal.sum)).toEqual([
+    350, 650,
+  ])
   await h.events([sample(combat(300, false), 300)])
   expect(h.http).toHaveBeenCalledTimes(2)
   await h.dispose()
@@ -1658,7 +1656,7 @@ it('includes the last hit when quiet finalization happens after that input', asy
   h.setNow(fight.at(-1)!.meta.observedAt + 10001)
   await h.events([fight.at(-1)!])
   expect(h.http).toHaveBeenCalledTimes(1)
-  expect(JSON.parse(h.http.mock.calls[0][1].body).payload.observations[0].sampleCount).toBe(5)
+  expect(JSON.parse(h.http.mock.calls[0][1].body).payload.observations[0].normal.count).toBe(5)
   await h.dispose()
 })
 it('enabling during combat waits for the next encounter; scope changes discard the current samples', async () => {

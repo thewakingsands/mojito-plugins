@@ -21,7 +21,14 @@ export type {
 } from './output.js'
 export type { CalibrationSamples } from './periodic/calibration.js'
 export { parseStatusEntries } from './status-entries.js'
-export type { Observation, TelemetrySample } from './telemetry.js'
+export type {
+  DamageStats,
+  RateStats,
+  TelemetryObservation,
+  TelemetryPayloadBody,
+  TelemetryProfile,
+  TelemetrySample,
+} from './telemetry.js'
 
-export { deviates, TelemetryCollector } from './telemetry.js'
+export { fitPayload, TelemetryCollector } from './telemetry.js'
 export { type ActorProfile, type CombatWorld, MemoryWorld, type WorldStatus } from './world.js'

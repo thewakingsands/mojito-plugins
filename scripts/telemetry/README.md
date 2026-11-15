@@ -35,3 +35,27 @@ permission, complete status inputs, an eligible encounter's single post-combat
 request against an isolated service, and no retry after disconnection/restart.
 An encounter without eligible unknown statuses demonstrates no false report;
 it does not prove the positive reporting path.
+
+## Offline statistics
+
+Build the model first: `pnpm --filter @ffcafe/mojito-combat-model build`.
+Using an administrator session Cookie, request `GET /api/admin/telemetry/events?type=combat.unknown-status`
+and save each response as JSON. When `nextCursor` is present, pass it as the next request's `cursor`.
+Event arrays are also accepted. The script deduplicates by `eventId`, so overlapping pages are safe.
+
+```sh
+pnpm --filter @ffcafe/mojito-combat-model telemetry:stats page1.json page2.json
+pnpm --filter @ffcafe/mojito-combat-model telemetry:stats --json --model-version 7.57 page1.json
+```
+
+The client uploads normal-hit damage counts, sums, squared sums and potency, plus critical and direct hit
+counts and summed known rate additions, without individual hit records. Each encounter makes at most one
+attempt. Groups need enough samples, with no 10% damage-deviation requirement. Damage controls use clean
+hits from the same encounter, player, action and target; probability controls are pooled per player.
+If an event exceeds 1024 observations or 256 KiB, the least sampled observations are dropped first,
+preserving every retained status combination in full.
+
+The output contains damage ratios, critical and direct rate differences with 95% intervals, action
+categories, mean potency and sample counts. Multiple-status combinations stay together. Missing controls
+produce null estimates; invalid events are skipped and counted. The script only reports statistics;
+review them manually before changing `ClassJobActions` or common status definitions.

@@ -1,11 +1,11 @@
-import { deviates, type TelemetrySample } from '@ffcafe/mojito-combat-model'
+import type { TelemetrySample } from '@ffcafe/mojito-combat-model'
 import type { Capability, PluginContext } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it, vi } from 'vitest'
 import fixture from '../testdata/telemetry-v1.json' with { type: 'json' }
 import { randomEventId, TELEMETRY_URL, Telemetry } from './telemetry.js'
 
 const context = {
-  producerVersion: '0.3.0',
+  producerVersion: '0.4.0',
   modelVersion: '7.57',
   dataGameVersion: '2026.10.06.0000.0000',
   opcodeVersion: '7.57',
@@ -18,7 +18,9 @@ const sample: TelemetrySample = {
   level: 100,
   actionId: 12345,
   damageType: 'magic',
-  correctedDamagePerPotency: 100,
+  normal: { value: 100, potency: 400 },
+  critical: { hit: false, addedRate: 0 },
+  direct: { hit: false, addedRate: 0 },
   unknownStatuses: [],
 }
 function setup(status = 201) {
@@ -31,14 +33,13 @@ function setup(status = 201) {
     for (let i = 0; i < 8; i++)
       telemetry.add({
         ...sample,
-        correctedDamagePerPotency: 70,
+        normal: { value: 70, potency: 400 },
         unknownStatuses: fixture.event.payload.observations[0].unknownStatuses,
       })
   }
   return { telemetry, http, capabilities, log, fill }
 }
-it('shares the Go boundary fixture and emits exactly its anonymous envelope', async () => {
-  for (const { r, b, accept } of fixture.boundaries) expect(deviates(r, b)).toBe(accept)
+it('shares the Go fixture and emits exactly its anonymous envelope', async () => {
   const { telemetry, http, fill } = setup()
   telemetry.start('one', context)
   fill()

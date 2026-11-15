@@ -385,6 +385,8 @@ export class PeriodicEstimator {
             if (!modifiers.forcedDirect) this.rates.addDirect(caster, direct, modifiers.directRate)
           }
 
+          let normal: TelemetrySample['normal'] = null
+
           if (
             sampleAction &&
             sampled &&
@@ -396,34 +398,16 @@ export class PeriodicEstimator {
           ) {
             const potency = samplePotency(sampleAction, this.level(caster), this.defs.maxLevel, entity.bonusPercent)
             if (potency !== null) {
-              if (this.telemetryEnabled && !critical && !direct && modifiers.telemetryComplete && info.attackType) {
-                const profile = this.combatants.get(caster)
+              if (this.telemetryEnabled && !critical && !direct) {
                 const corrected = entity.amount / (potency * modifiers.potencyFactor * modifiers.multiplier)
                 if (
-                  profile.classJob &&
-                  profile.level &&
-                  !profile.ownerId &&
                   potency > 0 &&
                   modifiers.potencyFactor > 0 &&
                   modifiers.multiplier > 0 &&
                   Number.isFinite(corrected) &&
                   corrected >= 0
                 ) {
-                  const unknown = new Map<string, { id: number; param: number }>()
-                  for (const status of this.combatants.getBuffs(caster)) {
-                    if (!this.defs.periodic.has(status.id) && !this.defs.modifiers.has(status.id))
-                      unknown.set(`${status.id}:${status.stacks}`, { id: status.id, param: status.stacks })
-                  }
-                  this.telemetry.push({
-                    casterId: caster,
-                    targetId: combatant,
-                    classJob: profile.classJob,
-                    level: profile.level,
-                    actionId: action,
-                    damageType: info.attackType,
-                    correctedDamagePerPotency: corrected,
-                    unknownStatuses: [...unknown.values()].sort((a, b) => a.id - b.id || a.param - b.param),
-                  })
+                  normal = { value: corrected, potency: potency * modifiers.potencyFactor }
                 }
               }
               this.samples.push({
@@ -441,6 +425,35 @@ export class PeriodicEstimator {
                   .map(({ statusId, sourceId, holder, value }) => ({ statusId, sourceId, holder, value })),
                 critical,
                 direct,
+              })
+            }
+          }
+
+          if (
+            this.telemetryEnabled &&
+            entity.result === 'damage' &&
+            target.index === 0 &&
+            modifiers.telemetryComplete &&
+            info.attackType
+          ) {
+            const profile = this.combatants.get(caster)
+            if (profile.classJob && profile.level && !profile.ownerId) {
+              const unknown = new Map<string, { id: number; param: number }>()
+              for (const status of this.combatants.getBuffs(caster)) {
+                if (!this.defs.periodic.has(status.id) && !this.defs.modifiers.has(status.id))
+                  unknown.set(`${status.id}:${status.stacks}`, { id: status.id, param: status.stacks })
+              }
+              this.telemetry.push({
+                casterId: caster,
+                targetId: combatant,
+                classJob: profile.classJob,
+                level: profile.level,
+                actionId: action,
+                damageType: info.attackType,
+                unknownStatuses: [...unknown.values()].sort((a, b) => a.id - b.id || a.param - b.param),
+                normal,
+                critical: modifiers.forcedCritical ? null : { hit: critical, addedRate: modifiers.critRate },
+                direct: modifiers.forcedDirect ? null : { hit: direct, addedRate: modifiers.directRate },
               })
             }
           }

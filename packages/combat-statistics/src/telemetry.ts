@@ -1,4 +1,4 @@
-import { TelemetryCollector, type TelemetrySample } from '@ffcafe/mojito-combat-model'
+import { fitPayload, TelemetryCollector, type TelemetrySample } from '@ffcafe/mojito-combat-model'
 import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
 
 export const TELEMETRY_URL = 'https://mojo.ffcafe.cn/api/telemetry/v1/events'
@@ -75,30 +75,31 @@ export class Telemetry {
     const fight = this.fight
     if (!fight?.ended) return
     this.fight = null
-    const observations = fight.collector.finish()
-    if (!observations.length || !this.permitted()) return
+    const body = fight.collector.finish()
+    if (!body.observations.length || !this.permitted()) return
     const controller = new AbortController()
     this.requests.add(controller)
     // The encounter is already terminal, including when ID generation or transport fails.
-    void this.send(fight.context, observations, controller).finally(() => this.requests.delete(controller))
+    void this.send(fight.context, body, controller).finally(() => this.requests.delete(controller))
   }
 
   private async send(
     context: TelemetryContext,
-    observations: ReturnType<TelemetryCollector['finish']>,
+    collected: ReturnType<TelemetryCollector['finish']>,
     controller: AbortController,
   ): Promise<void> {
     try {
       const { producerVersion, ...payload } = context
-      const body = JSON.stringify({
+      const envelope = {
         eventId: this.eventId(),
         type: TELEMETRY_TYPE,
         schemaVersion: 1,
         producerVersion,
-        payload: { ...payload, observations },
-      })
-      if (new TextEncoder().encode(body).byteLength > 256 * 1024 || controller.signal.aborted || !this.permitted())
-        return
+      }
+      const serialize = (body: typeof collected) => JSON.stringify({ ...envelope, payload: { ...payload, ...body } })
+      const fitted = fitPayload(collected, 1024, 256 * 1024, serialize)
+      if (!fitted || controller.signal.aborted || !this.permitted()) return
+      const body = serialize(fitted)
       const result = await this.ctx.http.request(TELEMETRY_URL, {
         method: 'POST',
         credentials: 'omit',

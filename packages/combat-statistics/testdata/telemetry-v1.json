@@ -1,38 +1,68 @@
 {
   "event": {
-    "eventId": "3ef2e347-53ce-4e96-bfce-a37c15b2f44b",
+    "eventId": "6b1d0c4e-2f5a-4d7e-9a35-0c4f7b9e2a11",
     "type": "combat.unknown-status",
     "schemaVersion": 1,
-    "producerVersion": "0.3.0",
+    "producerVersion": "0.4.0",
     "payload": {
       "modelVersion": "7.57",
       "dataGameVersion": "2026.10.06.0000.0000",
       "opcodeVersion": "7.57",
       "territoryId": 123,
-      "observations": [
+      "profiles": [
         {
-          "unknownStatusIds": [40001, 40002],
-          "unknownStatuses": [{ "id": 40001, "param": 1 }, { "id": 40002, "param": 2 }],
           "classJob": 25,
           "level": 100,
+          "critical": {
+            "hits": 12,
+            "successes": 0,
+            "addedRate": 0
+          },
+          "direct": {
+            "hits": 12,
+            "successes": 0,
+            "addedRate": 0
+          }
+        }
+      ],
+      "observations": [
+        {
+          "profile": 0,
+          "unknownStatuses": [
+            {
+              "id": 40001,
+              "param": 1
+            },
+            {
+              "id": 40002,
+              "param": 0
+            }
+          ],
           "actionId": 12345,
           "damageType": "magic",
-          "sampleCount": 8,
-          "baselineSampleCount": 12,
-          "correctedDamagePerPotency": 70,
-          "baselineDamagePerPotency": 100
+          "normal": {
+            "count": 8,
+            "sum": 560,
+            "sumSquares": 39200,
+            "potencySum": 3200
+          },
+          "baseline": {
+            "count": 12,
+            "sum": 1200,
+            "sumSquares": 120000
+          },
+          "critical": {
+            "hits": 8,
+            "successes": 0,
+            "addedRate": 0
+          },
+          "direct": {
+            "hits": 8,
+            "successes": 0,
+            "addedRate": 0
+          }
         }
       ]
     }
-  },
-  "boundaries": [
-    { "r": 90, "b": 100, "accept": false },
-    { "r": 110, "b": 100, "accept": false },
-    { "r": 89, "b": 100, "accept": true },
-    { "r": 111, "b": 100, "accept": true },
-    { "r": 109.999999999, "b": 100, "accept": false },
-    { "r": 110.000000001, "b": 100, "accept": true },
-    { "r": 0, "b": 100, "accept": true },
-    { "r": 10, "b": 0, "accept": false }
-  ]
+  }
 }
