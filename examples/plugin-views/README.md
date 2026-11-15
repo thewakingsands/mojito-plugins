@@ -1,5 +1,7 @@
 # Development page hot updates
 
+English | [简体中文](README.zh-CN.md)
+
 Build the SDK before starting this example; load it in an installed Mojito host. The development server runs on port 5173 with Vite 8.3.4. Enable its existing configuration with `MOJITO_DEV_HMR=1 pnpm exec vite --config examples/plugin-views/vite.config.ts` (PowerShell: set `$env:MOJITO_DEV_HMR = '1'` first).
 
 Register through the host's developer registration action, with this example's absolute `plugin.json` path:

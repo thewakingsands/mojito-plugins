@@ -1,14 +1,11 @@
-# Feature placement
+# 功能页面的位置
 
-`ui.registerFeature({ id, name, entry, icon?, placement? })` accepts `sidebar`
-(the default), `home`, or `settings`. All three use the existing `ui.register`
-permission and the same isolated page bridge; choosing a placement grants no
-additional capability.
+`ui.registerFeature({ id, name, entry, icon?, placement? })` 的 `placement` 可以是 `sidebar`（默认）、
+`home` 或 `settings`。三者都使用已有的 `ui.register` 权限和同一个隔离的页面 bridge；选择位置不会授予额外的
+capability。
 
-A plugin may register multiple sidebar pages, but only one live home page and one
-live settings page. Pending registrations reserve these slots. Invalid placement
-values and duplicate home/settings registrations reject with `invalid_argument`.
-Disposing a registration frees its slot.
+一个插件可以注册多个侧栏页面，但同一时间只能有一个首页面板和一个设置页。尚未完成的注册也会占用这两个位置。
+无效的 placement 值以及重复注册首页面板或设置页都以 `invalid_argument` 拒绝。销毁注册后释放对应的位置。
 
 ```ts
 const remove = await context.ui.registerFeature({
@@ -19,27 +16,21 @@ const remove = await context.ui.registerFeature({
 })
 ```
 
-A page calls `connectView()` from `@ffcafe/mojito-plugin-sdk/view`. Its immutable
-`identity.placement` is `sidebar`, `home`, or `settings` for a feature, and `null`
-for an overlay. A feature without an explicit placement receives `sidebar`.
+页面从 `@ffcafe/mojito-plugin-sdk/view` 调用 `connectView()`。功能页面的 `identity.placement` 不可变，
+取值为 `sidebar`、`home` 或 `settings`；悬浮窗为 `null`。没有显式指定位置的功能页面得到 `sidebar`。
 
-The host chooses an available home page by the user's preference, or by ascending
-plugin ID when the preference is unavailable or automatic. Selecting the status
-page disables automatic home-page selection. Only one feature document is mounted
-at a time: navigating away releases it, and returning creates a fresh document.
+宿主按用户的偏好选择一个可用的首页面板；没有偏好或设为自动时，按插件 ID 升序选择。选择状态页会关闭首页面板的自动选择。
+同一时间只挂载一个功能页面文档：离开时释放它，返回时创建一个新的文档。
 
-Use `prefers-color-scheme` for theme changes. The host's native theme preference
-also applies to isolated plugin pages. The host also injects its colours, type and
-sizes as `--mojito-*` CSS variables and serves an optional `/host/mojito-base.css`;
-see [style.md](style.md) (in Chinese) for the variables, page boundaries and a
-checklist. See `examples/plugin-views` for all three placements.
+主题变化用 `prefers-color-scheme` 判断。宿主的原生主题设置同样作用于隔离的插件页面。宿主还以 `--mojito-*`
+CSS 变量注入自己的颜色、字体和尺寸，并提供可选的 `/host/mojito-base.css`；变量、页面边界和核对清单见
+[style.md](style.md)。三种位置的示例见 `examples/plugin-views`。
 
-## Preference search
+## 设置搜索
 
-Plugin API 1.5.0 lets the host's settings search and command palette (Ctrl K) find
-the settings on a plugin's settings page. The worker submits every item at once with
-`context.ui.setPreferenceItems(items)`, which needs `ui.register`. Each call replaces
-all items submitted before, without merging; an empty array clears them.
+从 Plugin API 1.5.0 起，宿主的设置搜索和命令面板（Ctrl K）可以找到插件设置页里的设置项。worker 用
+`context.ui.setPreferenceItems(items)` 一次提交全部条目，需要 `ui.register`。每次调用都替换之前提交的全部条目，
+不做合并；空数组表示清空。
 
 ```ts
 await context.ui.setPreferenceItems([
@@ -48,22 +39,15 @@ await context.ui.setPreferenceItems([
 ])
 ```
 
-`id` uses the format of a feature ID and is unique within one call. `title` has 1–100
-characters and `description` 0–300; a plugin has at most 200 items
-(`context.limits.values['ui.preferenceItems']` and the two `ui.preference*Chars`
-limits). A duplicate or malformed ID, an unknown field or a length out of range
-rejects with `invalid_argument`, too many items with `quota_exceeded`; a failed call
-keeps the previous items. Items belong to the activation: stopping, disabling or
-updating the plugin removes them, so submit them again in `activate`.
+`id` 采用功能 ID 的格式，在同一次调用中不能重复。`title` 为 1–100 个字符，不能为空；`description` 为 0–300 个字符。
+ID 重复或格式错误、`title` 为空或含未知字段时以 `invalid_argument` 拒绝；调用失败时保留之前的条目。条目属于当前激活：
+插件停止、停用或更新后条目被移除，所以要在 `activate` 中重新提交。
 
-The host matches items like its own settings (full text, pinyin and initials) and
-shows them only while the plugin's settings page is available; items submitted
-before the page is registered wait for it. They have no modified state, so 只看已修改
-hides them.
+宿主用匹配自身设置的方式匹配这些条目（全文、拼音和首字母），并且只在插件设置页可用时显示；在设置页注册之前提交的条目
+会等到设置页注册后再显示。这些条目没有“已修改”状态，所以“只看已修改”会隐藏它们。
 
-When the user chooses an item, the host clears the search, opens the plugin's
-settings page again (even when it is already open) and sends the page one
-`navigate-to-preference-item` event. The page highlights the item itself:
+用户选中某个条目时，宿主清空搜索，重新打开插件的设置页（即使它已经打开），并向页面发送一次
+`navigate-to-preference-item` 事件。由页面自己高亮该条目：
 
 ```ts
 const view = await connectView()
@@ -72,9 +56,6 @@ view.on('navigate-to-preference-item', ({ id, keyword }) => {
 })
 ```
 
-`keyword` is what the user had typed, trimmed; it may be pinyin or initials. An `id`
-the page does not know, for example after the items were just replaced, should be
-ignored. Only settings pages receive the event, once per choice. If it arrives before
-the page calls `view.on`, the SDK keeps the latest event of each name and gives it to
-the first listener. `examples/plugin-views` submits the items of its settings page
-and highlights the chosen one.
+`keyword` 是用户输入的内容（去掉首尾空白），可能是拼音或首字母。页面不认识的 `id`（例如条目刚被替换）应忽略。
+只有设置页会收到这个事件，每次选中发送一次。如果事件在页面调用 `view.on` 之前到达，SDK 会保留每种事件的最新一次，
+交给第一个监听器。`examples/plugin-views` 提交了其设置页的条目，并高亮被选中的条目。

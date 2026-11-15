@@ -1,5 +1,7 @@
 # Telemetry acceptance
 
+English | [简体中文](README.zh-CN.md)
+
 Run `pnpm typecheck`, `pnpm test`, `pnpm lint` and `pnpm build:official`.
 `packages/combat-statistics/testdata/telemetry-v1.json` must remain byte-identical
 to mojito-server's `testdata/telemetry-v1.json`.

@@ -1,5 +1,7 @@
 # Community Raidboss package builder
 
+English | [简体中文](README.zh-CN.md)
+
 Build the fixed runtime, the shared plugin views and this tool from the repository root:
 
 ```sh

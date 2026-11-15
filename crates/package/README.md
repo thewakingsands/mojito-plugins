@@ -1,5 +1,7 @@
 # Mojito plugin package
 
+English | [简体中文](README.zh-CN.md)
+
 A Rust codec with a standalone CLI, a Node-API addon and a browser WASM verifier.
 The runtime needs no installed archive executable. Packages use non-solid 7z with
 Copy or LZMA2; native entries are automatically unplugged.
@@ -14,8 +16,8 @@ cargo test --locked --package mojito-package
 node scripts/package-cli-smoke.mjs
 ```
 
-The executable is `target/release/mojito-package` (`.exe` on Windows). The codec builds in the root Cargo workspace and is also reused by the host Node addon. Build on Windows, Linux or macOS for the CLI and bindings;
-CI exercises all three. The Windows installer uses the same addon.
+The executable is `target/release/mojito-package` (`.exe` on Windows). The codec builds in the root Cargo workspace and is also reused by the host Node addon. The CLI and bindings build on Windows, Linux and macOS;
+CI tests Linux and Windows. The Windows installer uses the same addon.
 
 For the server's native C ABI, build only this library:
 
@@ -73,7 +75,7 @@ extracts native packages according to the signed manifest entry.
 ```sh
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.129 --locked
-pnpm build:package:web
+pnpm build:web
 ```
 
 Serve `dist/package-web` using any static HTTP server. It contains the viewer, a worker and

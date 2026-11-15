@@ -1,5 +1,7 @@
 # Static plugin catalogs
 
+English | [简体中文](README.zh-CN.md)
+
 This example contains a signed no-op Worker plugin for Plugin API 2.0. Its source is
 in `plugin`; `first.mojito` contains that source and an embedded signature.
 `catalog.json` records the size and SHA-256 of the complete `.mojito` file.

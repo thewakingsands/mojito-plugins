@@ -1,5 +1,7 @@
 # Mojito plugins
 
+English | [简体中文](README.zh-CN.md)
+
 The Mojito plugin SDK, package codec, author examples and official plugins.
 Use Node 24, pnpm 12.13.0 and stable Rust. Clone this repository on its own:
 
@@ -23,11 +25,14 @@ Their source archives and licenses are included beside the generated runtime tre
 
 - `packages/plugin-sdk`: `@ffcafe/mojito-plugin-sdk` and its public exports.
 - `packages/matcha`: Matcha worker, settings and bundled UI from `vendor/matcha-overlay`.
+- `packages/combat-model`: the combat model (periodic damage splits, buff attribution, potency samples).
 - `packages/combat-statistics`: combat statistics and its overlay service.
-- `packages/overlay-plugins`: Kagerou, Skyline and MopiMopi2 plugins.
+- `packages/overlay-plugins`: the OverlayPlugin template plugins (Kagerou, Skyline, MopiMopi2 and others).
 - `packages/raidboss`: the fixed Raidboss runtime and rule corpus.
 - `packages/plugin-raidboss`: the official Raidboss plugin and shared views.
 - `packages/raidboss-tools`: the community rule package builder.
+- `packages/plugin-skill-display`: SkillDisplay, described below.
+- `packages/deepseek-tts`: DeepSeek voices, described below.
 - `crates/plugin-protocol` and `include`: the shared native protocol and C ABI.
 - `crates/package`: the CLI, codec, native verifier and browser verifier.
 
@@ -64,7 +69,8 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 ```
 
 The command packs and verifies the existing `dist` trees, reads their signed manifests,
-and writes seven `.mojito` packages, `SHA256SUMS` and template source archives under
+and writes one `.mojito` package per official plugin (the list is in
+`scripts/pack-official.mjs`), `SHA256SUMS` and template source archives under
 `dist/official`. Plugin versions come from their manifests.
 
 The `official-v*` tag workflow builds without secrets, transfers the runtime trees and
@@ -76,10 +82,10 @@ authorization. The `v0.1.0` source tag used by Cargo is separate from official r
 
 ## Author examples
 
-`examples/plugin-worker` runs in a Worker, `examples/plugin-views` demonstrates pages
-and development HMR, and `examples/plugin-native-rust` is an independent native author
-project. `examples/overlayplugin-fixture` provides synthetic overlay inputs.
-`examples/tts-provider` offers two beep voices and speaks in two TTS channels.
+`examples/plugin-worker` runs in a Worker, [`examples/plugin-views`](examples/plugin-views/README.md)
+demonstrates pages and development HMR, and `examples/plugin-native-rust` is an independent native author
+project. [`examples/overlayplugin-fixture`](examples/overlayplugin-fixture/README.md) provides synthetic
+overlay inputs. `examples/tts-provider` offers two beep voices and speaks in two TTS channels.
 [`examples/catalog`](examples/catalog/README.md) provides a static publication example
 with a signed `.mojito` package and matching catalog metadata.
 Run plugins in an installed Mojito host; building them requires this repository only.
@@ -88,7 +94,7 @@ Host integration drivers stay in [Mojito](https://github.com/thewakingsands/moji
 ## Codec and web CI
 
 Codec validation runs on Linux and Windows when its Rust sources, protocol, headers,
-test scripts or shared Rust build inputs change. The web build watches its verifier
+test scripts, the catalog example or shared Rust build inputs change. The web build watches its verifier
 library, web assets, build script and shared Rust inputs. SDK/plugin sources and pnpm
 dependencies do not trigger these jobs. Changes to the checks workflow trigger both.
 
@@ -106,7 +112,7 @@ from the host's overlay manager, then choose the time window, icon size and dire
 settings. The settings page includes a looping preview; topmost, lock and click-through use the
 host's overlay controls.
 
-## DeepSeek 语音
+## DeepSeek voices
 
 `packages/deepseek-tts` gives Mojito DeepSeek's 海星 (stella) and 暗潮 (tide) TTS voices. It needs your
 own DeepSeek API key: enter it on the plugin's settings page and the voices become available in Mojito's

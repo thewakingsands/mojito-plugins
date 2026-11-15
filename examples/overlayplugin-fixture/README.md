@@ -1,7 +1,9 @@
 # Synthetic overlay service fixture
 
+English | [简体中文](README.zh-CN.md)
+
 Use an isolated acceptance profile. This fixture deliberately uses the CombatStatistics
-ID to supply synthetic `CombatStatistics/overlay` states to the three standalone
+ID to supply synthetic `CombatStatistics/overlay` states to the standalone overlay
 plugins; install the real combat-statistics package in normal profiles.
 
 Build this repository’s SDK, statistics and overlay plugin workspace, then run:
@@ -10,7 +12,7 @@ Build this repository’s SDK, statistics and overlay plugin workspace, then run
 pnpm exec vite build --config examples/overlayplugin-fixture/vite.config.ts
 ```
 
-The fixture output is `.tmp/overlayplugin-fixture`. Package it and the three overlay
+The fixture output is `.tmp/overlayplugin-fixture`. Package it and the overlay
 plugin directories with the existing Rust CLI. Enable the fixture provider, then the
 consumers. The fixture control feature
 publishes synthetic scenarios through the same service contract and handles end-encounter

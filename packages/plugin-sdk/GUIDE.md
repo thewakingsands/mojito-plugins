@@ -1,96 +1,86 @@
-### Cleanup
+# 插件开发指南
 
-Return a disposer from `activate(context)` to finish outstanding work on normal stop.
-The host pauses incoming events and allows the disposer to use its existing grants,
-including `await context.storage.write(...)`, for up to 10 seconds of wall-clock time.
-The user can end cleanup early. Completion, failure, timeout or early termination
-revokes the context and terminates the runtime; crashes bypass cleanup. Save regularly
-as well: forced termination cannot guarantee a final write.
+## 清理
 
+`activate(context)` 可以返回一个 disposer，在正常停止时完成未做完的工作。宿主会暂停推送事件，
+允许 disposer 在最多 10 秒（按实际时间计）内继续使用已有的授权，包括 `await context.storage.write(...)`。
+用户可以提前结束清理。清理完成、失败、超时或被提前结束后，宿主撤销 context 并终止运行时；
+崩溃时不会执行清理。因此平时也要定期保存：强制终止时无法保证最后一次写入。
 
-### Player combat state
+## 玩家战斗状态
 
-`game.getPlayer({ fields: ['inCombat'] })` and the `player` state subscription return
-a `Field<boolean>`. Check `state === 'ok'` before using `value`; `unavailable` is not
-false. The field is observed from the receiving player's ToggleAggro packet and does
-not require memory or packet permissions, a content ID, or a populated general
-`player.actorId` field. Its `observedAt` is the packet observation time, not query time.
-Live observations use the host clock; replay observations use the recording clock.
+`game.getPlayer({ fields: ['inCombat'] })` 和 `player` 状态订阅返回 `Field<boolean>`。
+使用 `value` 前先检查 `state === 'ok'`；`unavailable` 不等于 false。该字段来自本地玩家收到的
+ToggleAggro 数据包，不需要内存或数据包权限，也不需要 content ID 或已填充的 `player.actorId` 字段。
+它的 `observedAt` 是观测到数据包的时间，不是查询时间。实时观测使用宿主时钟，回放观测使用录像的时钟。
 
-Use `events.subscribe('playerCombatChanged', listener)` to receive every effective
-observation in order. Data is `{ actorId, inCombat }`, with standard packet and source
-metadata. The first valid value (including false) is emitted; identical values for
-the same actor refresh the field without a duplicate event. To preserve ordering
-with actions, subscribe to `['playerCombatChanged', 'actionEffect']` together. The
-`actorIds` filter applies to the player; action/status filters are not valid for the
-combat event. An older host may reject an unknown event type with `invalid_argument`.
+用 `events.subscribe('playerCombatChanged', listener)` 按顺序接收每一次有效观测。数据为
+`{ actorId, inCombat }`，附带标准的数据包和来源元数据。第一个有效值（包括 false）会发出；
+同一角色的相同值只刷新字段，不重复发出事件。需要和技能保持顺序时，同时订阅
+`['playerCombatChanged', 'actionEffect']`。`actorIds` 过滤条件作用于玩家；技能和状态过滤条件
+对该事件无效。旧版宿主可能以 `invalid_argument` 拒绝不认识的事件类型。
 
-`targetableChanged` gives `{ actorId, targetable }` for a player or battle NPC when it is
-first seen and whenever that changes, and `cutsceneChanged` gives `{ playing }` when the
-local player starts or stops watching a cutscene. Both come from sampled memory, so they
-have no `packet`, and recordings made before them have none. `actorIds` applies to
-`targetableChanged` and is not valid for `cutsceneChanged`. `cutsceneChanged` is also
-absent while the client profile has no `conditions` signature.
+`targetableChanged` 在玩家或战斗 NPC 首次出现以及可选中状态变化时给出 `{ actorId, targetable }`；
+`cutsceneChanged` 在本地玩家开始或停止观看过场动画时给出 `{ playing }`。两者都来自内存采样，
+因此没有 `packet`，这两个事件出现之前录制的录像里也没有它们。`actorIds` 适用于 `targetableChanged`，
+对 `cutsceneChanged` 无效。客户端配置没有 `conditions` 特征码时，也不会有 `cutsceneChanged`。
 
-State subscriptions may coalesce a fast true → false pair; event subscriptions keep
-both observations. Subscribe before requesting an initial snapshot. Keep a local
-notification revision and discard the query result if a newer event, invalidation,
-or session reset arrived while it was pending, including equal timestamps. Never
-use a late snapshot to replace a newer notification. Compare source generations
-before comparing observation times. The combat-state fixture demonstrates this guard.
+状态订阅可能把快速出现的 true → false 合并为一次；事件订阅会保留两次观测。先订阅，再请求初始快照。
+在本地记录一个通知序号：如果查询等待期间收到了更新的事件、失效通知或会话重置（时间戳相同也算），
+就丢弃这次查询结果。不要用迟到的快照覆盖更新的通知。先比较来源代次（generation），再比较观测时间。
+Mojito 仓库的 `scripts/plugin-isolation/fixtures/combat-state` 演示了这种保护。
 
-Known false remains available across a zone change without changing its observation
-time. Initial unknown or known true at a zone boundary becomes unavailable until the
-next valid ToggleAggro. Session/character changes, replay resets, and detected event
-source loss clear the cached state. Pause and playback rate changes preserve it.
-Invalid ToggleAggro values are ignored with a host diagnostic; they do not fabricate
-false or terminate subscriptions. Observe the game state and session/zone/stream-end
-notifications for invalidation: no synthetic false event is emitted for it.
+已知的 false 在切换区域后仍然可用，观测时间不变。区域边界上初始的未知状态或已知的 true 会变为
+unavailable，直到下一次有效的 ToggleAggro。会话或角色切换、回放重置以及检测到事件源丢失时，
+缓存的状态会被清除；暂停和改变回放速度时保留。无效的 ToggleAggro 值会被忽略并记录宿主诊断信息，
+不会伪造 false，也不会终止订阅。失效要通过游戏状态以及会话、区域、数据流结束通知来判断：
+宿主不会为此发出合成的 false 事件。
 
-Old v1 recordings can provide this field when they contain a valid self-directed
-ToggleAggro. A recording started mid-combat remains unavailable until such a packet
-arrives. Neither encounter activity nor ACT's separate `inACTCombat` substitutes for
-the game combat state.
+旧的 v1 录像只要包含有效的、以自己为目标的 ToggleAggro，也能提供该字段。从战斗中途开始的录像
+在收到这样的数据包之前保持 unavailable。遭遇战活动和 ACT 单独的 `inACTCombat` 都不能代替游戏的战斗状态。
 
-### Storage budgets
+## 存储预算
 
-Declare storage budgets in `plugin.json`; the installation confirmation shows them before granting access. Each field is optional. Defaults are 32 MiB total and 3 MiB per file.
+在 `plugin.json` 中声明存储预算，安装确认界面会在授权前显示。每个字段都可以省略，默认总量 32 MiB、
+单个文件 3 MiB。
 
 ```json
 "storage": { "totalBytes": 536870912 }
 ```
 
-Worker plugins can also request larger files, for example `"storage": { "totalBytes": 536870912, "fileBytes": 33554432 }`. Use the existing whole-file `context.storage.read/write` methods and read the effective values from `context.limits.values['storage.pluginBytes']` and `context.limits.values['storage.fileBytes']`.
+Worker 插件还可以申请更大的单文件，例如 `"storage": { "totalBytes": 536870912, "fileBytes": 33554432 }`。
+读写仍使用整文件的 `context.storage.read/write`，实际生效的值从
+`context.limits.values['storage.pluginBytes']` 和 `context.limits.values['storage.fileBytes']` 读取。
 
-Explicit values must be safe integers at least as large as their defaults, with the file budget no larger than the total. From Plugin API 2.0.0 these are the plugin's own budget: the host reports them and does not refuse writes beyond them. Native plugins still fit each message in the 4 MiB transport frame.
+显式填写的值必须是不小于默认值的安全整数，单文件预算不能大于总量；native 插件的单文件预算不能超过默认值。
+从 Plugin API 2.0.0 起，这些是插件给自己定的预算：宿主报告这些值，但不会拒绝超出预算的写入。
+native 插件的每条消息仍要放得进 4 MiB 的传输帧。
 
-### Publishing views
+## 发布视图
 
-Call `context.views.set(channel, value)` to publish the latest value of a view channel.
-Views opened later receive this value, and subscribed views receive it as an update.
-The SDK keeps only the latest value of each channel and sends it to the host at most
-every 200ms, so calling `set` on every event is fine. Do not modify the object after
-passing it to `set`: it is read when it is sent, not when `set` is called.
+调用 `context.views.set(channel, value)` 发布某个视图 channel 的最新值。之后打开的视图会收到这个值，
+已订阅的视图会以更新的形式收到。SDK 只保留每个 channel 的最新值，最多每 200ms 发给宿主一次，
+所以每个事件都调用 `set` 也没有问题。传给 `set` 之后不要再修改这个对象：它在发送时才被读取，
+而不是在调用 `set` 时。
 
-When a view has to see the value right away, for example before a command returns,
-call `await context.views.flush()`. It sends every value not yet sent and resolves
-once the host handled them.
+需要视图立即看到值时，例如在命令返回之前，调用 `await context.views.flush()`。它会发送所有尚未发送的值，
+并在宿主处理完后 resolve。
 
-If the host rejects a value, for example because it exceeds the size limit, the SDK
-writes a warning to the plugin log and the next `set` or `flush` throws the error.
-The host keeps the last accepted value.
+如果宿主拒绝某个值（例如超出大小限制），SDK 会在插件日志中写一条警告，下一次 `set` 或 `flush` 会抛出该错误。
+宿主保留上一次接受的值。
 
 ```ts
 context.views.set('state', { selected })
 await context.views.flush()
 ```
 
-### Game icons
+## 游戏图标
 
-With `data.read`, call `context.data.icon(iconId)` to read a PNG from the opened game directory. Missing icons return `null`. Send the result to the requesting view on demand; keep image bytes out of periodic snapshots.
+有 `data.read` 时，调用 `context.data.icon(iconId)` 从已打开的游戏目录读取 PNG。图标不存在时返回 `null`。
+按需把结果发给请求它的视图；不要把图片字节放进定期发布的快照。
 
 ```ts
-// Worker: return the icon to the view that requested it.
+// Worker：把图标返回给请求它的视图。
 await context.views.onCommand('icon', async (id) => {
   const icon = await context.data.icon(Number(id))
   return icon ? { ...icon } : null
@@ -100,37 +90,33 @@ await context.views.onCommand('icon', async (id) => {
 ```ts
 import type { GameIcon } from '@ffcafe/mojito-plugin-sdk'
 
-// View: release the previous URL when replacing the image or disposing the view.
+// 视图：替换图片或销毁视图时释放之前的 URL。
 const icon = await bridge.command('icon', iconId) as GameIcon | null
 if (objectUrl) URL.revokeObjectURL(objectUrl)
 objectUrl = icon ? URL.createObjectURL(new Blob([icon.data], { type: icon.mime })) : undefined
 image.src = objectUrl ?? ''
 ```
 
-### Game data version
+## 游戏数据版本
 
-Plugin API 1.4.0 adds `context.data.version()`, which needs `data.read`. It returns the
-content of `ffxivgame.ver` in the opened game directory, trimmed, or `null` when the file is
-missing or empty. It fails with `unavailable` while no game data is open, and with
-`stale_session` when the game data is opened or closed during the call. The host reads the
-file on each call, so a game updated while Mojito runs returns its new version. Use it to
-drop anything kept from the game data when the version changes.
+Plugin API 1.4.0 新增 `context.data.version()`，需要 `data.read`。它返回已打开的游戏目录中
+`ffxivgame.ver` 的内容（去掉首尾空白），文件不存在或为空时返回 `null`。没有打开游戏数据时以
+`unavailable` 失败；调用期间游戏数据被打开或关闭时以 `stale_session` 失败。宿主每次调用都重新读取文件，
+所以 Mojito 运行期间游戏更新后会返回新版本。用它在版本变化时丢弃从游戏数据缓存的内容。
 
 ```ts
 const version = await context.data.version()
 if (version !== null && version !== saved.version) await clearCache()
 ```
 
-### Preference search
+## 设置搜索
 
-Plugin API 1.5.0 adds `context.ui.setPreferenceItems(items)`, which needs `ui.register`.
-It submits the `{ id, title, description }` items of the plugin's settings page so the
-host's settings search and Ctrl K can find them; every call replaces all earlier items
-and an empty array clears them. When the user chooses an item, the host opens the
-settings page again and sends it `navigate-to-preference-item` with `{ id, keyword }`.
-Listen with `view.on(name, listener)` from `connectView()`; it returns a function that
-stops listening, and an event that arrived before the first listener is kept for it.
-See [docs/features.md](docs/features.md#preference-search) for the limits and errors.
+Plugin API 1.5.0 新增 `context.ui.setPreferenceItems(items)`，需要 `ui.register`。它提交插件设置页里的
+`{ id, title, description }` 条目，让宿主的设置搜索和 Ctrl K 能找到它们；每次调用都替换之前的全部条目，
+空数组表示清空。用户选中某个条目时，宿主重新打开设置页，并向页面发送 `navigate-to-preference-item`，
+数据为 `{ id, keyword }`。在 `connectView()` 得到的对象上用 `view.on(name, listener)` 监听；它返回一个
+取消监听的函数，在第一个监听器注册之前到达的事件会保留给它。格式要求和错误见
+[docs/features.md](docs/features.md#设置搜索)。
 
 ```ts
 await context.ui.setPreferenceItems([{ id: 'scope', title: '统计范围', description: '' }])
@@ -141,16 +127,14 @@ const view = await connectView()
 view.on('navigate-to-preference-item', ({ id }) => highlight(id))
 ```
 
-### Notifications
+## 通知
 
-Plugin API 1.6.0 adds `context.notifications.send({ title, detail })`, which adds a
-notification to the list behind the bell in the Mojito title bar. Use it for something
-the user should know about while they are not looking at the plugin's page. It needs no
-permission. `title` must not be empty; an unknown field rejects with `invalid_argument`. Mojito keeps the newest 50 notifications
-of all plugins in its main process and clears them when it exits.
+Plugin API 1.6.0 新增 `context.notifications.send({ title, detail })`，在 Mojito 标题栏铃铛后面的列表里
+添加一条通知。用于用户没有在看插件页面时也应该知道的事情。它不需要权限。`title` 不能为空；含未知字段时以
+`invalid_argument` 拒绝。Mojito 在主进程中保留所有插件最新的 50 条通知，退出时清空。
 
-A host older than 1.6.0 rejects the call with `unavailable`. A plugin whose `apiVersion`
-range allows such a host should treat the notification as optional:
+低于 1.6.0 的宿主以 `unavailable` 拒绝这个调用。如果插件的 `apiVersion` 范围允许这样的宿主，
+应把通知当作可选功能：
 
 ```ts
 void context.notifications
@@ -158,50 +142,48 @@ void context.notifications
   .catch((error) => context.log.debug('发送通知失败', { error: String(error) }))
 ```
 
-### Packaged OverlayPlugin pages
+## 打包的 OverlayPlugin 页面
 
-Plugin API 1.1.0 supports `compatibility.source: { kind: 'package', entry, documents }`.
-Paths refer to this plugin's files; `documents` lists allowed navigation/popup pages and
-includes `entry`. Declare `ui.register` and `ui.overlayplugin`, and publish existing
-`OverlayState` values through `overlayProducer`. Remote pages use a host-managed profile.
+Plugin API 1.1.0 支持 `compatibility.source: { kind: 'package', entry, documents }`。路径指向本插件的文件；
+`documents` 列出允许导航和弹出的页面，并且要包含 `entry`。需要声明 `ui.register` 和 `ui.overlayplugin`，
+并通过 `overlayProducer` 发布 `OverlayState`。远程页面使用宿主管理的 profile。
 
-With `data.read`, `context.data.resource(path)` returns the original SqPack file bytes, or `null` when absent. `context.data.image(path)` returns a local PNG URL for a TEX resource; `context.data.map('s1f1/00')` returns a composed map URL. These methods return `null` for missing main files. Images are decoded when a plugin page requests the URL, which belongs to the current activation and client data. Reacquire URLs after changing clients; send the URL through a view channel and use it as an image source.
+有 `data.read` 时，`context.data.resource(path)` 返回 SqPack 中的原始文件字节，不存在时返回 `null`。
+`context.data.image(path)` 返回 TEX 资源对应的本地 PNG URL；`context.data.map('s1f1/00')` 返回拼合后的地图 URL。
+主文件不存在时这些方法返回 `null`。图片在插件页面请求该 URL 时才解码，URL 只属于当前激活和当前客户端数据。
+切换客户端后要重新获取 URL；通过视图 channel 发送 URL，用作图片的来源。
 
-`context.data.rowIds(sheet, language)` returns all actual row IDs of an ordinary EXD sheet, sorted in ascending order. It uses `data.read` and the transport collection limit. Read their cells with `data.rows`. Use `none` for sheets without languages; enumerate subrows by reading their known parent row.
+`context.data.rowIds(sheet, language)` 返回普通 EXD 表的全部实际行 ID，按升序排列。它使用 `data.read`，
+受传输层集合大小限制。单元格用 `data.rows` 读取。没有语言的表用 `none`；子行通过读取已知的父行来枚举。
 
-### Status-list slots
+## 状态列表槽位
 
-Plugin API 1.7.0 preserves the original `slot` in every `statusesReplaced.data.statuses`
-entry. Empty slots remain omitted. Match a later `statusChanged` by its slot, never by
-the filtered list's array index. Query `Status` values are unchanged. Consumers that
-require slot tracking should require `apiVersion: "^1.7.0"`.
+Plugin API 1.7.0 在 `statusesReplaced.data.statuses` 的每一项中保留原始的 `slot`。空槽位仍然省略。
+之后的 `statusChanged` 要按槽位匹配，不要按过滤后列表的数组下标匹配。查询得到的 `Status` 值不变。
+需要跟踪槽位的插件应要求 `apiVersion: "^1.7.0"`。
 
-### Combat model inputs
+## 战斗模型输入
 
-Plugin API 1.9.0 removes the results the host computed: `periodicTick`, `periodicRevision`,
-`damageAttributed`, `potencySample` and `attributionRevision`, with their types. A host
-of 1.9.0 or later rejects a subscription to any of them like an unknown event type, so a
-plugin that needs these results requires `apiVersion: "^1.9.0"` and computes them itself
-with `@ffcafe/mojito-combat-model` from these events:
+Plugin API 1.9.0 移除了宿主计算的结果：`periodicTick`、`periodicRevision`、`damageAttributed`、
+`potencySample` 和 `attributionRevision`，以及它们的类型。1.9.0 及以后的宿主会像对待未知事件类型一样
+拒绝对它们的订阅。需要这些结果的插件要求 `apiVersion: "^1.9.0"`，并用 `@ffcafe/mojito-combat-model`
+从以下事件自行计算：
 
-- `actionEffect`: each target has `rawEntries`, the 8 effect entries of the packet, which
-  `parseStatusEntries` of the model reads the applied statuses from.
-- `statusSlotsChanged`: the slots of an actor that changed after a status update or a
-  status list, and the statuses that came and left, in order. A refreshed status leaves,
-  then comes. The `statusesReplaced` of the same packet comes first.
-- `actorProfileChanged`: the class or job, the level or the owner of an actor changed. It
-  may come from a memory record, without a packet.
-- `overTimeTick`, `jobGaugeChanged` and `playerStatsChanged`: the ticks of the over time
-  effects, the job gauge of the player, and its critical hit and direct hit attributes.
+- `actionEffect`：每个目标带有 `rawEntries`，即数据包中的 8 个效果条目，模型的 `parseStatusEntries`
+  从中读取附加的状态。
+- `statusSlotsChanged`：状态更新或状态列表之后某个角色发生变化的槽位，以及按顺序出现和消失的状态。
+  刷新的状态先消失再出现。同一数据包的 `statusesReplaced` 先到。
+- `actorProfileChanged`：角色的职业、等级或所有者发生变化。可能来自内存记录，没有对应的数据包。
+- `overTimeTick`、`jobGaugeChanged` 和 `playerStatsChanged`：持续效果的跳数、玩家的职业量谱，
+  以及玩家的暴击和直击属性。
 
-`SessionSnapshot.opcodeVersion` is the opcode version the host parses the packets with.
-A plugin compares it with the version its status data is for, and stops computing when
-they differ: the game changed and the data has not followed yet.
+`SessionSnapshot.opcodeVersion` 是宿主解析数据包所用的 opcode 版本。插件把它和自己状态数据对应的版本比较，
+不一致时停止计算：游戏已经更新，而数据还没有跟上。
 
-### Speech (TTS)
+## 语音（TTS）
 
-A plugin speaks in channels, as an Android app posts notifications in channels. It says what to speak and in
-which channel; the user picks the voice and how speech plays in Mojito's TTS settings.
+插件按 channel 发出语音，就像 Android 应用按渠道发送通知。插件决定说什么、在哪个 channel 说；
+用户在 Mojito 的 TTS 设置中选择声音和播放方式。
 
 ```json
 {
@@ -211,72 +193,67 @@ which channel; the user picks the voice and how speech plays in Mojito's TTS set
 ```
 
 ```ts
-await context.tts.say('分摊')                         // the default channel
+await context.tts.say('分摊')                         // 默认 channel
 await context.tts.say('死刑', { channel: 'alarm' })
 ```
 
-- Every plugin with `tts.say` has a `default` channel. Listing `default` in `tts.channels` only names it;
-  otherwise it shows as 默认. Channel IDs follow service names (`^[a-z0-9]+([._-][a-z0-9]+)*$`).
-- Mojito lists the channels from the manifest, so the user can choose voices before the plugin runs.
-- `say` resolves once the text was spoken. It rejects with `invalid_argument` for an unknown channel,
-  `unavailable` when no voice could speak, and `cancelled` when the caller aborted or other speech replaced it.
-- `audio.play` plays a sound from the package at once; it does not wait for speech.
+- 每个有 `tts.say` 的插件都有一个 `default` channel。在 `tts.channels` 中列出 `default` 只是给它命名；
+  否则显示为“默认”。channel ID 遵循服务名的格式（`^[a-z0-9]+([._-][a-z0-9]+)*$`）。
+- Mojito 从 manifest 中列出 channel，所以用户可以在插件运行之前选好声音。
+- `say` 在文字读完后 resolve。channel 不存在时以 `invalid_argument` 拒绝，没有声音能朗读时以 `unavailable`
+  拒绝，调用方中止或被其他语音替换时以 `cancelled` 拒绝。
+- `audio.play` 立即播放包内的声音，不等待语音。
 
-A plugin with `tts.provide` offers voices of its own. The user may choose them for any channel of any plugin;
-the host then sends the text to `synthesize` and plays the encoded audio it returns (MP3, WAV, Ogg/Opus or
-another format Chromium plays).
+有 `tts.provide` 的插件可以提供自己的声音。用户可以把它们用于任何插件的任何 channel；之后宿主把文字交给
+`synthesize`，并播放它返回的编码音频（MP3、WAV、Ogg/Opus 或其他 Chromium 能播放的格式）。
 
 ```ts
 const provider = await context.tts.provide(
   [{ id: 'xiaoxiao', name: '晓晓', online: true }],
   async ({ voice, text }, { signal }) => synthesizeWithMyService(voice, text, signal),
 )
-await provider.update(voices) // e.g. after the user entered a key
+await provider.update(voices) // 例如在用户填写了 key 之后
 ```
 
-`online: true` marks a voice that sends text to a network service. A plugin has one registration at a time;
-it ends with `dispose()`, the `signal` option or the plugin stopping.
+`online: true` 表示这个声音会把文字发送到网络服务。一个插件同时只有一个注册；调用 `dispose()`、
+通过 `signal` 选项中止或插件停止时，注册结束。
 
-The host caches what online voices synthesize, and splits the text on the names of the current party so that each
-name and each stretch of text between names is synthesized and cached on its own. `synthesize` may therefore get
-only part of a sentence, such as one character name, and the host plays the parts back to back. Text the host
-already has is not sent to the plugin again, so the requests a plugin sees are the ones it really makes.
+宿主会缓存在线声音合成的结果，并按当前小队成员的名字切分文字，每个名字以及名字之间的每段文字分别合成和缓存。
+因此 `synthesize` 可能只收到句子的一部分，例如一个角色名，宿主再把各部分连续播放。宿主已经有的文字不会再发给插件，
+所以插件看到的请求都是真正需要发出的请求。
 
-### Plugin API 2.0
+## Plugin API 2.0
 
-Plugin API 2.0.0 (MJT-282) changes what a plugin declares and what the user decides. It is not compatible
-with 1.x: rebuild the plugin and require `apiVersion: "^2.0.0"`.
+Plugin API 2.0.0 改变了插件声明什么、用户决定什么。它与 1.x 不兼容：需要重新构建插件，并要求
+`apiVersion: "^2.0.0"`。
 
-- `capabilities` is one array. Ordinary capabilities (`session.read`, `game.read`, `events.read`,
-  `data.read`, `ui.register`, `ui.overlayplugin`, `ui.overlayplugin.remote`, `audio.play`, `tts.say`,
-  `tts.provide`, `services.provide`, `services.consume`) come with the install. The user may refuse each sensitive one
-  (`packets.read`, `memory.read`, `http.request`, `identity.read`, `microphone.record`) at install time or
-  later on the plugin's page. `host.files` and `host.openExternal` no longer exist; a name the host does not
-  know rejects the package.
-- `context.capabilities.get()` gives the state of each declared capability. A refused sensitive one is
-  `{ state: 'denied' }`; `capabilitiesChanged` updates it without a restart. Ordinary ones are never denied.
-- A refused or undeclared sensitive capability gives a substitute result instead of an error:
-  - without `identity.read`, players get per-session stand-in actor IDs in the player range (also in the
-    `params` of `actorControl`, `systemLogMessage` and `battleTalk`), names made of the race and ClassJob
-    abbreviations (`猫白魔`, `猫白魔 2`), no content ID and no `gameLog`. Filters given with stand-in IDs
-    work as expected. Players have a `race` field either way;
-  - without `packets.read` the packet subscription is established and sends nothing;
-  - without `memory.read` or `http.request` the calls reject with `unavailable` and a reason;
-  - without `microphone.record`, `getUserMedia({ audio: true })` rejects with `NotAllowedError`.
-- Services are named by their provider: `services.provides[].name` is a local name such as `overlay`, and
-  consumers use `pluginId/name`, for example `CombatStatistics/overlay`, in `services.consumes` and every
-  call. `connect` returns `{ service, version }` or `null`. A consumer needs no grant; the provider answers
-  with its own capabilities, and the install sheet tells the user. `dataPermissions`,
-  `services.callRequest` and `services.callSubscribe` are gone.
-- Speech is `tts.say(text, { channel })` with the `tts.say` capability; `audio.say` is gone, and
-  `audio.play` only plays sounds. See Speech (TTS).
-- `host.openExternal(url)` needs no capability and asks the user each time; `http:` works too.
-- Files: `host.chooseFile`, `host.readFile` and `host.writeFile` are gone. Pages use `<input type="file">`
-  and downloads, which ask where to save.
-- Network: `http.request` runs on Electron's `net.fetch` with the system proxy. Every redirect hop must be in
-  `networkOrigins`, which may list `http:` and LAN origins. There is no size or redirect budget, and
-  `timeoutMs` applies only when given. Plugin pages may load from `networkOrigins`, use inline styles,
-  Web Workers and `blob:`/`data:` media, and move between pages of their package.
-- `context.limits` keeps only the transport, event flow, polling interval and storage budget names; other
-  count, size and rate limits, and the `quota_exceeded` they caused, are gone. Activation has no time limit,
-  and a page that misses heartbeats is shown as unresponsive instead of being stopped.
+- `capabilities` 是一个数组。普通 capability（`session.read`、`game.read`、`events.read`、`data.read`、
+  `ui.register`、`ui.overlayplugin`、`ui.overlayplugin.remote`、`audio.play`、`tts.say`、`tts.provide`、
+  `services.provide`、`services.consume`）随安装授予。敏感 capability（`packets.read`、`memory.read`、
+  `http.request`、`identity.read`、`microphone.record`）用户可以在安装时逐个拒绝，也可以之后在插件页面上撤回。
+  `host.files` 和 `host.openExternal` 已不存在；包含宿主不认识的名称的包会被拒绝。
+- `context.capabilities.get()` 给出每个已声明 capability 的状态。被拒绝的敏感 capability 为
+  `{ state: 'denied' }`；`capabilitiesChanged` 会在不重启的情况下更新它。普通 capability 不会被拒绝。
+- 被拒绝或未声明的敏感 capability 返回替代结果，而不是报错：
+  - 没有 `identity.read` 时，玩家使用每个会话内的替身 actor ID，位于玩家 ID 范围内（`actorControl`、
+    `systemLogMessage` 和 `battleTalk` 的 `params` 中也是如此）；名字由种族和 ClassJob 的简称组成
+    （`猫白魔`、`猫白魔 2`）；没有 content ID，也没有 `gameLog`。用替身 ID 设置的过滤条件照常生效。
+    无论是否授权，玩家都有 `race` 字段；
+  - 没有 `packets.read` 时，数据包订阅照常建立，但不会发送任何内容；
+  - 没有 `memory.read` 或 `http.request` 时，相应调用以 `unavailable` 拒绝并附带原因；
+  - 没有 `microphone.record` 时，`getUserMedia({ audio: true })` 以 `NotAllowedError` 拒绝。
+- 服务以提供者命名：`services.provides[].name` 是本地名称，例如 `overlay`；使用方在 `services.consumes`
+  和每次调用中使用 `pluginId/name`，例如 `CombatStatistics/overlay`。`connect` 返回 `{ service, version }`
+  或 `null`。使用方不需要授权；提供方用自己的 capability 应答，安装界面会告知用户。`dataPermissions`、
+  `services.callRequest` 和 `services.callSubscribe` 已移除。
+- 语音是 `tts.say(text, { channel })`，需要 `tts.say` capability；`audio.say` 已移除，`audio.play`
+  只播放声音。见[语音（TTS）](#语音tts)。
+- `host.openExternal(url)` 不需要 capability，每次都会询问用户；也可以打开 `http:` 地址。
+- 文件：`host.chooseFile`、`host.readFile` 和 `host.writeFile` 已移除。页面使用 `<input type="file">`
+  和下载，下载时会询问保存位置。
+- 网络：`http.request` 基于 Electron 的 `net.fetch`，使用系统代理。每一跳重定向都必须在 `networkOrigins`
+  中，`networkOrigins` 可以列出 `http:` 和局域网 origin。没有大小和重定向次数的预算，`timeoutMs`
+  只在指定时生效。插件页面可以从 `networkOrigins` 加载资源，使用内联样式、Web Worker 和 `blob:`/`data:`
+  媒体，并可以在本包的页面之间跳转。
+- `context.limits` 只保留传输、事件流控、轮询间隔、回放时钟和存储预算的名称；其他数量、大小和频率限制，
+  以及由它们引起的 `quota_exceeded`，都已移除。激活没有时间限制；错过心跳的页面显示为无响应，而不是被停止。

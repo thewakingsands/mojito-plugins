@@ -1,5 +1,7 @@
 # Raidboss runtime (preview)
 
+English | [简体中文](README.zh-CN.md)
+
 This package adapts the fixed cactbot revision recorded in
 [vendor/cactbot/PROVENANCE.md](vendor/cactbot/PROVENANCE.md). It consumes structured
 Mojito events; production matching never synthesizes combat log lines. The ordinary
@@ -15,7 +17,7 @@ mojito-package verify Raidboss.mojito
 ```
 
 The private key is an Ed25519 JWK and stays outside the package. The signed package installs
-through the normal plugin UI. The plugin requires host Plugin API 1.7.0 for complete status-list slots.
+through the normal plugin UI. The plugin requires Plugin API 2.0.
 Collection strategy defaults and saved overrides are available in the management page
 while the collection is active. Collections with `resetWhenOutOfCombat: false` retain
 their state until an explicit reset or source/zone change.
@@ -38,7 +40,7 @@ used here.
 The registration snapshot retains callback objects and closures, while matching
 parameters are copied at module load. Configure rules by stable set/id. Text is
 rendered as text, and all views share one Worker and one audio output path. Enable
-only one Raidboss plugin. Audio is optional; absence of the grant leaves text visible.
+only one Raidboss plugin. Audio is optional; text stays visible without it.
 
 Community source packages can be built with the [repository tool](../raidboss-tools/README.md). Its synthetic acceptance does not replace real community-file or P1N validation.
 
