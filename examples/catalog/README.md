@@ -1,11 +1,11 @@
 # Static plugin catalogs
 
-`example/` contains a signed no-op Worker plugin for Plugin API 2.0. Its source is
-in `example/plugin`; `first.mojito` contains that source and an embedded signature.
+This example contains a signed no-op Worker plugin for Plugin API 2.0. Its source is
+in `plugin`; `first.mojito` contains that source and an embedded signature.
 `catalog.json` records the size and SHA-256 of the complete `.mojito` file.
 No private signing key is included. Use these artifacts only for testing.
 
-Upload `example/catalog.json` and `example/first.mojito` to static hosting. Replace
+Upload `catalog.json` and `first.mojito` to static hosting. Replace
 the catalog's `downloadUrl` with the package's permanent absolute HTTPS URL.
 Changing the download URL does not require signing the package again. Changing any
 package bytes does.
@@ -26,7 +26,7 @@ Build the CLI and verify the example locally:
 
 ```sh
 pnpm build:package
-./target/release/mojito-package verify tools/catalog/example/first.mojito
+./target/release/mojito-package verify examples/catalog/first.mojito
 node scripts/package-cli-smoke.mjs
 ```
 

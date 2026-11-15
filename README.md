@@ -80,11 +80,10 @@ authorization. The `v0.1.0` source tag used by Cargo is separate from official r
 and development HMR, and `examples/plugin-native-rust` is an independent native author
 project. `examples/overlayplugin-fixture` provides synthetic overlay inputs.
 `examples/tts-provider` offers two beep voices and speaks in two TTS channels.
+[`examples/catalog`](examples/catalog/README.md) provides a static publication example
+with a signed `.mojito` package and matching catalog metadata.
 Run plugins in an installed Mojito host; building them requires this repository only.
 Host integration drivers stay in [Mojito](https://github.com/thewakingsands/mojito).
-
-[`tools/catalog`](tools/catalog/README.md) provides a static publication example with
-a signed `.mojito` package and matching catalog metadata.
 
 ## Codec and web CI
 

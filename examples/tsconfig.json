@@ -13,5 +13,11 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["plugin-views/*.ts", "tts-provider/*.ts", "plugin-worker/entry.mjs", "overlayplugin-fixture/*.ts"]
+  "include": [
+    "catalog/plugin/entry.mjs",
+    "plugin-views/*.ts",
+    "tts-provider/*.ts",
+    "plugin-worker/entry.mjs",
+    "overlayplugin-fixture/*.ts"
+  ]
 }

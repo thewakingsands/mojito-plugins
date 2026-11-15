@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const cli = fileURLToPath(
   new URL(`../target/release/mojito-package${process.platform === 'win32' ? '.exe' : ''}`, import.meta.url),
 )
-const example = fileURLToPath(new URL('../tools/catalog/example/', import.meta.url))
+const example = fileURLToPath(new URL('../examples/catalog/', import.meta.url))
 const examplePackage = path.join(example, 'first.mojito')
 const exampleBytes = await readFile(examplePackage)
 const inspection = JSON.parse(execFileSync(cli, ['verify', examplePackage], { encoding: 'utf8' }))
