@@ -267,6 +267,12 @@ importers:
         specifier: ^30.1.3
         version: 30.1.3(@noble/hashes@2.4.0)
 
+  packages/deepseek-tts:
+    dependencies:
+      '@ffcafe/mojito-plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+
   packages/matcha:
     dependencies:
       '@ffcafe/mojito-plugin-sdk':

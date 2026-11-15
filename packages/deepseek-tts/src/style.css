@@ -1,0 +1,63 @@
+#app {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mojito-space-section);
+  max-width: 760px;
+}
+.mojito-callout[hidden] {
+  display: none;
+}
+.mojito-callout svg {
+  flex: none;
+  margin-top: 2px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+}
+.row input {
+  width: 240px;
+  font-family: var(--mojito-font-mono);
+}
+.title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--mojito-text-sm);
+  font-weight: 500;
+}
+.help {
+  display: inline-flex;
+  color: var(--mojito-fg-tertiary);
+  cursor: help;
+  border-radius: var(--mojito-radius-small);
+}
+.help svg {
+  width: 14px;
+  height: 14px;
+}
+.help:hover,
+.help:focus-visible {
+  color: var(--mojito-fg-secondary);
+}
+output {
+  font-size: var(--mojito-text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.error {
+  margin: var(--mojito-space-group) 0 0;
+  font-size: var(--mojito-text-sm);
+  color: var(--mojito-danger);
+}
+.highlight {
+  animation: highlight 1.6s var(--mojito-ease);
+}
+@keyframes highlight {
+  from {
+    box-shadow: 0 0 0 2px var(--mojito-focus);
+  }
+  to {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}

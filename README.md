@@ -103,3 +103,9 @@ deployment before setting that variable; the workflow does not enable settings a
 from the host's overlay manager, then choose the time window, icon size and direction in the plugin
 settings. The settings page includes a looping preview; topmost, lock and click-through use the
 host's overlay controls.
+
+## DeepSeek 语音
+
+`packages/deepseek-tts` gives Mojito DeepSeek's 海星 (stella) and 暗潮 (tide) TTS voices. It needs your
+own DeepSeek API key: enter it on the plugin's settings page and the voices become available in Mojito's
+TTS settings. The settings page also shows the cost so far, estimated at list price.

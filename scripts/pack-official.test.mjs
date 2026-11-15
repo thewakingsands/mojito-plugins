@@ -19,7 +19,7 @@ test('packs and verifies every official plugin with one temporary signer', async
     await writeFile(key, JSON.stringify(privateJwk), { mode: 0o600 })
     execFileSync(process.execPath, [path.join(root, 'scripts/pack-official.mjs'), key, fingerprint], { stdio: 'pipe' })
     const packages = (await readdir(output)).filter((file) => file.endsWith('.mojito'))
-    assert.equal(packages.length, 16)
+    assert.equal(packages.length, 17)
     const matcha = JSON.parse(await readFile(path.join(root, 'packages/matcha/plugin.json'), 'utf8'))
     const expectedDisplay = JSON.parse(
       await readFile(path.join(root, 'packages/plugin-skill-display/plugin.json'), 'utf8'),

@@ -16,6 +16,7 @@ const plugins = [
   ['MojitoSkillDisplay', 'packages/plugin-skill-display/dist'],
   ['CombatStatistics', 'packages/combat-statistics/dist'],
   ['MojitoRaidbossOfficial', 'packages/plugin-raidboss/dist'],
+  ['MojitoDeepSeekTts', 'packages/deepseek-tts/dist'],
   ['OverlayKagerou', 'packages/overlay-plugins/dist/kagerou'],
   ['OverlaySkyline', 'packages/overlay-plugins/dist/skyline'],
   ['OverlayMopiMopi2', 'packages/overlay-plugins/dist/mopimopi2'],

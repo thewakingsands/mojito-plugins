@@ -28,6 +28,7 @@ jobs:
             packages/plugin-skill-display/dist
             packages/combat-statistics/dist
             packages/plugin-raidboss/dist
+            packages/deepseek-tts/dist
             packages/overlay-plugins/dist
             target/release/mojito-package
   sign:
