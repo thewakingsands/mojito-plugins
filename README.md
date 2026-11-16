@@ -2,6 +2,8 @@
 
 English | [简体中文](README.zh-CN.md)
 
+[Plugin development documentation](https://thewakingsands.github.io/mojito-plugins/docs/en/): API, permissions, views, style, signing and publication.
+
 The Mojito plugin SDK, package codec, author examples and official plugins.
 Use Node 24, pnpm 12.13.0 and stable Rust. Clone this repository on its own:
 
@@ -94,14 +96,15 @@ Host integration drivers stay in [Mojito](https://github.com/thewakingsands/moji
 ## Codec and web CI
 
 Codec validation runs on Linux and Windows when its Rust sources, protocol, headers,
-test scripts, the catalog example or shared Rust build inputs change. The web build watches its verifier
+test scripts, the catalog example or shared Rust build inputs change. On pull requests, the web build watches its verifier
 library, web assets, build script and shared Rust inputs. SDK/plugin sources and pnpm
 dependencies do not trigger these jobs. Changes to the checks workflow trigger both.
 
 The browser verifier is built into `dist/package-web` with relative Worker and WASM
-URLs, so it works under the `/mojito-plugins/` Pages path. On relevant pushes to `main`,
-CI uploads this directory. Deployment through the `github-pages` environment is
-enabled only when the repository variable `PAGES_DEPLOY_ENABLED` is `true`. Enable
+URLs, so it works under the `/mojito-plugins/` Pages path. When the repository variable
+`PAGES_DEPLOY_ENABLED` is `true`, each push to `main` builds the verifier and documentation
+into one `dist/pages` artifact, with documentation under `docs/`, and deploys through
+the `github-pages` environment. Enable
 Pages with GitHub Actions as its source, allow `main` in that environment, and authorize
 deployment before setting that variable; the workflow does not enable settings automatically.
 

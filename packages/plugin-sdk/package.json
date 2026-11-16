@@ -54,6 +54,7 @@
     "dist",
     "GUIDE.md",
     "docs",
+    "!docs/.vitepress",
     "COPYING"
   ],
   "license": "LGPL-3.0-only",

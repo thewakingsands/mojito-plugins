@@ -209,11 +209,6 @@ OverlayPlugin 兼容模板是第三方页面，宿主不给它们注入变量。
 - [ ] 内容多时页面自己滚动，宿主区域不会出现两层滚动条。
 - [ ] 悬浮窗没有铺满背景，透明区域点击能穿透到游戏。
 
-## 实现位置
+## 示例
 
-- 变量的来源：[packages/@ffcafe/mojito-launcher/src/renderer/public/theme.css](https://github.com/thewakingsands/mojito/blob/master/packages/@ffcafe/mojito-launcher/src/renderer/public/theme.css)（宿主的两套主题）。
-- 变量名和宿主变量的对应、注入内容：[packages/@ffcafe/mojito-launcher/src/main/plugins/style.ts](https://github.com/thewakingsands/mojito/blob/master/packages/@ffcafe/mojito-launcher/src/main/plugins/style.ts)。
-- 注入：`PluginView`（[src/main/plugins/view.ts](https://github.com/thewakingsands/mojito/blob/master/packages/@ffcafe/mojito-launcher/src/main/plugins/view.ts)）在页面 `dom-ready` 时调用 `insertCSS`。
-- 基础样式：[packages/@ffcafe/mojito-launcher/src/renderer/public/mojito-base.css](https://github.com/thewakingsands/mojito/blob/master/packages/@ffcafe/mojito-launcher/src/renderer/public/mojito-base.css)。
-- 页面的 CSP（允许的样式和字体地址）：[src/main/plugins/resources.ts](https://github.com/thewakingsands/mojito/blob/master/packages/@ffcafe/mojito-launcher/src/main/plugins/resources.ts)。
-- 示例：`examples/plugin-views` 的 `home.html` 和 `settings.html`。
+完整示例见 [plugin-views](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/plugin-views)，包含设置页、首页面板和透明悬浮窗。
