@@ -1,7 +1,7 @@
 import { periodicDefs } from '@ffcafe/mojito-combat-model/defs'
 import type { Sample } from '@ffcafe/mojito-plugin-sdk'
 import type { EndEncounterResult } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
-import type { GameEvent } from './combat-events.js'
+import { type GameEvent, isDutyComplete } from './combat-events.js'
 import { HpTracker } from './hp-tracker.js'
 import { Ledger, type LedgerEntry, remember, remembered, tickKey } from './ledger.js'
 import type { Carry } from './log/types.js'
@@ -14,7 +14,7 @@ export interface EncounterHooks {
   started(info: { id: string; at: number }): void
   /** `afterInput` marks an end decided after the event being accepted was already applied to the fight. */
   ended(info: { id: string; reason: string; at: number; summary: Summary; afterInput: boolean }): void
-  /** A death reported after the fight left combat changed its summary */
+  /** A death or the completion of the duty reported after the fight left combat changed its summary */
   revised?(info: { id: string; summary: Summary }): void
 }
 /** An encounter that changed; its summary is computed when read, from the encounter as it is then. */
@@ -353,23 +353,39 @@ export class Encounters {
     }
     for (const encounter of touched) this.notify(encounter, true)
   }
-  /** Gives the fight that just ended by leaving combat the death of an enemy its party damaged */
-  private lateDeath(event: GameEvent<'actorDied'>, source: string, at: number): boolean {
+  /** The fight that ended by leaving combat shortly before at, which a late death or completion still counts for */
+  private graceFor(source: string, at: number): Encounter | null {
     const encounter = this.grace
-    const actor = this.actors.get(event.data.actorId ?? -1)
-    if (
-      !encounter ||
-      encounter.source !== source ||
-      encounter.zone !== this.zone ||
-      at > encounter.closedAt! + LATE_DEATH_MS ||
-      actor?.kind !== 'enemy' ||
-      !encounter.ledger.damaged(actor.key)
-    )
-      return false
-    encounter.outcome.death(actor, at)
+    return encounter?.source === source && encounter.zone === this.zone && at <= encounter.closedAt! + LATE_DEATH_MS
+      ? encounter
+      : null
+  }
+  private revise(encounter: Encounter) {
     this.notify(encounter, true)
     this.hooks?.revised?.({ id: encounter.id, summary: this.snapshot(encounter, false)! })
+  }
+  /** Gives the fight that just ended by leaving combat the death of an enemy its party damaged */
+  private lateDeath(event: GameEvent<'actorDied'>, source: string, at: number): boolean {
+    const encounter = this.graceFor(source, at)
+    const actor = this.actors.get(event.data.actorId ?? -1)
+    if (!encounter || actor?.kind !== 'enemy' || !encounter.ledger.damaged(actor.key)) return false
+    encounter.outcome.death(actor, at)
+    this.revise(encounter)
     return true
+  }
+  /** The completion of the duty clears the fight in progress, or the one that just ended by leaving combat */
+  private complete(source: string, at: number) {
+    this.advance(at)
+    if (this.active) {
+      if (this.active.source !== source) return
+      this.active.outcome.complete()
+      this.notify(this.active)
+      return
+    }
+    const encounter = this.graceFor(source, at)
+    if (!encounter) return
+    encounter.outcome.complete()
+    this.revise(encounter)
   }
   accept(sample: Sample<GameEvent>, now: number) {
     this.revision++
@@ -400,6 +416,10 @@ export class Encounters {
       return
     }
     if (seq !== undefined) this.packetSeq = Math.max(this.packetSeq, seq)
+    if (event.type === 'actorControl') {
+      if (isDutyComplete(event)) this.complete(source, sample.meta.observedAt)
+      return
+    }
     if (event.type === 'periodicRevision') {
       const touched = new Set<Encounter>()
       for (const tick of event.data.ticks) {

@@ -492,6 +492,17 @@ function eventRows(event: LogEvent): Row[] {
       return [{ kind: 'targetable', ...packet, actor: event.data.actorId, flag: event.data.targetable }]
     case 'cutsceneChanged':
       return [{ kind: 'cutscene', ...packet, flag: event.data.playing }]
+    case 'actorControl':
+      return [
+        {
+          kind: 'control',
+          ...packet,
+          actor: event.data.actorId,
+          type: event.data.category,
+          flag: event.data.self,
+          data: json(event.data.params),
+        },
+      ]
     default:
       throw new LogIntegrityError(`日志不支持事件类型：${event.type}`)
   }
@@ -925,6 +936,19 @@ export class Assembler {
         )
       case 'cutscene':
         return this.event(t, withPacket(row, { type: 'cutsceneChanged', data: { playing: bool(row, 'flag') } }))
+      case 'control':
+        return this.event(
+          t,
+          withPacket(row, {
+            type: 'actorControl',
+            data: {
+              actorId: num(row, 'actor'),
+              category: num(row, 'type')!,
+              params: parse<number[]>(row),
+              self: bool(row, 'flag'),
+            },
+          }),
+        )
     }
     throw new LogIntegrityError(`日志校验失败：无法识别的行 ${kind}`)
   }

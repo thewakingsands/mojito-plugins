@@ -12,7 +12,7 @@ import type {
   Value,
 } from '@ffcafe/mojito-plugin-sdk'
 import { CombatEngineRunner, MODEL_INPUTS } from './combat-engine.js'
-import type { GameEvent } from './combat-events.js'
+import { type GameEvent, isDutyComplete } from './combat-events.js'
 import { compatibility } from './compatibility.js'
 import { displaySummary } from './display.js'
 import { dutyName } from './duty.js'
@@ -956,14 +956,17 @@ export async function activate(ctx: PluginContext) {
     const receiveCurrent = (items: Sample<GameEvent>[]) =>
       generation === eventGeneration ? receiveInputs(items) : undefined
     // HP shares the subscription of actionEffect to keep their order, and so do the inputs of the combat model: a host
-    // without them gives unavailable, which pauses the statistics.
-    const sub = ctx.events.subscribe(['hpChanged', 'playerCombatChanged', ...MODEL_INPUTS], (batch) =>
+    // without them gives unavailable, which pauses the statistics. Of actorControl only the completion of the duty is
+    // kept, in order with leaving combat.
+    const sub = ctx.events.subscribe(['hpChanged', 'playerCombatChanged', 'actorControl', ...MODEL_INPUTS], (batch) =>
       enqueue(() => {
         if (!batch.complete) {
           telemetry.invalidate()
           runner?.clearTelemetryState()
         }
-        return receiveCurrent(batch.items)
+        return receiveCurrent(
+          batch.items.filter((item) => item.value.type !== 'actorControl' || isDutyComplete(item.value)),
+        )
       }),
     )
     try {

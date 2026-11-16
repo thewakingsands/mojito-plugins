@@ -61,3 +61,17 @@ export type GameEvent<T extends keyof GameEventMap = keyof GameEventMap> = T ext
   : T extends keyof HostEventMap
     ? HostGameEvent<T>
     : never
+
+/** ActorControl category of DirectorUpdate; its params are the director and its command */
+const DIRECTOR_UPDATE = 109
+/** The command the director of a duty sends once the duty is complete */
+const DUTY_COMPLETE = 0x40000003
+/**
+ * Whether the event says the duty is complete. A boss whose last form dies may have no actorDied, and the enemy that
+ * took the most damage may be an earlier form that only fell to 1 HP, so this is the one sure sign of a clear.
+ */
+export const isDutyComplete = (event: GameEvent): event is GameEvent<'actorControl'> =>
+  event.type === 'actorControl' &&
+  event.data.self &&
+  event.data.category === DIRECTOR_UPDATE &&
+  event.data.params[1] === DUTY_COMPLETE

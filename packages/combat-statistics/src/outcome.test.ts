@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { Encounters } from './encounters.js'
-import { actors, combat, effect, npcParty, sample } from './fixtures.js'
+import { actors, combat, director, effect, npcParty, sample } from './fixtures.js'
 
 const setup = () => {
   let id = 0
@@ -189,6 +189,83 @@ it('leaves a fight that left combat as it was for deaths it did not see', () => 
       encounters.accept(died(5, 2, 3000), 3000)
     }),
   ).toBe('ended')
+})
+it('is a kill when the duty is completed in the fight, whatever the main enemy did', () => {
+  const encounters = setup()
+  encounters.updateActors(
+    new Map([
+      ...actors(),
+      [8, { key: 'source:1:8', id: 8, name: '最终形态', worldId: null, job: null, kind: 'enemy', ownerKey: null }],
+    ]),
+  )
+  encounters.accept(sample(combat(1, true), 900), 900)
+  // The first form takes the most damage and leaves at 1 HP; the last form dies with no actorDied
+  encounters.accept(sample(effect(2, 500, 1, 9), 1000), 1000)
+  encounters.accept(hp(3, 9, 1, 10_000), 1100)
+  encounters.accept(sample(effect(4, 100, 1, 8), 1200), 1200)
+  encounters.accept(hp(5, 8, 0, 5000), 1300)
+  encounters.accept(sample(director(6), 1400), 1400)
+  expect(encounters.snapshot()!.outcome.result).toBeNull()
+  encounters.accept(sample(combat(7, false), 1400), 1400)
+  const summary = encounters.snapshot(encounters.completed[0])!
+  expect(summary.outcome).toMatchObject({ result: 'kill', mainEnemy: { key: 'source:1:9', hpCur: 1 } })
+  expect(summary.reason).toBe('outOfCombat')
+})
+it('is a kill when the duty is completed seconds after the fight left combat', () => {
+  const revised: string[] = []
+  const encounters = new Encounters(
+    () => 'battle',
+    () => {},
+    { started() {}, ended() {}, revised: ({ summary }) => revised.push(summary.outcome.result!) },
+  )
+  encounters.updateActors(actors())
+  encounters.localActorId = 1
+  encounters.accept(sample(combat(1, true), 900), 900)
+  encounters.accept(sample(effect(2), 1000), 1000)
+  encounters.accept(sample(combat(3, false), 2000), 2000)
+  const ended = encounters.snapshot(encounters.completed[0])!
+  expect(ended.outcome.result).toBe('ended')
+  encounters.accept(sample(director(4), 7000), 7000)
+  expect(encounters.snapshot(encounters.completed[0])).toMatchObject({
+    outcome: { result: 'kill' },
+    durationMs: ended.durationMs,
+    endAt: ended.endAt,
+  })
+  expect(revised).toEqual(['kill'])
+  expect(encounters.active).toBeNull()
+})
+it('takes no other director command, and no completion too late or after the next fight or zone', () => {
+  const after = (then: (encounters: Encounters) => void) => {
+    const encounters = setup()
+    encounters.accept(sample(combat(1, true), 900), 900)
+    encounters.accept(sample(effect(2), 1000), 1000)
+    encounters.accept(sample(combat(3, false), 2000), 2000)
+    then(encounters)
+    return encounters.snapshot(encounters.completed.at(-1))!.outcome.result
+  }
+  expect(after((encounters) => encounters.accept(sample(director(4), 7100), 7100))).toBe('ended')
+  expect(after((encounters) => encounters.accept(sample(director(4, 0x40000001), 3000), 3000))).toBe('ended')
+  expect(after((encounters) => encounters.accept(sample(director(4, 0x40000003, false), 3000), 3000))).toBe('ended')
+  expect(
+    after((encounters) => {
+      encounters.accept(
+        sample({ type: 'zoneChanged', packet: effect(4).packet, data: { territoryTypeId: 2 } }, 3000),
+        3000,
+      )
+      encounters.accept(sample(director(5), 3100), 3100)
+    }),
+  ).toBe('ended')
+  expect(
+    after((encounters) => {
+      encounters.accept(sample(effect(4, 100, 1, 9), 3000), 3000)
+      encounters.accept(sample(director(5), 3100), 3100)
+    }),
+  ).toBe('ended')
+  // A completion outside any fight opens none
+  const encounters = setup()
+  encounters.accept(sample(director(1), 1000), 1000)
+  expect(encounters.active).toBeNull()
+  expect(encounters.completed).toEqual([])
 })
 it('takes NPC party members as members for the main enemy and the wipe', () => {
   const encounters = setup()

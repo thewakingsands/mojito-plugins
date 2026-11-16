@@ -12,12 +12,17 @@ export class Outcome {
   private readonly died = new Map<string, number>()
   private readonly acted = new Map<string, number>()
   private readonly hp = new Map<string, { hpCur: number; hpMax: number | null }>()
+  private completed = false
 
   death(actor: Actor | undefined, at: number) {
     if (actor) this.died.set(lineage(actor.key), at)
   }
   action(actor: Actor | undefined, at: number) {
     if (actor) this.acted.set(lineage(actor.key), Math.max(this.acted.get(lineage(actor.key)) ?? -Infinity, at))
+  }
+  /** The duty was completed in the fight, or right after it ended by leaving combat */
+  complete() {
+    this.completed = true
   }
   health(actor: Actor | undefined, hpCur: number, hpMax: number | null) {
     if (actor) this.hp.set(lineage(actor.key), { hpCur, hpMax })
@@ -56,6 +61,7 @@ export class Outcome {
             hpPercent: hp?.hpMax ? (hp.hpCur / hp.hpMax) * 100 : null,
           }
     if (!ended) return { result: null, mainEnemy }
+    if (this.completed) return { result: 'kill', mainEnemy }
     // The game may leave combat before it reports the death, so HP 0 within the fight is a kill as well
     if (main !== null && (this.died.has(main) || hp?.hpCur === 0)) return { result: 'kill', mainEnemy }
     const members = rows.filter((row) => row.actor.kind === 'member')

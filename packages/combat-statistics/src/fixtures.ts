@@ -93,6 +93,12 @@ export const combat = (seq: number, inCombat: boolean, actorId = 1): GameEvent<'
   packet: { seq, timestamp: seq, sourceActorId: actorId, targetActorId: actorId },
   data: { actorId, inCombat },
 })
+/** A DirectorUpdate of the director of a duty to the local player 1; command 0x40000003 says the duty is complete */
+export const director = (seq: number, command = 0x40000003, self = true): GameEvent<'actorControl'> => ({
+  type: 'actorControl',
+  packet: { seq, timestamp: seq, sourceActorId: 1, targetActorId: 1 },
+  data: { actorId: 1, category: 109, params: [0x80034e69, command, 0, 0, 0, 0], self },
+})
 /** The split of a hit of effect(): 10000 of member 2 on the enemy, 600 of it given by a status of member 1 */
 export const attribution = (patch: Partial<DamageAttribution> = {}): DamageAttribution => ({
   estimatorGeneration: 1,

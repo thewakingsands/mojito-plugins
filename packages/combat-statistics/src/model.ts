@@ -40,8 +40,9 @@ export interface Settings {
   telemetryEnabled?: boolean
 }
 /**
- * How long after leaving combat the death of an enemy still counts for the fight; the game may report it seconds late,
- * after the enemy sat at 1 HP through its last scene. The log writes the end of such a fight only after this.
+ * How long after leaving combat the death of an enemy, or the completion of the duty, still counts for the fight; the
+ * game may report a death seconds late, after the enemy sat at 1 HP through its last scene. The log writes the end of
+ * such a fight only after this.
  */
 export const LATE_DEATH_MS = 5000
 export const defaults: Settings = { quietSeconds: 10, mergePets: true, scope: 'party', telemetryEnabled: false }

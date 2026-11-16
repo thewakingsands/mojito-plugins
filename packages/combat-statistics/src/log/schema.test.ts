@@ -158,6 +158,11 @@ describe('rows', () => {
       event({ type: 'targetableChanged', data: { actorId: 9, targetable: false } }),
       event({ type: 'cutsceneChanged', data: { playing: true } }),
       event({ type: 'cutsceneChanged', data: { playing: false } }),
+      event({
+        type: 'actorControl',
+        packet,
+        data: { actorId: 1, category: 109, params: [0x80034e69, 0x40000003, 0, 0, 0, 0], self: true },
+      }),
       {
         kind: 'positions',
         t: 2000,

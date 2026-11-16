@@ -466,6 +466,7 @@ it('clears every visit but the current one, runs one ordered subscription and ke
   expect(types()).toEqual([
     'hpChanged',
     'playerCombatChanged',
+    'actorControl',
     'actionEffect',
     'actorDied',
     'zoneChanged',
