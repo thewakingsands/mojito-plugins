@@ -1,24 +1,9 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { extractEmberFonts, prepareEmberIcons } from './ember-icons.mjs'
-
-test('Ember icon deduplication preserves all logical paths and original bytes', async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), 'ember-icons-'))
-  t.after(() => rm(root, { recursive: true, force: true }))
-  for (const dir of ['public/img/icons/effects', 'public/img/icons/skills', 'src/data'])
-    await mkdir(path.join(root, dir), { recursive: true })
-  const source = { 'effects/1.jpg': 'same', 'effects/2.jpg': 'different', 'skills/3.jpg': 'same' }
-  for (const [file, bytes] of Object.entries(source)) await writeFile(path.join(root, 'public/img/icons', file), bytes)
-  await prepareEmberIcons(root)
-  const mapping = JSON.parse(await readFile(path.join(root, 'src/data/icon-paths.json')))
-  assert.equal(Object.keys(mapping).length, 3)
-  assert.equal((await readdir(path.join(root, 'public/img/icons/skills'))).length, 0)
-  for (const [file, bytes] of Object.entries(source))
-    assert.equal(await readFile(path.join(root, 'public', mapping[file]), 'utf8'), bytes)
-})
+import { extractEmberFonts } from './ember-icons.mjs'
 
 test('Ember embedded fonts become local files without changing bytes', async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), 'ember-fonts-'))

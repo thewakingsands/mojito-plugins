@@ -11,6 +11,10 @@ Each plugin requires Mojito plugin API 2.0.0 and the `CombatStatistics/overlay` 
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
 
+Ember loads action and status icons from Mojito's game data through the compatibility page's
+`getGameIcon` call. Its worker resolves the game row and returns an activation-bound image URL.
+Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.
+
 Use the existing Rust CLI with a private Ed25519 JWK to create each package, for example:
 
 ```sh

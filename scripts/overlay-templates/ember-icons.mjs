@@ -1,27 +1,6 @@
 import { createHash } from 'node:crypto'
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-
-// Preserve every upstream icon while storing identical images only once.
-export async function prepareEmberIcons(work) {
-  const root = path.join(work, 'public/img/icons')
-  const unique = new Map()
-  const paths = {}
-  for (const type of ['effects', 'skills']) {
-    for (const name of (await readdir(path.join(root, type))).sort()) {
-      const relative = `${type}/${name}`
-      const file = path.join(root, relative)
-      const hash = createHash('sha256')
-        .update(await readFile(file))
-        .digest('hex')
-      const existing = unique.get(hash)
-      paths[relative] = `img/icons/${existing ?? relative}`
-      if (existing) await rm(file)
-      else unique.set(hash, relative)
-    }
-  }
-  await writeFile(path.join(work, 'src/data/icon-paths.json'), JSON.stringify(paths))
-}
 
 export async function extractEmberFonts(work) {
   const directory = path.join(work, 'build/static/css')

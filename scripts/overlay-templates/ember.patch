@@ -97,13 +97,43 @@ index 07e2e2f..c0d1cc8 100644
  
  			if (player._is_pet) {
  				pet_rows.push(player_obj);
+diff --git a/src/components/Parser/SpellGrid/GameIcon.js b/src/components/Parser/SpellGrid/GameIcon.js
+new file mode 100644
+index 0000000..ff58621
+--- /dev/null
++++ b/src/components/Parser/SpellGrid/GameIcon.js
+@@ -0,0 +1,24 @@
++import React, { useEffect, useState } from "react";
++
++export default function GameIcon({ type, id }) {
++    const [image, setImage] = useState(null);
++    useEffect(() => {
++        let active = true;
++        let retry;
++        setImage(null);
++        function load() {
++            window.OverlayPluginApi.callHandler(
++                JSON.stringify({ call: "getGameIcon", type, id: Number(id) }),
++                raw => {
++                    if (!active) return;
++                    const result = JSON.parse(raw);
++                    if (typeof result === "string") setImage(result);
++                    else if (result && result.error === "unavailable") retry = setTimeout(load, 1000);
++                }
++            );
++        }
++        load();
++        return () => { active = false; clearTimeout(retry); };
++    }, [type, id]);
++    return <img src={image || undefined} alt={type + "-" + id} style={{ visibility: image ? "visible" : "hidden" }}/>;
++}
 diff --git a/src/components/Parser/SpellGrid/Spell.js b/src/components/Parser/SpellGrid/Spell.js
-index 0b7cb2e..ed082f8 100644
+index 0b7cb2e..94e857a 100644
 --- a/src/components/Parser/SpellGrid/Spell.js
 +++ b/src/components/Parser/SpellGrid/Spell.js
 @@ -1,4 +1,5 @@
  import React from "react";
-+import iconPaths from "../../../data/icon-paths.json";
++import GameIcon from "./GameIcon";
  import ReactTooltip from "react-tooltip";
  
  import EmberComponent from "../../EmberComponent";
@@ -112,7 +142,7 @@ index 0b7cb2e..ed082f8 100644
  			? ""
  			: <div key={"spell-icon-" + this.props.base_key} className={"icon " + type}>
 -				<img src={"img/icons/" + main_type + "s/" + id + ".jpg"} alt={main_type + "-" + id}/>
-+				<img src={iconPaths[main_type + "s/" + id + ".jpg"]} alt={main_type + "-" + id}/>
++				<GameIcon type={main_type === "skill" ? "action" : "status"} id={id}/>
  			</div>;
  		const attributes = {
  			key       : "spell-container-" + this.props.base_key,

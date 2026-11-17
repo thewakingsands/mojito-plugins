@@ -3,7 +3,8 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractEmberFonts, prepareEmberIcons } from './ember-icons.mjs'
+import { extractEmberFonts } from './ember-icons.mjs'
+import { copyFont, pruneFonts } from './fonts.mjs'
 import { writeDependencyNotices } from './licenses.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -18,9 +19,11 @@ const sources = {
     async build(work) {
       const styles = []
       for (const font of ['roboto', 'roboto-mono']) {
-        await cp(path.join(work, 'node_modules/@fontsource', font), path.join(work, 'share/fonts', font), {
-          recursive: true,
-        })
+        await copyFont(
+          path.join(work, 'node_modules/@fontsource', font),
+          path.join(work, 'share/fonts', font),
+          [400, 700],
+        )
         styles.push(`@import '../share/fonts/${font}/400.css';`, `@import '../share/fonts/${font}/700.css';`)
       }
       const css = path.join(work, 'config/index.css')
@@ -71,6 +74,9 @@ const sources = {
     lock: 'horizoverlay-package-lock.json',
     command: ['npm', 'run', 'build'],
     env: { PUBLIC_URL: '/plugin', GENERATE_SOURCEMAP: 'false' },
+    async prepare(work) {
+      await rm(path.join(work, 'src/css/fonts'), { recursive: true, force: true })
+    },
   },
   cmskin: {
     client: true,
@@ -94,11 +100,12 @@ const sources = {
     lock: 'mopimopi1-package-lock.json',
     files: ['index.html', 'js', 'css', 'images', 'fonts'],
     async build(work) {
-      for (const font of ['montserrat', 'roboto', 'roboto-condensed'])
-        await cp(path.join(work, 'node_modules/@fontsource', font), path.join(work, 'fonts', font), {
-          recursive: true,
-          filter: (file) => !/\.d\.ts$|\.scss$|\.json$|\.md$/.test(file),
-        })
+      for (const [font, weights] of [
+        ['montserrat', [500]],
+        ['roboto', [400, 700]],
+        ['roboto-condensed', [400]],
+      ])
+        await copyFont(path.join(work, 'node_modules/@fontsource', font), path.join(work, 'fonts', font), weights)
     },
   },
   ikegami: {
@@ -114,8 +121,11 @@ const sources = {
     revision: '8aee360b7589c9d90924db3b86f6c5e0813a4aec',
     output: 'build',
     lock: 'ember-package-lock.json',
+    async prepare(work) {
+      for (const relative of ['public/img/buttons', 'public/img/icons/skills', 'public/img/icons/effects'])
+        await rm(path.join(work, relative), { recursive: true, force: true })
+    },
     async build(work) {
-      await prepareEmberIcons(work)
       run('npm', ['run', 'build'], work, this.env)
       await extractEmberFonts(work)
     },
@@ -228,6 +238,7 @@ for (const [name, source] of entries) {
     await writeFile(path.join(work, 'package-lock.json'), JSON.stringify(lock, null, 2))
     run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund', '--legacy-peer-deps'], work)
   }
+  await source.prepare?.(work)
   if (source.command) run(source.command[0], source.command.slice(1), work, source.env)
   await source.build?.(work)
   const destination = path.join(output, name)
@@ -237,6 +248,7 @@ for (const [name, source] of entries) {
     for (const file of source.files)
       await cp(path.join(work, source.output, file), path.join(destination, file), { recursive: true })
   } else await cp(path.join(work, source.output), destination, { recursive: true })
+  await pruneFonts(destination)
   if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(destination, 'ngld.js'))
   if (source.lock) await writeDependencyNotices(work, destination)
   const url = repository.replace(/\.git$/, '')
@@ -274,7 +286,7 @@ for (const [name, source] of entries) {
     await cp(path.join(root, 'scripts/overlay-templates', file), path.join(recipe, file))
   if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(recipe, 'ngld.js'))
   await cp(fileURLToPath(import.meta.url), path.join(recipe, 'build.mjs'))
-  for (const file of ['ember-icons.mjs', 'licenses.mjs'])
+  for (const file of ['ember-icons.mjs', 'fonts.mjs', 'licenses.mjs'])
     await cp(new URL(`./${file}`, import.meta.url), path.join(recipe, file))
   // GNU tar treats a colon before the first slash as a remote host, which rules out `D:\...` for -f.
   run(
