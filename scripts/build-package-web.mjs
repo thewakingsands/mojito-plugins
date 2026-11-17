@@ -4,7 +4,7 @@ import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '..')
 function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' })
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' })
   if (result.error || result.status) throw result.error ?? new Error(`${command} failed (${result.status})`)
 }
 run('pnpm', ['--filter', '@ffcafe/mojito-package', 'build'])

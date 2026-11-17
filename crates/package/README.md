@@ -124,3 +124,7 @@ Direct archive-tool compatibility is verified for 7-Zip 25.01 and 26.05. It is n
 promise for every archive tool: libarchive 3.7.4 rejects nonempty custom prefixes.
 Editing or repacking with another tool invalidates the signature; sign the result
 again with this codec.
+
+## License
+
+AGPL-3.0-only. See [LICENSE](LICENSE).

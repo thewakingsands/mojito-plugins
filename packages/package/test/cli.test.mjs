@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url))
 test('CLI defaults, key protection, git confirmation, output replacement and input exclusions', async () => {
@@ -17,7 +17,7 @@ test('CLI defaults, key protection, git confirmation, output replacement and inp
       `import os from 'node:os'; import { syncBuiltinESMExports } from 'node:module'; os.homedir = () => ${JSON.stringify(home)}; syncBuiltinESMExports()`,
     )
     const invoke = (args, expected = 0) => {
-      const result = spawnSync(process.execPath, ['--import', preload, cli, ...args], {
+      const result = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, cli, ...args], {
         cwd: root,
         env: { ...process.env, PATH: path.dirname(process.execPath) },
         encoding: 'utf8',
@@ -55,7 +55,11 @@ test('CLI defaults, key protection, git confirmation, output replacement and inp
     assert.match(invoke(['pack', input, '--key', path.join(input, 'author.jwk')], 1).stderr, /outside/)
     await rm(path.join(input, 'author.jwk'))
     assert.match(invoke(['pack', input, '--output', path.join(input, 'output.mojito')], 1).stderr, /outside/)
-    await symlink(key, path.join(input, 'linked-key'))
+    await symlink(
+      process.platform === 'win32' ? path.dirname(key) : key,
+      path.join(input, 'linked-key'),
+      process.platform === 'win32' ? 'junction' : 'file',
+    )
     assert.match(invoke(['pack', input], 1).stderr, /symlinks/)
     assert.equal(await readFile(key, 'utf8'), saved)
   } finally {

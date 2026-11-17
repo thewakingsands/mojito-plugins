@@ -32,3 +32,7 @@ const result = verifyPackage(bytes)
 浏览器和 module worker 从 `@ffcafe/mojito-package/web` 导入同名操作及 `init`，使用前先 `await init()`。模块通过相对 URL 加载自带的 WASM。私钥生成使用运行环境的安全随机源，文件在本地处理。
 
 详见[插件开发文档](https://thewakingsands.github.io/mojito-plugins/docs/packaging)。
+
+## 许可证
+
+AGPL-3.0-only，正文见 [LICENSE](LICENSE)。

@@ -11,6 +11,14 @@ const repository = fileURLToPath(new URL('../', import.meta.url))
 const native = path.join(repository, 'target/release', `mojito-package${process.platform === 'win32' ? '.exe' : ''}`)
 const root = await mkdtemp(path.join(tmpdir(), 'mojito-package-npm-'))
 const run = (command, args, options = {}) => execFileSync(command, args, { encoding: 'utf8', ...options })
+const runNpm = (args, options) =>
+  process.platform === 'win32'
+    ? run(
+        process.execPath,
+        [path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'), ...args],
+        options,
+      )
+    : run('npm', args, options)
 try {
   const manifest = { id: 'Distribution.Test', version: '1.0.0', entry: { path: 'backend/main.mjs' } }
   const source = Buffer.from('export const activate = () => 42')
@@ -36,7 +44,7 @@ try {
   }
 
   const pack = JSON.parse(
-    run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', root], {
+    runNpm(['pack', '--ignore-scripts', '--json', '--pack-destination', root], {
       cwd: path.join(repository, 'packages/package'),
     }),
   )[0]
@@ -59,7 +67,7 @@ try {
     npm_config_cache: path.join(root, 'npm-cache'),
     npm_config_script_shell: process.platform === 'win32' ? process.env.ComSpec : '/bin/sh',
   }
-  run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--offline', path.join(root, pack.filename)], {
+  runNpm(['install', '--ignore-scripts', '--no-audit', '--no-fund', '--offline', path.join(root, pack.filename)], {
     cwd: app,
     env,
   })
@@ -68,7 +76,7 @@ try {
   run(process.execPath, [cli, 'pack', input, '--key', key, '--output', output], { cwd: app, env })
   const result = JSON.parse(run(process.execPath, [cli, 'verify', output], { cwd: app, env }))
   assert.deepEqual(
-    JSON.parse(run('npm', ['exec', '--offline', '--', 'mojito-package', 'verify', output], { cwd: app, env })),
+    JSON.parse(runNpm(['exec', '--offline', '--', 'mojito-package', 'verify', output], { cwd: app, env })),
     result,
   )
   const bytes = await readFile(output)

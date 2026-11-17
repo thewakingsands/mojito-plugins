@@ -32,3 +32,7 @@ const result = verifyPackage(bytes)
 Browser and module worker consumers import the same operations plus `init` from `@ffcafe/mojito-package/web`, then `await init()` before use. The module loads its included WASM using a relative URL. Key generation uses the runtime's secure random source. Files are processed locally.
 
 See the [plugin developer guide](https://thewakingsands.github.io/mojito-plugins/docs/en/packaging).
+
+## License
+
+AGPL-3.0-only. See [LICENSE](LICENSE).
