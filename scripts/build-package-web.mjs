@@ -7,26 +7,10 @@ function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' })
   if (result.error || result.status) throw result.error ?? new Error(`${command} failed (${result.status})`)
 }
-run('cargo', [
-  'build',
-  '--locked',
-  '--release',
-  '--package',
-  'mojito-package',
-  '--lib',
-  '--target',
-  'wasm32-unknown-unknown',
-  '--no-default-features',
-])
+run('pnpm', ['--filter', '@ffcafe/mojito-package', 'build'])
 const output = path.join(root, 'dist/package-web')
 await mkdir(output, { recursive: true })
-run(process.env.WASM_BINDGEN ?? 'wasm-bindgen', [
-  '--target',
-  'web',
-  '--out-dir',
-  path.join(output, 'pkg'),
-  '--out-name',
-  'package',
-  path.join(root, 'target/wasm32-unknown-unknown/release/mojito_package.wasm'),
-])
+for (const directory of ['dist', 'wasm']) {
+  await cp(path.join(root, 'packages/package', directory), path.join(output, 'tool', directory), { recursive: true })
+}
 await cp(path.join(root, 'crates/package/web'), output, { recursive: true })

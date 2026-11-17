@@ -35,7 +35,7 @@ form.addEventListener('submit', async (event) => {
 })
 worker.onmessage = ({ data }) => {
   if (data.error) return fail(data.error)
-  busy(false); status.textContent = '签名与归档摘要通过'
+  busy(false); status.textContent = '签名与全部文件校验通过'
   const { metadata, signer } = data.inspection
   const summary = document.querySelector('#summary'); summary.replaceChildren()
   for (const [label, value] of [['名称', metadata.manifest.name], ['版本', metadata.manifest.version], ['签名者指纹', signer.fingerprint], ['运行方式', metadata.manifest.entry.kind === 'native' ? '解包运行' : '从压缩包读取']]) {

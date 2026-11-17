@@ -9,6 +9,8 @@ use sha2::{Digest, Sha256};
 pub type Result<T> = std::result::Result<T, String>;
 pub const MAGIC: &[u8; 8] = b"MJPKG01\0";
 pub const MAX_PACKAGE: usize = 256 * 1024 * 1024;
+pub const MAX_FILE: usize = 32 * 1024 * 1024;
+pub const MAX_FILES: usize = 4096;
 #[cfg(feature = "ffi")]
 mod ffi;
 const MAX_JWS: usize = 128 * 1024;
@@ -247,9 +249,9 @@ pub fn inspect(bytes: &[u8]) -> Result<String> {
 #[cfg(feature = "codec")]
 mod codec;
 #[cfg(feature = "codec")]
-pub use codec::{Package, pack_directory, pack_files};
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen::prelude::wasm_bindgen(js_name = inspectPackage)]
-pub fn inspect_web(bytes: &[u8]) -> std::result::Result<String, wasm_bindgen::JsValue> {
-  inspect(bytes).map_err(|e| wasm_bindgen::JsValue::from_str(&e))
-}
+pub use codec::{
+  Package, Verification, pack_directory, pack_files, private_jwk, validate_private_key,
+  verify_package,
+};
+#[cfg(all(target_arch = "wasm32", feature = "codec"))]
+mod wasm;

@@ -10,6 +10,7 @@
   "scripts": {
     "build": "pnpm build:package && pnpm -r build",
     "build:package": "cargo build --locked --release --package mojito-package",
+    "build:package:npm": "pnpm --filter @ffcafe/mojito-package build",
     "build:web": "node scripts/build-package-web.mjs",
     "docs:dev": "vitepress dev packages/plugin-sdk/docs",
     "docs:build": "vitepress build packages/plugin-sdk/docs",
@@ -21,7 +22,8 @@
     "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @ffcafe/mojito-raidboss typecheck:tests && tsc -p examples/tsconfig.json",
     "test": "vitest run && node --test scripts/overlay-templates/*.test.mjs",
     "test:package": "pnpm build:package && cargo test --locked --package plugin-protocol && cargo test --locked --package mojito-package --features ffi && cargo build --locked --release --package mojito-package --lib --features ffi && node scripts/package-cli-smoke.mjs && python3 scripts/package-ffi-smoke.py",
-    "test:official": "node --test scripts/pack-official.test.mjs"
+    "test:official": "node --test scripts/pack-official.test.mjs",
+    "test:package:npm": "pnpm build:package && pnpm build:package:npm && pnpm --filter @ffcafe/mojito-package test && node scripts/package-npm-smoke.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
