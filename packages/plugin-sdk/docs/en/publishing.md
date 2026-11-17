@@ -35,6 +35,8 @@ npx @ffcafe/mojito-package verify ./MyPlugin-0.1.0.mojito
 
 Copy the top-level `size` and `sha256` into the release entry. `metadata.archiveSize` and `metadata.archiveSha256` describe the inner archive and have a different meaning.
 
+The [package workbench](https://thewakingsands.github.io/mojito-plugins/) displays the complete file's `size` and `sha256` after packing or verifying. Use **复制发布信息 JSON** (copy publication JSON) to copy both values together.
+
 ## Hosting
 
 Both `catalog.json` and `.mojito` must use HTTPS URLs that download the file itself, for example GitHub Pages or `raw.githubusercontent.com` URLs. URLs on the GitHub website with `/blob/` in the path are web pages and cannot be used.

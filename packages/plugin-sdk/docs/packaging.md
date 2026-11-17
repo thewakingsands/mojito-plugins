@@ -2,6 +2,16 @@
 
 用户安装的是 `.mojito` 文件：插件构建结果的压缩包，加上你用私钥做的签名。Mojito 用签名确认插件的每次更新都来自同一个发布者。
 
+## 在浏览器中打包
+
+[插件包工作台](https://thewakingsands.github.io/mojito-plugins/)支持生成或导入私钥、从构建目录打包，以及校验已有 `.mojito`。文件和私钥只在本机处理。
+
+1. 导入已有的 Ed25519 私钥 JWK；首次发布也可生成私钥，先导出备份再打包，以后每次更新使用同一私钥。
+2. 构建插件，将 `dist` 等构建目录拖入工作台，或点击“选择文件夹”。目录根部需包含 `plugin.json` 和入口文件。
+3. 选择压缩方式，签名打包并下载 `.mojito`，将完整文件的 `size` 和 `sha256` 复制到[发布目录](publishing.md)。
+
+私钥仅在当前页面内存中使用，刷新或关闭后需要重新导入备份；已导入的私钥可以再次导出。请妥善备份：私钥丢失或更换后，用户更新时会看到发布者变化，继续安装会删除旧插件的全部数据和权限。
+
 ## 准备打包工具
 
 安装 [Node 24 或更新版本](https://nodejs.org/)，通过 `npx @ffcafe/mojito-package` 使用打包工具。npm 包内置 WASM，无需安装 Rust 或压缩工具。
@@ -54,8 +64,8 @@ npx @ffcafe/mojito-package pack ./dist --key /safe/location/MyPlugin.jwk --outpu
 
 包和解压后总量各不超过 256 MiB，单个文件不超过 32 MiB，最多 4096 个文件。
 
-## 在浏览器里检查
+## 在浏览器中校验
 
-[在线工具](https://thewakingsands.github.io/mojito-plugins/)使用同一 WASM 编解码器，校验签名和全部文件，文件不会上传。
+在[工作台](https://thewakingsands.github.io/mojito-plugins/)切换到“校验”，拖入或选择 `.mojito`。工作台检查签名、签名 manifest 与包内的全部文件，再显示 manifest 和完整文件的 `size`、`sha256`。校验无需私钥，签名者指纹可以在详情中查看。
 
 包格式的细节见[包格式说明](https://github.com/thewakingsands/mojito-plugins/blob/main/crates/package/README.zh-CN.md)。下一步：[发布与更新](publishing.md)。
