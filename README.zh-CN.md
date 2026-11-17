@@ -21,6 +21,7 @@ pnpm lint
 `build:official` 构建 SDK、Rust CLI 和官方插件，不需要签名密钥。
 悬浮窗模板按 `scripts/overlay-templates/build.mjs` 中记录的上游地址和完整提交拉取源码，
 再应用仓库里的补丁和 lockfile。源码归档和许可证放在生成的运行时目录旁边。
+Skyline 的构建日期使用已锁定上游提交的时间。
 
 ## 包
 
@@ -71,7 +72,13 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 
 `official-v*` tag 工作流在没有 secret 的情况下构建，通过 artifact 传递运行时目录和 CLI，
 再在单独的 job 中签名。把共用私钥配置为 secret `OFFICIAL_SIGNING_JWK`，把它的公钥指纹配置为
-变量 `OFFICIAL_SIGNER_FINGERPRINT`。Release 附件需手动上传到 Mojito server。
+变量 `OFFICIAL_SIGNER_FINGERPRINT`。签名产物继续作为 GitHub Release 附件保存。
+
+上传 job 从签名产物中取出 `.mojito` 包，自动上传为 Mojito server 的草稿。
+先在服务端配置 `ci_upload_token` / `MOJITO_CI_UPLOAD_TOKEN`，再把相同凭据配置为仓库 secret
+`MOJITO_SERVER_UPLOAD_TOKEN`，服务端根地址配置为仓库变量 `MOJITO_SERVER_URL`。
+上传后仍需在后台确认签名者并发布到 TEST、PROD。失败时使用 Actions 的“重新运行失败的作业”，
+继续使用原来的签名产物。已发布过的版本若包内容相同则返回成功；内容变化时须提高对应插件的 manifest 版本号。
 发布 SDK 版本、推送 tag 和发布官方包都需要相应的发布授权。Cargo 使用的源码 tag `v0.1.0`
 与官方发布 tag 相互独立。
 

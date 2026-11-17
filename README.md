@@ -22,6 +22,7 @@ pnpm lint
 The overlays fetch the upstream URLs and full commits recorded in
 `scripts/overlay-templates/build.mjs`, then apply the checked-in patches and lockfiles.
 Their source archives and licenses are included beside the generated runtime trees.
+Skyline records the pinned upstream commit time as its build date.
 
 ## Packages
 
@@ -78,7 +79,16 @@ and writes one `.mojito` package per official plugin (the list is in
 The `official-v*` tag workflow builds without secrets, transfers the runtime trees and
 CLI through an artifact, then signs in a separate job. Configure `OFFICIAL_SIGNING_JWK`
 as the shared private key secret and `OFFICIAL_SIGNER_FINGERPRINT` as its public
-fingerprint variable. Upload the Release attachments to Mojito server manually.
+fingerprint variable. Signed artifacts remain available as GitHub Release attachments.
+
+The upload job takes `.mojito` packages from the signed artifact and uploads them as
+Mojito server drafts. Set `ci_upload_token` / `MOJITO_CI_UPLOAD_TOKEN` on the server,
+configure the same credential as the repository secret `MOJITO_SERVER_UPLOAD_TOKEN`,
+and set the server root address in the repository variable `MOJITO_SERVER_URL`.
+Confirm the signer and publish to TEST and PROD in the administration interface.
+Use Actions' **Re-run failed jobs** after an upload failure to reuse the original signed
+artifact. Re-uploading an identical published package succeeds; changed bytes require
+bumping the corresponding plugin's manifest version.
 Publishing SDK versions, tags and official packages requires the corresponding release
 authorization. The `v0.1.0` source tag used by Cargo is separate from official release tags.
 
