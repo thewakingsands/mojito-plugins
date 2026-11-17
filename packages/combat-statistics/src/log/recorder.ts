@@ -1,4 +1,5 @@
 import type { CombatantState, Field, GameTopics, PlayerState, Sample, SessionSnapshot } from '@ffcafe/mojito-plugin-sdk'
+import { dequal } from 'dequal'
 import { value } from '../identity.js'
 import { type Actor, LATE_DEATH_MS, type Scope, type Settings, type Summary } from '../model.js'
 import { FightHash } from './hash.js'
@@ -57,17 +58,19 @@ const GROUP_SPAN_MS = 120_000
 // The source clock advances by fractions of a millisecond between samples, while the t column holds whole ones.
 const ms = Math.round
 
-/** A record value without the observation times of its fields, which change on every push even when nothing else does. */
-function signature(value: object): string {
-  const entries = Object.entries(value)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([name, field]) => {
-      if (field === null || typeof field !== 'object' || !('state' in field)) return [name, field]
-      const rest: Record<string, unknown> = { ...field }
-      delete rest.observedAt
-      return [name, rest]
-    })
-  return JSON.stringify(entries)
+/** Whether two record values are equal apart from the observation times of their fields, which change on every push even when nothing else does. */
+function sameRecord(a: object | null, b: object): boolean {
+  if (a === null) return false
+  const left = a as Record<string, unknown>,
+    right = b as Record<string, unknown>
+  const keys = Object.keys(left)
+  if (keys.length !== Object.keys(right).length) return false
+  return keys.every((key) => key in right && dequal(withoutTime(left[key]), withoutTime(right[key])))
+}
+function withoutTime(field: unknown): unknown {
+  if (field === null || typeof field !== 'object' || !('state' in field)) return field
+  const { observedAt: _, ...rest } = field as Record<string, unknown>
+  return rest
 }
 
 type Boundary =
@@ -93,7 +96,7 @@ interface Fight {
   id: string
   hash: FightHash
   enemies: Set<number>
-  positions: Map<number, string>
+  positions: Map<number, readonly unknown[]>
 }
 
 /** Turns the plugin's ordered inputs into log rows, one visit at a time. */
@@ -102,13 +105,16 @@ export class Recorder {
   private settingsValue: Settings | null = null
   private playerValue: { origin: 'watch' | 'get'; value: Partial<PlayerState>; t: number } | null = null
   private partyValue: GameTopics['party'] | null = null
-  // Signatures of the last zone, party and player rows written in this visit; an unchanged value is not written again.
-  private zoneWritten: string | null = null
-  private partyWritten: string | null = null
-  private playerWritten: { watch: string | null; get: string | null } = { watch: null, get: null }
+  // The last zone, party and player rows written in this visit; an unchanged value is not written again.
+  private zoneWritten: GameTopics['zone'] | null = null
+  private partyWritten: GameTopics['party'] | null = null
+  private playerWritten: { watch: Partial<PlayerState> | null; get: Partial<PlayerState> | null } = {
+    watch: null,
+    get: null,
+  }
   private known = new Map<number, IdentityFields>()
-  private written = new Map<number, string>()
-  private membership: string | null = null
+  private written = new Map<number, readonly unknown[]>()
+  private membership: readonly unknown[] | null = null
   private visit: Visit | null = null
   private territoryType: number | null = null
   private fight: Fight | null = null
@@ -160,7 +166,7 @@ export class Recorder {
       record && `${record.sessionId}:${record.characterGeneration}:${record.clockGeneration}`
     const changed = key(this.sourceValue) !== key(next)
     this.prelude(this.latest)
-    if (JSON.stringify(next) === JSON.stringify(this.sourceValue)) return
+    if (dequal(next, this.sourceValue)) return
     if (changed && this.visit) this.endVisit('sourceChanged', this.latest)
     if (changed) {
       this.forget()
@@ -192,10 +198,9 @@ export class Recorder {
     this.prelude(t)
     this.playerValue = { origin, value, t }
     if (!this.visit) return
-    const key = signature(value)
     const forced = origin === 'watch' && (changesCombat || value.inCombat?.state !== 'ok')
-    if (!forced && key === this.playerWritten[origin]) return
-    this.playerWritten[origin] = key
+    if (!forced && sameRecord(this.playerWritten[origin], value)) return
+    this.playerWritten[origin] = value
     this.record({ kind: 'player', origin, value, t }, t)
   }
   party(value: GameTopics['party'], at: number) {
@@ -203,9 +208,8 @@ export class Recorder {
     this.prelude(t)
     this.partyValue = value
     if (!this.visit) return
-    const key = signature(value)
-    if (key === this.partyWritten) return
-    this.partyWritten = key
+    if (sameRecord(this.partyWritten, value)) return
+    this.partyWritten = value
     this.record({ kind: 'party', value }, t)
   }
   zone(zone: GameTopics['zone'], at: number, carry: Carry) {
@@ -218,9 +222,8 @@ export class Recorder {
       this.beginVisit(territoryType, t, carry)
     }
     if (!this.visit) return
-    const key = signature(zone)
-    if (key === this.zoneWritten) return
-    this.zoneWritten = key
+    if (sameRecord(this.zoneWritten, zone)) return
+    this.zoneWritten = zone
     this.record({ kind: 'zone', value: zone, t }, t)
   }
   identities(
@@ -236,12 +239,14 @@ export class Recorder {
     const changed: CombatantState[] = []
     for (const entity of entities) {
       if (![1, 2].includes(value(entity.objectKind) ?? value(this.known.get(entity.id)?.objectKind) ?? 0)) continue
-      const signature = JSON.stringify(
-        IDENTITY_FIELDS.map((name) => {
-          const field = entity[name] as Field<unknown> | undefined
-          return field === undefined ? null : field.state === 'ok' ? ['ok', field.value] : [field.state, field.reason]
-        }),
-      )
+      const identity: unknown[] = []
+      for (const name of IDENTITY_FIELDS) {
+        const field = entity[name] as Field<unknown> | undefined
+        identity.push(
+          field?.state ?? null,
+          field === undefined ? null : field.state === 'ok' ? field.value : field.reason,
+        )
+      }
       const old = this.known.get(entity.id)
       const merged: IdentityFields = {}
       for (const name of IDENTITY_FIELDS) {
@@ -251,8 +256,8 @@ export class Recorder {
         if (chosen !== undefined) (merged as Record<string, unknown>)[name] = chosen
       }
       this.known.set(entity.id, merged)
-      if (this.written.get(entity.id) === signature) continue
-      this.written.set(entity.id, signature)
+      if (dequal(this.written.get(entity.id), identity)) continue
+      this.written.set(entity.id, identity)
       changed.push(entity)
     }
     const gone = missing.filter((id) => this.known.has(id))
@@ -260,8 +265,8 @@ export class Recorder {
       this.known.delete(id)
       this.written.delete(id)
     }
-    const membership = JSON.stringify([[...members].sort((a, b) => a - b), scope])
-    if (changed.length || gone.length || membership !== this.membership) {
+    const membership = [scope, ...[...members].sort((a, b) => a - b)]
+    if (changed.length || gone.length || !dequal(this.membership, membership)) {
       this.membership = membership
       this.record({ kind: 'identities', origin, entities: changed, missing: gone }, t)
     }
@@ -305,9 +310,9 @@ export class Recorder {
         hpCur: value(entity.hpCur),
         hpMax: value(entity.hpMax),
       }
-      const signature = JSON.stringify([actor.x, actor.z, actor.rotation, actor.hpCur, actor.hpMax])
-      if (fight.positions.get(actor.id) === signature) continue
-      fight.positions.set(actor.id, signature)
+      const sampled = [actor.x, actor.z, actor.rotation, actor.hpCur, actor.hpMax]
+      if (dequal(fight.positions.get(actor.id), sampled)) continue
+      fight.positions.set(actor.id, sampled)
       actors.push(actor)
     }
     if (actors.length) this.record({ kind: 'positions', t, actors }, t)

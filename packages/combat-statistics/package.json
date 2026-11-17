@@ -12,6 +12,7 @@
     "@ffcafe/mojito-combat-model": "workspace:*",
     "@ffcafe/mojito-plugin-sdk": "workspace:*",
     "@noble/hashes": "2.4.0",
+    "dequal": "2.0.3",
     "fflate": "0.8.3",
     "hyparquet": "1.31.5",
     "hyparquet-writer": "0.17.0",

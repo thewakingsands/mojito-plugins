@@ -11,6 +11,8 @@ import type {
   Subscription,
   Value,
 } from '@ffcafe/mojito-plugin-sdk'
+import type { OverlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
+import { dequal } from 'dequal'
 import { CombatEngineRunner, MODEL_INPUTS } from './combat-engine.js'
 import { type GameEvent, isDutyComplete } from './combat-events.js'
 import { compatibility } from './compatibility.js'
@@ -127,7 +129,7 @@ export async function activate(ctx: PluginContext) {
   // Following shows the current fight; otherwise the overview stays on the pinned one.
   let following = true,
     pinned: Selection | null = null,
-    lastVisits: string | null = null
+    lastVisits: VisitsState | null = null
   // The visit list the page shows; not kept in the settings, so every activation starts on the newest visits.
   let query: VisitQuery = DEFAULT_QUERY,
     page = 0,
@@ -193,7 +195,7 @@ export async function activate(ctx: PluginContext) {
   await gameCache.load()
   await removeOldHistory()
   const terminalFrames: Summary[] = []
-  let lastCombatFrame: string | null = null
+  let lastCombatFrame: OverlayState | null = null
   const presentation = new Presentation()
   let displayTimer: ReturnType<typeof setInterval> | null = null,
     displayPending = false
@@ -434,10 +436,9 @@ export async function activate(ctx: PluginContext) {
         inCombat,
         { actions: gameCache.all('action') },
       )
-      const serialized = JSON.stringify(frame)
-      if (serialized !== lastCombatFrame) {
+      if (!dequal(frame, lastCombatFrame)) {
         await producer.publish(frame)
-        lastCombatFrame = serialized
+        lastCombatFrame = frame
       }
     }
   }
@@ -500,9 +501,8 @@ export async function activate(ctx: PluginContext) {
       selected: selectedEntry ? await visitView(selectedEntry) : null,
     }
     if (run !== visitsRun || stopped) return
-    const serialized = JSON.stringify(state)
-    if (serialized !== lastVisits) {
-      lastVisits = serialized
+    if (!dequal(state, lastVisits)) {
+      lastVisits = state
       ctx.views.set('visits', state as unknown as Value)
     }
   }
