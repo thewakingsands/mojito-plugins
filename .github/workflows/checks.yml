@@ -36,16 +36,17 @@ jobs:
           while IFS= read -r file; do
             case "$file" in
               Cargo.toml|Cargo.lock|.cargo/*|rust-toolchain|rust-toolchain.toml|.nvmrc|\
-              .github/workflows/checks.yml|crates/package/Cargo.toml|crates/package/src/lib.rs)
+              .github/workflows/checks.yml|crates/package/Cargo.toml|crates/package/src/*)
                 codec=true
                 web=true
                 ;;
-              crates/package/src/*|crates/plugin-protocol/Cargo.toml|crates/plugin-protocol/src/*|\
+              crates/plugin-protocol/Cargo.toml|crates/plugin-protocol/src/*|\
               crates/plugin-protocol/tests/*|crates/plugin-protocol/examples/*|crates/plugin-protocol/fixtures/*|\
               include/*|rustfmt.toml|scripts/package-cli-smoke.mjs|scripts/package-ffi-smoke.py|examples/catalog/*)
                 codec=true
                 ;;
-              crates/package/web/*|scripts/build-package-web.mjs)
+              crates/package/web/*|packages/package/*|scripts/build-package-web.mjs|scripts/build-package-wasm.mjs|\
+              package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/package-publish.yml)
                 web=true
                 ;;
             esac
@@ -63,6 +64,11 @@ jobs:
           node-version-file: .nvmrc
       - uses: pnpm/action-setup@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:build
       - run: pnpm build:official
@@ -70,6 +76,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm test:official
+      - run: pnpm test:package:npm
       - run: pnpm exec vite build --config examples/overlayplugin-fixture/vite.config.ts
   codec:
     needs: changes
@@ -121,13 +128,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          components: clippy
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-bindgen@0.2.129
-      - run: node scripts/build-package-web.mjs
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:web
+      - run: pnpm --filter @ffcafe/mojito-package typecheck
+      - run: pnpm --filter @ffcafe/mojito-package test
+      - run: cargo clippy --locked --package mojito-package --lib --target wasm32-unknown-unknown -- -D warnings
       - uses: actions/upload-artifact@v4
         with:
           name: plugin-package-web

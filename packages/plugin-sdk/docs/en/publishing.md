@@ -27,21 +27,13 @@ Publishing a plugin requires two things online: the packaged `.mojito` file and 
 
 See [examples/catalog](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/catalog) for a complete example.
 
-Get `size` and `sha256` with the script below, saved as `package-info.mjs`:
-
-```js
-// node package-info.mjs <.mojito file>
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-
-const bytes = readFileSync(process.argv[2])
-const sha256 = createHash('sha256').update(bytes).digest('hex')
-console.log(JSON.stringify({ size: bytes.length, sha256 }))
-```
+The packaging tool's `pack` and `verify` commands print the complete file's `size` and `sha256`. Query an existing package at any time:
 
 ```sh
-node package-info.mjs ./MyPlugin-0.1.0.mojito
+npx @ffcafe/mojito-package verify ./MyPlugin-0.1.0.mojito
 ```
+
+Copy the top-level `size` and `sha256` into the release entry. `metadata.archiveSize` and `metadata.archiveSha256` describe the inner archive and have a different meaning.
 
 ## Hosting
 

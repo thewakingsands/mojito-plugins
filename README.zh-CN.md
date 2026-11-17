@@ -9,6 +9,8 @@ Mojito 插件 SDK、包格式编解码器、开发者示例和官方插件。
 
 ```sh
 git submodule update --init --recursive
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm install --frozen-lockfile
 pnpm build:official
 pnpm typecheck
@@ -18,13 +20,14 @@ pnpm test:official
 pnpm lint
 ```
 
-`build:official` 构建 SDK、Rust CLI 和官方插件，不需要签名密钥。
+`build:official` 构建 SDK、Rust CLI、WASM 打包工具和官方插件，不需要签名密钥。
 悬浮窗模板按 `scripts/overlay-templates/build.mjs` 中记录的上游地址和完整提交拉取源码，
 再应用仓库里的补丁和 lockfile。源码归档和许可证放在生成的运行时目录旁边。
 
 ## 包
 
 - `packages/plugin-sdk`：`@ffcafe/mojito-plugin-sdk` 及其公开导出。
+- `packages/package`：`@ffcafe/mojito-package`，Node CLI 和浏览器共用的 WASM API。插件作者使用已发布工具包只需要 Node 24。
 - `packages/matcha`：Matcha 的 worker、设置页，以及来自 `vendor/matcha-overlay` 的界面。
 - `packages/combat-model`：战斗模型（拆分持续伤害、按增益分摊伤害、采集威力样本）。
 - `packages/combat-statistics`：战斗统计及其悬浮窗服务。
@@ -55,6 +58,12 @@ tag 必须与该版本一致，并指向 `main` 上的提交。SDK 工作流会�
 ```sh
 npm trust github @ffcafe/mojito-plugin-sdk --repo thewakingsands/mojito-plugins --file sdk-publish.yml --allow-publish
 ```
+
+## 发布打包工具
+
+`pnpm build:package:npm` 构建 WASM 和 JavaScript 包；`pnpm test:package:npm` 校验 CLI、原生互操作，以及 PATH 中没有 Rust 时安装的 npm tarball。
+发布前确认打包工具的许可证，将正文和许可声明纳入 npm 包，并为 `@ffcafe/mojito-package` 配置本仓库 `package-publish.yml` 的 npm 可信发布者。
+获授权后推送 `package-v<version>`，标签须匹配 `packages/package/package.json` 的版本并指向 `main` 上的提交。工作流完成构建和测试后通过 OIDC 发布。
 
 ## 为官方包签名
 
@@ -88,8 +97,8 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 ## 编解码器与 web CI
 
 当编解码器的 Rust 源码、协议、头文件、测试脚本、`examples/catalog` 示例或共用的 Rust 构建输入发生变化时，
-CI 在 Linux 和 Windows 上校验编解码器。PR 中的 web 构建关注校验库、web 资源、构建脚本和共用的 Rust 输入。
-SDK、插件源码和 pnpm 依赖的变化不会触发这两个 job。修改 checks 工作流会同时触发两者。
+CI 在 Linux 和 Windows 上校验编解码器。PR 中的 web 构建关注校验库、web 资源、npm 打包工具、构建脚本和共用的 Rust 输入。
+工作区依赖变化也会触发 web 构建。修改 checks 工作流会同时触发两者。
 
 浏览器校验器构建到 `dist/package-web`，Worker 和 WASM 使用相对地址，因此可以部署在 Pages 的
 `/mojito-plugins/` 路径下。只有仓库变量 `PAGES_DEPLOY_ENABLED` 为 `true` 时，推送到 `main`
