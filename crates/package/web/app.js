@@ -40,7 +40,12 @@ function render() {
   element('export-key').classList.toggle('primary', !!key && !key.exported)
   if (key) {
     element('key-name').textContent = key.name
-    element('key-meta').textContent = key.exported ? '已备份 · 仅保存在此页面' : '尚未导出 · 仅保存在此页面'
+    // The page only knows a download was requested, never that the file was saved
+    element('key-meta').textContent = !key.exported
+      ? '尚未导出 · 仅保存在此页面'
+      : key.imported
+        ? '已导入 · 仅保存在此页面'
+        : '已导出 · 仅保存在此页面'
   }
   element('key-step').dataset.state = keyReady ? 'done' : key ? 'attention' : 'todo'
   chip('key-chip', keyReady ? 'ok' : key ? 'attention' : 'off', keyReady ? '已就绪' : key ? '需要导出' : '未选择')
@@ -167,7 +172,7 @@ element('key-file').addEventListener('change', async (event) => {
     async () => {
       const text = await file.text()
       await request({ action: 'validateKey', privateJwk: text })
-      key = { jwk: text, name: file.name, filename: file.name, exported: true }
+      key = { jwk: text, name: file.name, filename: file.name, exported: true, imported: true }
       show('empty', '私钥已导入。')
     },
     '无法导入私钥',
@@ -195,7 +200,7 @@ element('export-key').addEventListener('click', () => {
   const first = !key.exported
   key.exported = true
   if (first) key.name = key.filename
-  show(panel.dataset.state === 'done' ? 'done' : 'empty', '已下载私钥文件，请保存到安全的位置并备份。')
+  show(panel.dataset.state === 'done' ? 'done' : 'empty', '请确认私钥文件已保存并备份。')
 })
 element('clear-key').addEventListener('click', () => {
   key = null
