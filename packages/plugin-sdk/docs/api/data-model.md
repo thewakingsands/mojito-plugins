@@ -18,7 +18,22 @@
 
 ## 初始快照和失效
 
-先订阅再查询初始快照。记录本地通知修订号：查询期间若收到新事件、失效或会话重置，丢弃晚到的查询结果，即使时间戳相同。会话/角色变化、事件源丢失及回放重置时清理旧状态。
+既要当前值又要后续变化时，先订阅，再查询当前值。查询返回之前如果订阅已经送来了新数据，查询结果就过期了，应该丢弃，即使两者的时间戳相同：
+
+```ts
+let revision = 0
+let player: PlayerState | null = null
+const subscription = context.game.subscribe('player', (batch) => {
+  revision++
+  for (const sample of batch.items) player = sample.value
+}, { fields: ['inCombat'] })
+await subscription.ready
+const before = revision
+const initial = await context.game.getPlayer({ fields: ['inCombat'] })
+if (revision === before) player = initial.value
+```
+
+会话或角色变化、事件源丢失和回放重置时，清理旧状态。
 
 游戏状态订阅可以合并快速变化；需要保留每次变化时使用事件订阅。需要跨事件顺序时在同一次 `events.subscribe` 中列出多个类型。
 

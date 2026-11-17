@@ -5,14 +5,22 @@ function sidebar(english: boolean): DefaultTheme.SidebarItem[] {
   const prefix = english ? '/en/' : '/'
   return [
     {
+      text: english ? 'Get started' : '开始',
+      items: [
+        ['Overview', '概览', ''],
+        ['Getting started', '快速开始', 'getting-started'],
+        ['Core concepts', '核心概念', 'concepts'],
+      ].map(([en, zh, path]) => ({ text: english ? en : zh, link: `${prefix}${path}` })),
+    },
+    {
       text: english ? 'Build a plugin' : '开发插件',
       items: [
-        ['Getting started', '快速开始', 'getting-started'],
-        ['Manifest', 'Manifest', 'manifest'],
-        ['Permissions', '权限', 'permissions'],
         ['Pages and overlays', '页面与悬浮窗', 'features'],
         ['Style', '样式', 'style'],
         ['Development', '开发与调试', 'development'],
+        ['Manifest', 'Manifest', 'manifest'],
+        ['Permissions', '权限', 'permissions'],
+        ['Native plugins', '原生插件', 'native'],
       ].map(([en, zh, path]) => ({ text: english ? en : zh, link: `${prefix}${path}` })),
     },
     {
@@ -27,7 +35,6 @@ function sidebar(english: boolean): DefaultTheme.SidebarItem[] {
     {
       text: english ? 'Distribute' : '分发插件',
       items: [
-        ['Native plugins', '原生插件', 'native'],
         ['Package and sign', '打包与签名', 'packaging'],
         ['Publish and update', '发布与更新', 'publishing'],
       ].map(([en, zh, path]) => ({ text: english ? en : zh, link: `${prefix}${path}` })),

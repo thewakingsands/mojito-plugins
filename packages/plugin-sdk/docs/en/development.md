@@ -1,40 +1,47 @@
 # Development
 
-Register a development source as described in [Getting started](getting-started.md) and run it in an installed Mojito host. Background and view code reload separately: stop/start reloads the background; Vite HMR updates views.
+## Run with the development server
 
-## View example
-
-Build from the repository root:
+The project in [Pages and overlays](features.md) needs a build after every change. With the Vite development server instead, Mojito reads the background and pages directly from the development server, without building:
 
 ```sh
-pnpm --filter @ffcafe/mojito-plugin-sdk build
-pnpm exec vite build --config examples/plugin-views/vite.config.ts
+npx vite
 ```
 
-Register `examples/plugin-views/dist/plugin.json` to run the built local files. The configuration bundles background and view entries into one distribution directory and copies the manifest:
+Register a source on the 插件 (plugins) page of 开发者工具 (developer tools):
 
-[vite.config.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/examples/plugin-views/vite.config.ts)
+| Field | Value |
+| --- | --- |
+| 开发配置名称 (configuration name) | For example `dev` |
+| 开发服务器来源 (development server origin) | `http://127.0.0.1:5173` |
+| plugin.json 的绝对路径 (absolute path of plugin.json) | The `plugin.json` in the project root, for example `D:\my-plugin\plugin.json` |
+| 挂载路径 (mount path) | The same as the development `base` in `vite.config.ts`, for example `/my-plugin/` |
+| Worker 入口 (worker entry) | The background source, for example `src/worker.ts` |
 
-## Vite HMR
+After changing code:
 
-Start the development server; in PowerShell set the environment variable before running Vite:
+- **Pages**: leave the page and come back, and the page reloads the latest code; close an overlay and open it again.
+- **Background**: in the development plugin's details, click 停止 (stop), then 启动 (start).
 
-```powershell
-$env:MOJITO_DEV_HMR = '1'
-pnpm exec vite --config examples/plugin-views/vite.config.ts
-```
+The registration form currently has no HMR option; reload pages as described above after changing them.
 
-In the source registration form, enter the absolute source `examples/plugin-views/plugin.json` path, server `http://127.0.0.1:5173`, mount path `/dev/example-views/`, background entry `entry.ts`, and enable HMR.
+## Inspect the running plugin
 
-Confirmation shows the derived destination `ws://127.0.0.1:5173/dev/example-views/`. HTTPS derives WSS. When overriding origin or path, match the scheme, hostname, port and final path including Vite's base exactly.
-
-Accept `import.meta.hot` updates to retain page state. CSS updates automatically; other changes may reload the document. HMR does not replace the background Worker; reload it by stopping and starting. Changing the registered source stops the old instance.
+- **Pages**: in the development plugin's details, select the page under 视图 (views), click 预览 (preview), then 打开 DevTools (open DevTools) to see the page's console, network requests and elements.
+- **Background**: Mojito currently does not show `context.log` output. To debug the background, send information to Mojito's notifications with `context.notifications.send()`, or publish it with `context.views.set()` and display it on a page.
 
 ## Troubleshooting
 
-- Startup failure: check the manifest, `apiVersion`, built entry path and developer logs.
-- View state: select 预览 (preview) in the development plugin's view list, then 打开 DevTools (open DevTools).
-- Network failure: check `networkOrigins`, the HTTP capability and the confirmed development destination.
-- HMR failure: check the final WebSocket path; retain Vite token checks, certificate validation and host isolation.
+When starting fails, the reason is shown at the top of the development plugin's details.
 
-`@ffcafe/mojito-plugin-sdk/testing` provides an explicit test context. Existing examples participate in repository `pnpm typecheck`; SDK tests run with `pnpm --filter @ffcafe/mojito-plugin-sdk test`. Tests provide their own data and service responses; see [SDK entry points](api/exports.md).
+| Symptom | Cause and fix |
+| --- | --- |
+| A manifest error when registering or starting | Fields in `plugin.json` do not meet the requirements; check them against [Manifest](manifest.md) as the message says. Common cases: `apiVersion` does not include `2.0.0`, `id` contains disallowed characters, `networkOrigins` includes a path or a trailing `/` |
+| Starting fails with `worker_failed` | The background could not finish starting. Possible causes:<br>· The file that `entry.path` (or Worker 入口 during development) points to does not exist, has a syntax error, or imports modules that were not bundled, or Node.js modules. The background runs in a browser environment and can only use browser APIs<br>· The file does not export `activate`<br>· `activate` threw an error, most commonly from using a permission the manifest does not declare (`permission_denied`) or wrong arguments (`invalid_argument`). Catch the error with try/catch and show it in a notification to see which step failed |
+| Blank page | Check the console in the page's DevTools. Scripts from the development server are blocked when they lack `nonce="__MOJITO_DEV_NONCE__"`; pages cannot load resources that are outside the plugin package and not in `networkOrigins` |
+| No Mojito styles on pages during development | The `<link>` for `/host/mojito-base.css` lacks `vite-ignore`, so Vite added the mount path to it |
+| Network requests fail | The target site's origin must be listed in `networkOrigins`; the background's `context.http.request` also needs the `http.request` permission, not declined by the user |
+
+## Testing
+
+`createTestContext` from `@ffcafe/mojito-plugin-sdk/testing` creates a `context` that does not need Mojito, for unit-testing background logic. Tests provide the session data, permissions and the return values of each method; see [SDK entry points](api/exports.md).

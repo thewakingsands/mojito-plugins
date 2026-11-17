@@ -1,8 +1,8 @@
 # Permissions
 
-Declare the names you use in manifest `capabilities`. Ordinary capabilities are granted at installation. Users can decline individual sensitive capabilities or revoke them while the plugin runs.
+Every permission (capability) the plugin uses must be listed in the manifest's `capabilities`. Ordinary capabilities are granted together at installation. Sensitive capabilities are listed separately; users can decline them individually or revoke them while the plugin runs.
 
-`context.capabilities.get()` returns declared capabilities as `available`, `denied`, or `unavailable` with a reason. The host updates the SDK snapshot through `capabilitiesChanged`; read it again when needed instead of permanently caching the initial grant.
+`context.capabilities.get()` returns the current state of each declared capability: `available`, `denied` (declined by the user) or `unavailable` (the host cannot provide it right now, with a reason). The state updates when the user changes their choice, so read it when you need it rather than only once at startup.
 
 ## Ordinary capabilities
 
@@ -14,7 +14,7 @@ Declare the names you use in manifest `capabilities`. Ordinary capabilities are 
 | `data.read` | Game sheets, resources, icons and maps |
 | `ui.register` | Register features, settings, home panels and overlays |
 | `ui.overlayplugin` | Register OverlayPlugin-compatible pages |
-| `ui.overlayplugin.remote` | Use host-managed remote OverlayPlugin profiles |
+| `ui.overlayplugin.remote` | Load OverlayPlugin overlays hosted online (Mojito manages the URLs; the plugin references them by profile ID) |
 | `audio.play` | Play packaged audio |
 | `tts.say` | Speak in the plugin's speech channels |
 | `tts.provide` | Offer voices to the host |
@@ -28,7 +28,7 @@ An undeclared ordinary capability causes the corresponding operation to reject w
 | Name | When granted | When undeclared or declined |
 | --- | --- | --- |
 | `identity.read` | Read actual player identities | Per-session stand-in actor IDs and race/job names; no content ID or `gameLog`. Filters using stand-in IDs still work |
-| `packets.read` | Subscribe to raw IPC packets | The subscription opens but sends no data |
+| `packets.read` | Subscribe to unparsed raw packets between the game client and server (IPC packets) | The subscription opens but sends no data |
 | `memory.read` | Resolve signatures, read or watch memory | Calls reject with `unavailable` and a reason |
 | `http.request` | Make background HTTP requests through the host | Calls reject with `unavailable` and a reason |
 | `microphone.record` | Record in a view using `getUserMedia({ audio: true })` | The browser rejects with `NotAllowedError` |

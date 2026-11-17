@@ -13,15 +13,35 @@
 
 ## 发布状态和接收命令
 
-后台用 `views.set` 发布最新值。SDK 最多每 200ms 发送一次，每个 channel 只保留最新值；传入对象之后不再修改它。需要命令返回前让页面看到状态时，调用 `await views.flush()`。
+后台用 `views.set` 发布某个 channel 的最新值。SDK 最多每 200ms 发送一次，同一个 channel 只发送最新的值，所以页面不一定收到每一次中间值；传给 `set` 的对象之后不要再修改。需要在命令返回前让页面看到新状态时，调用 `await views.flush()`。
 
-下面是计数器后台，注册了页面、设置页与悬浮窗：
+后台发布状态并处理命令：
 
-[entry.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/examples/plugin-views/entry.ts)
+```ts
+let count = 0
+context.views.set('counter', { count })
+const removeCommand = await context.views.onCommand('increment', async () => {
+  count++
+  context.views.set('counter', { count })
+  await context.views.flush() // 命令返回时页面已经收到新值
+  return count
+})
+```
 
-页面订阅同一个 channel，并通过命令发起操作：
+页面订阅同一个 channel，并发送命令：
 
-[page.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/examples/plugin-views/page.ts)
+```ts
+import { connectView } from '@ffcafe/mojito-plugin-sdk/view'
+
+const view = await connectView()
+const subscription = view.subscribe('counter', (batch) => {
+  for (const item of batch.items) render(item)
+})
+await subscription.ready
+const count = await view.command('increment', null)
+```
+
+`command` 的返回值就是后台处理函数的返回值；处理函数抛出错误时，`command` 也会失败。完整项目见[页面与悬浮窗](../features.md)，多页面示例见 [examples/plugin-views](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/plugin-views)。
 
 ## 生命周期
 

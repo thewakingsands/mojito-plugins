@@ -1,46 +1,37 @@
 # Getting started
 
-Use Node 24 and pnpm 12.13.0. Running a plugin requires an installed Mojito host. Building the Worker example requires neither the game, Rust nor a signing key.
+This page starts from an empty directory, writes a minimal plugin, runs it in Mojito and shows it working. You need Mojito installed on Windows. You do not need build tools, and the game does not need to be running.
 
-## Prepare the example
+## 1. Create the plugin
 
-```sh
-git clone https://github.com/thewakingsands/mojito-plugins.git
-cd mojito-plugins
-git submodule update --init --recursive
-pnpm install --frozen-lockfile
-pnpm --filter @ffcafe/mojito-plugin-sdk build
-```
+Create a directory, for example `D:\hello-mojito`, and add two files.
 
-`examples/plugin-worker` is a minimal plugin that can be registered directly. Its manifest:
+`plugin.json` declares the plugin:
 
 ```json
 {
   "schemaVersion": 1,
-  "id": "SessionNotes",
-  "name": "Session notes example",
-  "version": "1.0.0",
+  "id": "HelloMojito",
+  "name": "Hello Mojito",
+  "version": "0.1.0",
   "apiVersion": "^2.0.0",
-  "entry": {
-    "kind": "worker",
-    "path": "entry.mjs"
-  },
+  "entry": { "kind": "worker", "path": "entry.mjs" },
   "capabilities": ["session.read"],
   "networkOrigins": []
 }
 ```
 
-The host passes a context to `activate(context)`. This entry subscribes to session changes and saves the latest state in configuration. Its returned function unsubscribes on a normal stop:
+- `id` is the plugin's unique identifier and cannot change after publishing.
+- `entry` points to the background file.
+- `capabilities` lists the permissions the plugin uses. This plugin only reads session state, so it only needs `session.read`.
+
+`entry.mjs` is the background:
 
 ```js
-/** A browser-only Worker: the host supplies context and owns its lifetime.
- * @param {import("@ffcafe/mojito-plugin-sdk").PluginContext} context
- */
 export async function activate(context) {
   const subscription = context.session.subscribe(async (batch) => {
     for (const session of batch.items) {
-      context.log.info('Session changed', { state: session.state, generation: session.characterGeneration })
-      await context.config.set('lastSessionState', session.state)
+      await context.notifications.send({ title: 'Hello Mojito', detail: `Session state: ${session.state}` })
     }
   })
   await subscription.ready
@@ -48,13 +39,28 @@ export async function activate(context) {
 }
 ```
 
-Workers use browser APIs. A TypeScript project that imports the SDK must bundle its entry as browser ESM; `entry.path` names the resulting `.mjs` or `.js` file. See [Development](development.md) for the complete view example's build configuration.
+Mojito calls `activate(context)` when it starts the plugin. This code subscribes to session state and sends a Mojito notification on every change; when the subscription is established, it first receives the current state once. The returned function is called when the plugin stops and cancels the subscription.
 
-## Run in Mojito
+## 2. Open developer tools
 
-1. Enable developer mode in settings and open the development plugins page.
-2. Choose 登记来源 (register source), enter a profile name and the absolute path of `examples/plugin-worker/plugin.json`. This example uses local files; leave development server fields empty.
-3. Confirm the source, select the plugin and choose 启动 (start). Ordinary capabilities are granted when starting; sensitive capabilities can be selected individually.
-4. Look for `Session changed` in developer logs. Without a connected game, the plugin can still receive an idle session state.
+Developer settings are hidden by default:
 
-Stop and start the development instance after changing background code. Production installation uses a [signed `.mojito` package](packaging.md).
+1. Open Mojito's 关于 (About) page and click the value after Build five times in a row until 已显示开发者设置 (developer settings shown) appears.
+2. In 设置 › 开发者 (Settings › Developer), turn on 开发者模式 (developer mode).
+3. 开发者工具 (developer tools) appears in the sidebar; open its 插件 (plugins) page.
+
+## 3. Register and start
+
+1. Click 登记来源 (register source), fill in 开发配置名称 (configuration name), for example `dev`, and plugin.json 的绝对路径 (absolute path of plugin.json), `D:\hello-mojito\plugin.json`. Leave the other fields empty and click 登记来源.
+2. Mojito shows the 登记插件开发来源 (register plugin development source) confirmation dialog; confirm it.
+3. Select Hello Mojito in the list and click 启动 (start).
+
+When the status changes to 运行中 (running), open 通知 (notifications) in the title bar. You see a notification titled Hello Mojito with the content “Session state: idle”. After you start the game, another one with `live` arrives.
+
+After changing `entry.mjs`, click 停止 (stop) and then 启动 to load the new code. If starting fails, the reason is shown at the top of the details; see [Troubleshooting](development.md#troubleshooting).
+
+## Next steps
+
+- [Core concepts](concepts.md): understand `context`, permissions, subscriptions and the view bridge.
+- [Pages and overlays](features.md): add pages to the plugin with TypeScript and Vite.
+- [Package and sign](packaging.md): deliver the plugin to users.

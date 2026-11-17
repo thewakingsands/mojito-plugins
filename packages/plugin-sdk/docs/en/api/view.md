@@ -13,15 +13,35 @@ The background owns PluginContext. A page calls `connectView()` from `@ffcafe/mo
 
 ## State and commands
 
-The background publishes values with `views.set`. The SDK sends at most once every 200ms and retains only the latest value per channel. Do not mutate values after passing them. Use `await views.flush()` when a view must see the update before a command returns.
+The background publishes the latest value of a channel with `views.set`. The SDK sends at most once every 200ms and sends only the latest value of each channel, so a page may not receive every intermediate value. Do not modify an object after passing it to `set`. Use `await views.flush()` when the page must see the new state before a command returns.
 
-This counter background registers features, a settings page and an overlay:
+The background publishes state and handles a command:
 
-[entry.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/examples/plugin-views/entry.ts)
+```ts
+let count = 0
+context.views.set('counter', { count })
+const removeCommand = await context.views.onCommand('increment', async () => {
+  count++
+  context.views.set('counter', { count })
+  await context.views.flush() // The page has received the new value when the command returns
+  return count
+})
+```
 
-The page subscribes to the channel and sends commands:
+The page subscribes to the same channel and sends the command:
 
-[page.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/examples/plugin-views/page.ts)
+```ts
+import { connectView } from '@ffcafe/mojito-plugin-sdk/view'
+
+const view = await connectView()
+const subscription = view.subscribe('counter', (batch) => {
+  for (const item of batch.items) render(item)
+})
+await subscription.ready
+const count = await view.command('increment', null)
+```
+
+The return value of `command` is the return value of the background handler; when the handler throws, `command` fails too. See [Pages and overlays](../features.md) for a complete project and [examples/plugin-views](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/plugin-views) for a multi-page example.
 
 ## Lifecycle
 

@@ -1,40 +1,47 @@
 # 开发与调试
 
-使用[快速开始](getting-started.md)中的开发来源登记，在已安装的 Mojito 中运行插件。后台和页面分别重载：后台修改后停止并重新启动，页面可以使用 Vite HMR。
+## 用开发服务器运行
 
-## 页面示例
-
-在仓库根目录构建示例：
+[页面与悬浮窗](features.md)里的项目每次修改都要构建一次。改用 Vite 开发服务器，Mojito 直接从开发服务器读取后台和页面，省去构建：
 
 ```sh
-pnpm --filter @ffcafe/mojito-plugin-sdk build
-pnpm exec vite build --config examples/plugin-views/vite.config.ts
+npx vite
 ```
 
-登记 `examples/plugin-views/dist/plugin.json` 可以运行构建后的本地文件。构建配置把后台与页面编入同一个分发目录，并复制 manifest：
+在开发者工具的“插件”页登记来源：
 
-[vite.config.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/examples/plugin-views/vite.config.ts)
+| 字段 | 填写 |
+| --- | --- |
+| 开发配置名称 | 例如 `dev` |
+| 开发服务器来源 | `http://127.0.0.1:5173` |
+| plugin.json 的绝对路径 | 项目根目录的 `plugin.json`，例如 `D:\my-plugin\plugin.json` |
+| 挂载路径 | 与 `vite.config.ts` 中开发时的 `base` 相同，例如 `/my-plugin/` |
+| Worker 入口 | 后台源码，例如 `src/worker.ts` |
 
-## Vite HMR
+修改代码以后：
 
-启动开发服务器，在 PowerShell 中设置环境变量后运行相同的 Vite 命令：
+- **页面**：离开页面再回来，页面会重新加载最新代码；悬浮窗关闭后重新打开。
+- **后台**：在开发插件详情中点击“停止”，再点击“启动”。
 
-```powershell
-$env:MOJITO_DEV_HMR = '1'
-pnpm exec vite --config examples/plugin-views/vite.config.ts
-```
+登记表单目前没有 HMR 选项，页面修改后需要按上面的方式重新加载。
 
-在登记来源的表单中填写源码 `examples/plugin-views/plugin.json` 的绝对路径、服务器 `http://127.0.0.1:5173`、挂载路径 `/dev/example-views/`、后台入口 `entry.ts`，并启用 HMR。
+## 查看运行情况
 
-确认框显示推导出的 `ws://127.0.0.1:5173/dev/example-views/`。HTTPS 服务器使用 WSS；覆盖 origin 或 path 时，协议、主机、端口和包含 Vite base 的最终路径都必须一致。
-
-接受模块的 `import.meta.hot` 更新可以保留页面状态；CSS 自动更新，其他修改可能整页重载。HMR 不替换后台 Worker；后台仍通过停止/启动重载。修改登记来源会停止旧实例。
+- **页面**：在开发插件详情的“视图”中选择页面，点击“预览”，再点击“打开 DevTools”，可以看到页面的 console、网络请求和元素。
+- **后台**：Mojito 目前不显示 `context.log` 的输出。调试后台时，可以用 `context.notifications.send()` 把信息发到 Mojito 的通知里，或用 `context.views.set()` 发布到页面上显示。
 
 ## 排查问题
 
-- 启动失败：核对 manifest、`apiVersion` 和构建入口路径，查看开发者日志。
-- 页面状态：在开发插件详情的“视图”中选择“预览”，再选择“打开 DevTools”。
-- 网络失败：核对 `networkOrigins`、HTTP capability 和开发登记中确认的地址。
-- HMR 失败：检查最终 WebSocket 路径；保留 Vite token 校验、证书校验和宿主隔离设置。
+启动失败时，开发插件详情的顶部会显示原因。
 
-`@ffcafe/mojito-plugin-sdk/testing` 提供显式测试上下文。已有示例参加仓库 `pnpm typecheck`；SDK 自身测试使用 `pnpm --filter @ffcafe/mojito-plugin-sdk test`。测试数据和服务响应由测试显式提供，见[SDK 入口](api/exports.md)。
+| 现象 | 原因和处理 |
+| --- | --- |
+| 登记或启动时提示 manifest 错误 | `plugin.json` 的字段不符合要求，按提示核对 [Manifest](manifest.md)。常见的是 `apiVersion` 不包含 `2.0.0`、`id` 含不允许的字符、`networkOrigins` 带了路径或结尾的 `/` |
+| 启动失败，原因为 `worker_failed` | 后台没能完成启动，可能是：<br>· `entry.path`（或开发时的“Worker 入口”）指向的文件不存在、有语法错误，或者导入了没有打包进去的模块、Node.js 模块。后台运行在浏览器环境，只能用浏览器 API<br>· 文件没有导出 `activate`<br>· `activate` 抛出了错误，最常见的是调用了 manifest 没有声明的权限（`permission_denied`）或参数不对（`invalid_argument`）。用 try/catch 捕获错误并通过通知显示出来，可以看到具体是哪一步 |
+| 页面空白 | 在页面的 DevTools 里看 console。开发服务器上的脚本缺少 `nonce="__MOJITO_DEV_NONCE__"` 时会被拦截；页面不能加载插件包以外、也不在 `networkOrigins` 里的资源 |
+| 开发时页面没有 Mojito 样式 | `/host/mojito-base.css` 的 `<link>` 缺少 `vite-ignore`，Vite 给它加上了挂载路径 |
+| 网络请求失败 | 目标网站的 origin 要写进 `networkOrigins`；后台的 `context.http.request` 还需要 `http.request` 权限，且用户没有拒绝 |
+
+## 测试
+
+`@ffcafe/mojito-plugin-sdk/testing` 的 `createTestContext` 创建一个不需要 Mojito 的 `context`，用于单元测试后台逻辑。会话数据、权限和各个方法的返回值都由测试提供，见[SDK 入口](api/exports.md)。

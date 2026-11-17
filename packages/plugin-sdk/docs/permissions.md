@@ -1,8 +1,8 @@
 # 权限
 
-在 manifest 的 `capabilities` 中声明使用的名称。普通 capability 随安装授予，敏感 capability 可以被用户逐个拒绝或在运行期间撤回。
+插件用到的权限（capability）都要写进 manifest 的 `capabilities`。普通权限在安装时一并授予；敏感权限会单独列出，用户可以逐个拒绝，也可以在插件运行时撤回。
 
-`context.capabilities.get()` 返回已声明 capability 的 `available`、`denied` 或带原因的 `unavailable` 状态。宿主通过 `capabilitiesChanged` 更新 SDK 中的快照；需要时重新读取状态，不要长期缓存初次授权结果。
+`context.capabilities.get()` 返回每个已声明权限的当前状态：`available`（可用）、`denied`（用户拒绝）或 `unavailable`（宿主现在无法提供，附带原因）。用户改变选择后状态会更新，所以在用到时读取，不要只在启动时读一次。
 
 ## 普通 capability
 
@@ -14,7 +14,7 @@
 | `data.read` | 游戏表格、资源、图标和地图 |
 | `ui.register` | 注册功能页、设置页、首页面板与悬浮窗 |
 | `ui.overlayplugin` | 注册 OverlayPlugin 兼容页面 |
-| `ui.overlayplugin.remote` | 使用宿主管理的远程 OverlayPlugin profile |
+| `ui.overlayplugin.remote` | 加载在线托管的 OverlayPlugin 悬浮窗（地址由 Mojito 管理，插件用 profile ID 引用） |
 | `audio.play` | 播放包内音频 |
 | `tts.say` | 在插件的语音 channel 中朗读 |
 | `tts.provide` | 向宿主提供声音 |
@@ -28,7 +28,7 @@
 | 名称 | 授予后的用途 | 未声明或被拒绝时 |
 | --- | --- | --- |
 | `identity.read` | 读取玩家真实身份 | 玩家使用每个会话内的替身 actor ID 和种族/职业简称，没有 content ID 或 `gameLog`；使用替身 ID 的过滤条件仍有效 |
-| `packets.read` | 订阅原始 IPC 数据包 | 订阅建立，但没有数据 |
+| `packets.read` | 订阅游戏客户端与服务器之间未解析的原始数据包（IPC 数据包） | 订阅建立，但没有数据 |
 | `memory.read` | 解析签名、读取或观察内存 | 相应调用以 `unavailable` 拒绝并附带原因 |
 | `http.request` | 后台通过宿主发起 HTTP 请求 | 调用以 `unavailable` 拒绝并附带原因 |
 | `microphone.record` | 页面用 `getUserMedia({ audio: true })` 录音 | 浏览器以 `NotAllowedError` 拒绝 |

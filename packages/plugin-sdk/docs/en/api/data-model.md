@@ -18,7 +18,22 @@ An asynchronous callback delays acknowledgement until it completes, maintaining 
 
 ## Initial snapshots and invalidation
 
-Subscribe before requesting an initial snapshot. Maintain a local notification revision: discard a late query if a new event, invalidation or session reset arrived while it was pending, including equal timestamps. Clear old state on session/character changes, source loss and replay resets.
+When you need both the current value and later changes, subscribe first, then query the current value. If the subscription delivers new data before the query returns, the query result is stale and should be discarded, even if both have the same timestamp:
+
+```ts
+let revision = 0
+let player: PlayerState | null = null
+const subscription = context.game.subscribe('player', (batch) => {
+  revision++
+  for (const sample of batch.items) player = sample.value
+}, { fields: ['inCombat'] })
+await subscription.ready
+const before = revision
+const initial = await context.game.getPlayer({ fields: ['inCombat'] })
+if (revision === before) player = initial.value
+```
+
+Clear old state on session or character changes, source loss and replay resets.
 
 State subscriptions may coalesce rapid changes. Use events when each observation matters, and list multiple types in one `events.subscribe` call when cross-type ordering matters.
 

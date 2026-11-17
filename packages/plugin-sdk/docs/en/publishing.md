@@ -1,41 +1,66 @@
 # Publish and update
 
-Upload the signed `.mojito` to a stable HTTPS URL, then publish a static `catalog.json` pointing to it. Start from the [catalog example](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/catalog).
+Publishing a plugin requires two things online: the packaged `.mojito` file and a `catalog.json` that describes it. Users add the `catalog.json` URL in Mojito to see and install the plugins it lists.
 
-## Catalog release
+## catalog.json
 
 ```json
 {
   "schemaVersion": 1,
-  "releases": [{
-    "pluginId": "SessionNotes",
-    "version": "1.0.0",
-    "apiVersion": "^2.0.0",
-    "downloadUrl": "https://example.com/plugins/SessionNotes-1.0.0.mojito",
-    "size": 1234,
-    "sha256": "REPLACE_WITH_COMPLETE_PACKAGE_SHA256"
-  }]
+  "releases": [
+    {
+      "pluginId": "MyPlugin",
+      "version": "0.1.0",
+      "apiVersion": "^2.0.0",
+      "downloadUrl": "https://example.com/plugins/MyPlugin-0.1.0.mojito",
+      "size": 1234,
+      "sha256": "…"
+    }
+  ]
 }
 ```
 
-`size` and `sha256` above are placeholders. Replace them with the actual complete `.mojito` file's values before publishing. Copy `pluginId`, `version` and `apiVersion` from its signed manifest.
+- `pluginId`, `version` and `apiVersion` are the same as in the package's `plugin.json`.
+- `downloadUrl` is the download URL of the `.mojito` file.
+- `size` and `sha256` are the byte count and SHA-256 of the whole `.mojito` file; Mojito checks the file against them after downloading.
+- Entries for native plugins also need `"os": "win32"` and `"arch": "x64"`. `display` and `changelog` are optional.
 
-```sh
-node --input-type=module -e "import{readFileSync}from'node:fs';import{createHash}from'node:crypto';const b=readFileSync(process.argv[1]);console.log(JSON.stringify({size:b.length,sha256:createHash('sha256').update(b).digest('hex')}))" ./plugin.mojito
+See [examples/catalog](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/catalog) for a complete example.
+
+Get `size` and `sha256` with the script below, saved as `package-info.mjs`:
+
+```js
+// node package-info.mjs <.mojito file>
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+
+const bytes = readFileSync(process.argv[2])
+const sha256 = createHash('sha256').update(bytes).digest('hex')
+console.log(JSON.stringify({ size: bytes.length, sha256 }))
 ```
 
-Worker releases omit `os` and `arch`; native releases provide both `os: "win32"` and `arch: "x64"`. `display` and `changelog` are optional. Signatures are embedded in the package.
+```sh
+node package-info.mjs ./MyPlugin-0.1.0.mojito
+```
 
-## Hosting and installation
+## Hosting
 
-Use absolute HTTPS URLs to actual files for both the catalog and `downloadUrl`, such as GitHub Pages or `raw.githubusercontent.com` URLs. GitHub `blob` pages are HTML and cannot serve as JSON or package download URLs.
+Both `catalog.json` and `.mojito` must use HTTPS URLs that download the file itself, for example GitHub Pages or `raw.githubusercontent.com` URLs. URLs on the GitHub website with `/blob/` in the path are web pages and cannot be used.
 
-Local development allows loopback HTTP, such as `http://127.0.0.1:18080/catalog.json`. HTTPS redirects cannot downgrade to HTTP. Catalog ETag and Last-Modified are optional.
+For local testing you can use a local HTTP URL, for example `http://127.0.0.1:18080/catalog.json`.
 
-Add the catalog URL in Mojito's plugin repository settings, then install from the catalog. Verify the downloaded package with the CLI first; installation lets the user confirm the source, runtime mode and permissions.
+## Installation
 
-## Updates
+Add the `catalog.json` URL in Mojito's plugin catalog settings, then select a plugin in the list to install it. During installation, users see the plugin's source and permissions and confirm them.
 
-Increase the manifest's SemVer version, retain its plugin ID and signing key, rebuild and sign, then record the new file's size and SHA-256. A signer change prevents a direct update.
+## Publish an update
 
-Changing only `downloadUrl` leaves the package unchanged and needs no new signature. Changing any package byte requires signing again. Plugin-package releases and SDK npm releases are separate workflows.
+1. Increase `version` in `plugin.json`; keep the plugin ID.
+2. Rebuild, and pack with the same private key.
+3. Upload the new `.mojito`, write an entry for the new version in `catalog.json`, and replace `size` and `sha256` with the new file's values.
+
+If only the download URL changes and the file content stays the same, you do not need to pack again; change only `downloadUrl`.
+
+## Lost or replaced private key
+
+Updates must be signed with the original private key. For a version signed with a different private key, Mojito warns users that the publisher changed; if a user continues the installation, all data and permissions of the old plugin are deleted. Back up the private key; see [Package and sign](packaging.md).

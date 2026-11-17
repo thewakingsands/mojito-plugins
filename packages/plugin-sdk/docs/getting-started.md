@@ -1,46 +1,37 @@
 # 快速开始
 
-使用 Node 24、pnpm 12.13.0。运行插件需要已安装的 Mojito；只构建 Worker 示例不需要游戏、Rust 或签名密钥。
+这一页从一个空目录开始，写一个最小的插件，在 Mojito 里运行它，并看到它在工作。需要 Windows 上已安装的 Mojito，不需要构建工具，也不需要游戏在运行。
 
-## 准备示例
+## 1. 创建插件
 
-```sh
-git clone https://github.com/thewakingsands/mojito-plugins.git
-cd mojito-plugins
-git submodule update --init --recursive
-pnpm install --frozen-lockfile
-pnpm --filter @ffcafe/mojito-plugin-sdk build
-```
+新建一个目录，例如 `D:\hello-mojito`，放入两个文件。
 
-`examples/plugin-worker` 是可以直接登记的最小插件。它的 manifest：
+`plugin.json` 声明插件：
 
 ```json
 {
   "schemaVersion": 1,
-  "id": "SessionNotes",
-  "name": "Session notes example",
-  "version": "1.0.0",
+  "id": "HelloMojito",
+  "name": "Hello Mojito",
+  "version": "0.1.0",
   "apiVersion": "^2.0.0",
-  "entry": {
-    "kind": "worker",
-    "path": "entry.mjs"
-  },
+  "entry": { "kind": "worker", "path": "entry.mjs" },
   "capabilities": ["session.read"],
   "networkOrigins": []
 }
 ```
 
-后台入口从 `activate(context)` 接收宿主提供的上下文，订阅会话并把最近的状态写入配置；返回的函数在正常停止时解除订阅：
+- `id` 是插件的唯一标识，发布以后不能再改。
+- `entry` 指向后台文件。
+- `capabilities` 列出插件要用的权限。这里只读取会话状态，所以只要 `session.read`。
+
+`entry.mjs` 是后台：
 
 ```js
-/** A browser-only Worker: the host supplies context and owns its lifetime.
- * @param {import("@ffcafe/mojito-plugin-sdk").PluginContext} context
- */
 export async function activate(context) {
   const subscription = context.session.subscribe(async (batch) => {
     for (const session of batch.items) {
-      context.log.info('Session changed', { state: session.state, generation: session.characterGeneration })
-      await context.config.set('lastSessionState', session.state)
+      await context.notifications.send({ title: 'Hello Mojito', detail: `会话状态：${session.state}` })
     }
   })
   await subscription.ready
@@ -48,13 +39,28 @@ export async function activate(context) {
 }
 ```
 
-Worker 使用浏览器 API。依赖 SDK 的 TypeScript 项目先把入口构建为浏览器 ESM，manifest 的 `entry.path` 指向构建后的 `.mjs` 或 `.js`。页面示例的完整构建配置见[开发与调试](development.md)。
+Mojito 启动插件时调用 `activate(context)`。这段代码订阅会话状态，每次变化都发一条 Mojito 通知；订阅建立时先收到一次当前状态。返回的函数在插件停止时调用，用来取消订阅。
 
-## 在 Mojito 中运行
+## 2. 打开开发者工具
 
-1. 在设置中启用开发者模式，打开开发插件页面。
-2. 选择“登记来源”，填写 profile 名称和 `examples/plugin-worker/plugin.json` 的绝对路径；本例使用本地文件，开发服务器相关字段留空。
-3. 确认来源，选择登记的插件，再点击“启动”。普通 capability 随启动授予，敏感 capability 可以分别选择。
-4. 在开发者日志中查看 `Session changed`。未连接游戏时，插件仍能接收 idle 会话状态。
+开发者设置默认隐藏：
 
-修改后台文件后先停止，再启动开发实例。生产安装使用[签名的 `.mojito` 包](packaging.md)。
+1. 打开 Mojito 的“关于”页，连续点击 Build 后面的值五次，出现“已显示开发者设置”。
+2. 在“设置 › 开发者”中打开“开发者模式”。
+3. 侧栏出现“开发者工具”，进入其中的“插件”页。
+
+## 3. 登记并启动
+
+1. 点击“登记来源”，填写“开发配置名称”（例如 `dev`）和“plugin.json 的绝对路径”（`D:\hello-mojito\plugin.json`），其他字段留空，点击“登记来源”。
+2. Mojito 弹出“登记插件开发来源”确认框，确认。
+3. 在列表里选择 Hello Mojito，点击“启动”。
+
+状态变为“运行中”后，打开标题栏的“通知”，可以看到标题为 Hello Mojito 的通知，内容是“会话状态：idle”。启动游戏后会再收到一条 `live`。
+
+修改 `entry.mjs` 以后，点击“停止”再“启动”即可加载新代码。启动失败时，详情顶部会显示原因，见[排查问题](development.md#排查问题)。
+
+## 下一步
+
+- [核心概念](concepts.md)：理解 `context`、权限、订阅和页面 bridge。
+- [页面与悬浮窗](features.md)：用 TypeScript 和 Vite 给插件加上页面。
+- [打包与签名](packaging.md)：把插件交给用户。

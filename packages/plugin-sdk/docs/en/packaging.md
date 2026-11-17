@@ -1,53 +1,75 @@
 # Package and sign
 
-Use this repository's `mojito-package` to build, sign and verify `.mojito` packages. Prepare a `plugin/` directory containing only runtime files: `plugin.json`, its declared entry, pages and resources.
+Users install a `.mojito` file: an archive of the plugin's build output, plus a signature made with your private key. Mojito uses the signature to confirm that every update of the plugin comes from the same publisher.
 
-## Generate a publisher key
+## Prepare the packaging tool
 
-Save this as `keygen.mjs` outside `plugin/`. It creates a private Ed25519 JWK and prints the SHA-256 fingerprint of the raw public-key bytes:
-
-```js
-import { createHash, generateKeyPairSync } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
-
-const { privateKey } = generateKeyPairSync('ed25519')
-const jwk = privateKey.export({ format: 'jwk' })
-writeFileSync(process.argv[2], JSON.stringify(jwk), { mode: 0o600, flag: 'wx' })
-console.log(createHash('sha256').update(Buffer.from(jwk.x, 'base64url')).digest('hex'))
-```
-
-Retain the private key for future releases. Updates with the same plugin ID use the same key. Distribute the public fingerprint through a separately trusted channel.
-
-## Pack and verify
-
-Run from the repository root. Replace `EXPECTED_FINGERPRINT` with the printed fingerprint. On Windows use `target/release/mojito-package.exe`.
+The packaging tool `mojito-package` currently has to be built from source, which requires [Rust](https://rustup.rs/) (stable):
 
 ```sh
-pnpm build:package
-node keygen.mjs ./author.jwk
-./target/release/mojito-package pack ./plugin ./author.jwk ./plugin.mojito lzma2
-./target/release/mojito-package inspect ./plugin.mojito
-./target/release/mojito-package verify ./plugin.mojito EXPECTED_FINGERPRINT
+git clone https://github.com/thewakingsands/mojito-plugins.git
+cd mojito-plugins
+cargo build --locked --release --package mojito-package
 ```
 
-Keep `author.jwk`, `keygen.mjs` and the output outside the input directory. The CLI refuses to overwrite output; use a new output name when packing again. Replace `lzma2` with `copy` to disable compression.
+The result is `target/release/mojito-package` (`mojito-package.exe` on Windows). The commands below refer to it as `mojito-package`.
 
-Both `inspect` and `verify` check the signature, full archive digest and every member. Supplying an expected fingerprint also binds verification to that public key. Publisher identity depends on the fingerprint you trust independently.
+## First time: generate and back up a private key
+
+Generate the private key only once and sign every later version with it. Save the script below as `keygen.mjs`:
+
+```js
+// node keygen.mjs <private key file path>
+import { generateKeyPairSync } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
+
+const file = process.argv[2]
+const jwk = generateKeyPairSync('ed25519').privateKey.export({ format: 'jwk' })
+mkdirSync(dirname(file), { recursive: true })
+// 'wx': fail if the file already exists, so an existing private key is never overwritten
+writeFileSync(file, JSON.stringify(jwk), { mode: 0o600, flag: 'wx' })
+```
+
+Keep the private key in your user directory, not in the plugin project or a git repository:
+
+```sh
+node keygen.mjs ~/.mojito-keys/MyPlugin.jwk
+```
+
+Then back up this file somewhere safe. Anyone who obtains the private key can publish updates that Mojito treats as yours.
+
+If the private key is lost or replaced, versions signed with the new key come from a different publisher as far as users are concerned: when users update, Mojito warns that the publisher changed, and continuing the installation deletes all data and permissions of the old plugin.
+
+## Every release: pack
+
+Build the plugin first, then pack the build output. The build output directory must contain `plugin.json` and every file it references, for example the `dist` from [Pages and overlays](features.md):
+
+```sh
+mojito-package pack ./dist ~/.mojito-keys/MyPlugin.jwk ./MyPlugin-0.1.0.mojito lzma2
+mojito-package inspect ./MyPlugin-0.1.0.mojito
+```
+
+- The arguments of `pack` are, in order: plugin directory, private key, output file, compression. `lzma2` compresses; `copy` does not.
+- Keep the private key and the output file outside the plugin directory. An existing output file is not overwritten, so include the version in the file name.
+- `inspect` checks the signature and every file in the package, and prints the manifest information. `signer.fingerprint` in the output identifies the signing private key; packages signed with the same private key have the same value.
+
+Modifying or recompressing the `.mojito` after packing invalidates the signature; pack it again.
 
 ## Common failures
 
 | Cause | Action |
 | --- | --- |
-| Missing manifest or declared entry | Build browser ESM / native files first and check `entry.path` |
-| Existing output, or key/output inside input | Select a new path outside the input directory |
-| Mismatched private JWK `x` and `d` | Use a complete private JWK from the same Ed25519 pair |
-| Conflicting paths, symlinks or package limits | Prepare runtime files according to [Manifest](manifest.md) and the format documentation |
-| Different signer fingerprint | Check the expected publisher key and actual signer |
+| `plugin.json` or a file it references is missing from the plugin directory | Build first, then check `entry.path` and the page files |
+| The output file already exists | Use another file name, for example with the new version |
+| The private key or output file is inside the plugin directory | Move it outside the plugin directory |
+| Incomplete private key file | Use the complete file generated by `keygen.mjs` |
+| Symbolic links, file names that conflict on Windows, or exceeded size limits | Clean up the build output; see the limits below |
 
-Limits are 256 MiB for the complete package, 256 MiB expanded, 32 MiB per member and 4096 entries. Modifying or repacking signed bytes invalidates the signature; sign the result again.
+Package size limits: the whole package, and its expanded contents, at most 256 MiB each; a single file at most 32 MiB; at most 4096 files.
 
-## Browser verifier
+## Check in the browser
 
-The site's root [verifier](https://thewakingsands.github.io/mojito-plugins/) reads files locally and checks the embedded signature, signed metadata and inner archive size/SHA-256. The CLI and installer also decode members, check CRCs and compare the archived manifest. Run CLI verification before publishing.
+The [verifier](https://thewakingsands.github.io/mojito-plugins/) checks the signature and integrity of a `.mojito` in the browser; the file is not uploaded. It does not decompress each file, so rely on the result of `inspect` before publishing.
 
-See the [package format and bindings](https://github.com/thewakingsands/mojito-plugins/blob/main/crates/package/README.md). Next: [Publish and update](publishing.md).
+For details of the package format, see the [package format description](https://github.com/thewakingsands/mojito-plugins/blob/main/crates/package/README.md). Next: [Publish and update](publishing.md).
