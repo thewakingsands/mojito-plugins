@@ -219,23 +219,10 @@ h1 {
   font-weight: 650;
   letter-spacing: -0.02em;
 }
-.local {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--fg-3);
-}
-:where(.local) .icon {
-  width: 14px;
-  height: 14px;
-}
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 20px;
   align-items: start;
 }
@@ -511,9 +498,6 @@ a.ghost:hover {
 }
 .step-head:has(.marker) + .step-body {
   padding-left: 34px;
-}
-.hint {
-  color: var(--fg-2);
 }
 .caption {
   font-size: 12px;

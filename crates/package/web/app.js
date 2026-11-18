@@ -31,6 +31,7 @@ function render() {
   const keyReady = !!key?.exported
   element('key-empty').hidden = !!key
   element('key-loaded').hidden = !key
+  element('key-drop').classList.toggle('has-content', !!key)
   element('key-backup').hidden = !key || key.exported
   element('import-key').hidden = !!key
   element('generate-key').hidden = !!key
@@ -166,7 +167,9 @@ element('import-key').addEventListener('click', () => element('key-file').click(
 element('key-file').addEventListener('change', async (event) => {
   const file = event.target.files[0]
   event.target.value = ''
-  if (!file) return
+  if (file) await importKey(file)
+})
+async function importKey(file) {
   await run(
     '正在检查私钥…',
     async () => {
@@ -178,7 +181,7 @@ element('key-file').addEventListener('change', async (event) => {
     '无法导入私钥',
     '需要 JWK 格式的 Ed25519 私钥文件。',
   )
-})
+}
 element('generate-key').addEventListener('click', async () => {
   await run(
     '正在生成私钥…',
@@ -241,6 +244,14 @@ function dropzone(id, operation) {
     if (!busy) await operation(event.dataTransfer)
   })
 }
+
+// Replacing a loaded key only goes through 移除, so a new key that was never exported cannot be dropped over
+dropzone('key-drop', async (transfer) => {
+  if (key) return
+  const files = Array.from(transfer.files)
+  if (files.length !== 1) return showError(new Error('一次拖入一个私钥文件。'), '无法导入私钥')
+  await importKey(files[0])
+})
 
 dropzone('directory-drop', async (transfer) => {
   const items = Array.from(transfer.items).filter((item) => item.kind === 'file')
