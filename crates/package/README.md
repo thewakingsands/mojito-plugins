@@ -88,7 +88,16 @@ cargo install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm build:web
 ```
 
-Serve `dist/package-web` using any static HTTP server. Its worker uses the same WASM as the npm tool to verify the signature, archive, manifest and every member's decoded size and CRC. Files stay in the browser and are not uploaded. An optional expected fingerprint binds verification to a known key; a valid self-signature does not authenticate a publisher's identity.
+Serve `dist/package-web` using any static HTTP server. The workbench generates, imports and exports
+Ed25519 private JWK files, packs a plugin build directory, and verifies signatures and every member
+of existing packages. The worker uses the shared WASM codec; files and keys stay on the device.
+New keys must be exported before packing, and keys are kept in the current page only. Keep a backup
+and use the same key for each update: changing it changes the publisher and, if users continue the
+update, deletes the old plugin's data and permissions.
+
+Packing and verification display the complete `.mojito` file's `size` and `sha256` for the catalog.
+Manifest, member and signer details can be expanded. A valid self-signature does not authenticate
+a publisher's identity.
 
 `@ffcafe/mojito-package/web` exports `init`, `generatePrivateKey`, `validatePrivateKey`, `packFiles` and `verifyPackage`. Await `init()` before use. Private keys use JWK JSON text; independent key validation returns only the public key and fingerprint. The verification result includes the complete file's `size` and `sha256`.
 

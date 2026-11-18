@@ -39,7 +39,7 @@ Skyline 的构建日期使用已锁定上游提交的时间。
 - `packages/plugin-skill-display`：SkillDisplay，见下文。
 - `packages/deepseek-tts`：DeepSeek 语音，见下文。
 - `crates/plugin-protocol` 和 `include`：共用的原生协议和 C ABI。
-- `crates/package`：CLI、编解码器、原生校验器和浏览器校验器。
+- `crates/package`：CLI、编解码器、原生校验器和插件包工作台。
 
 包名和插件 ID 保持不变。宿主以 git 依赖的方式引用本仓库某个固定提交上的 SDK，由 pnpm 运行
 其 `prepare` 脚本构建；原生包则通过 Cargo git tag 引用。不要给这样的提交推送 `sdk-v*` tag：
@@ -107,9 +107,9 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 CI 在 Linux 和 Windows 上校验编解码器。PR 中的 web 构建关注校验库、web 资源、npm 打包工具、构建脚本和共用的 Rust 输入。
 工作区依赖变化也会触发 web 构建。修改 checks 工作流会同时触发两者。
 
-浏览器校验器构建到 `dist/package-web`，Worker 和 WASM 使用相对地址，因此可以部署在 Pages 的
+插件包工作台构建到 `dist/package-web`，Worker 和 WASM 使用相对地址，因此可以部署在 Pages 的
 `/mojito-plugins/` 路径下。只有仓库变量 `PAGES_DEPLOY_ENABLED` 为 `true` 时，推送到 `main`
-才会构建校验器与文档，合成为一个 `dist/pages` 产物，并通过 `github-pages` environment 部署；
+才会构建工作台与文档，合成为一个 `dist/pages` 产物，并通过 `github-pages` environment 部署；
 文档位于其中的 `docs/`。设置该变量之前，
 先把 Pages 的来源设为 GitHub Actions、在该 environment 中允许 `main` 并授权部署；
 工作流不会自动修改这些设置。

@@ -1,48 +1,256 @@
 <!doctype html>
 <html lang="zh-CN">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mojito 插件包</title>
-<style>
-:root { color-scheme:light dark; font:14px/1.6 system-ui,sans-serif; --bg:#fafbfa; --fg:#23272d; --line:#dde2de; --muted:#66716b; }
-@media(prefers-color-scheme:dark) { :root { --bg:#181b1a; --fg:#e6eae7; --line:#3a413c; --muted:#a3aea6; } }
-* { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--fg); } main { max-width:820px; margin:56px auto; padding:0 24px; } h1 { font-size:24px; margin:0 0 28px; } form { display:grid; gap:16px; } label { display:grid; gap:6px; } input { font:inherit; max-width:100%; } input[type=text] { padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); } button { justify-self:start; font:inherit; padding:8px 18px; border:0; border-radius:6px; background:#c5ec8c; color:#28391e; cursor:pointer; } button:disabled { opacity:.5; cursor:wait; } p { color:var(--muted); } #status { min-height:24px; } dl { display:grid; grid-template-columns:100px 1fr; gap:12px; } dt { color:var(--muted); } dd { margin:0; overflow-wrap:anywhere; } pre { border-top:1px solid var(--line); padding-top:20px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; } @media(max-width:600px) { main { margin:24px auto; } dl { grid-template-columns:1fr; gap:4px; } dd { margin-bottom:12px; } }
-</style>
-<main>
-<h1>Mojito 插件包</h1>
-<p><a href="./docs/">开发文档</a> · <a href="./docs/en/">Plugin documentation</a></p>
-<form id="form">
-<label>插件包<input id="file" type="file" accept=".mojito" required></label>
-<label>预期签名者指纹（可选）<input id="fingerprint" type="text" autocomplete="off" spellcheck="false" pattern="[a-f0-9]{64}" placeholder="SHA-256"></label>
-<button id="verify" type="submit">查看并验签</button>
-</form>
-<p>文件在本机验证，不会上传。有效签名不代表发布者身份已经认证。</p>
-<p id="status" role="status" aria-live="polite"></p>
-<section id="result" hidden><dl id="summary"></dl><h2>元数据</h2><pre id="metadata"></pre></section>
-</main>
-<script type="module">
-const worker = new Worker('./worker.js', { type:'module' })
-const form = document.querySelector('#form'), file = document.querySelector('#file'), button = document.querySelector('#verify'), status = document.querySelector('#status'), result = document.querySelector('#result')
-function busy(value) { button.disabled = value; file.disabled = value; document.querySelector('#fingerprint').disabled = value }
-form.addEventListener('change', () => { result.hidden = true; status.textContent = '' })
-function fail(error) { busy(false); status.textContent = `验证失败：${error}`; result.hidden = true }
-form.addEventListener('submit', async (event) => {
-  event.preventDefault(); result.hidden = true
-  if (!file.files[0]) return
-  if (file.files[0].size > 256*1024*1024) return fail('插件包超过 256 MiB')
-  busy(true); status.textContent = '正在验证…'
-  try { const bytes = await file.files[0].arrayBuffer(); worker.postMessage({ bytes, fingerprint:document.querySelector('#fingerprint').value }, [bytes]) } catch(error) { fail(error.message) }
-})
-worker.onmessage = ({ data }) => {
-  if (data.error) return fail(data.error)
-  busy(false); status.textContent = '签名与全部文件校验通过'
-  const { metadata, signer } = data.inspection
-  const summary = document.querySelector('#summary'); summary.replaceChildren()
-  for (const [label, value] of [['名称', metadata.manifest.name], ['版本', metadata.manifest.version], ['签名者指纹', signer.fingerprint], ['运行方式', metadata.manifest.entry.kind === 'native' ? '解包运行' : '从压缩包读取']]) {
-    const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = label; dd.textContent = value; summary.append(dt,dd)
-  }
-  document.querySelector('#metadata').textContent = JSON.stringify(metadata,null,2); result.hidden = false
-}
-worker.onerror = (event) => fail(event.message)
-</script>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>插件包工作台 · Mojito</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-key" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+      <symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="M3.29 7 12 12l8.71-5"/><path d="m7.5 4.27 9 5.15"/></symbol>
+      <symbol id="i-file-check" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+      <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+    </svg>
+
+    <header class="bar">
+      <a class="brand" href="./" aria-label="Mojito 插件包工作台">
+        <svg class="mark" viewBox="0 0 256 256" aria-hidden="true">
+          <g>
+            <path d="M129.24 135.92L215.24 126.69A8.1 8.1 0 0 1 224.21 134.58A101.3 101.3 0 1 1 80.14 44.78A8.1 8.1 0 0 1 91.18 49.35L120.76 130.63A8.1 8.1 0 0 0 129.24 135.92Z" fill="#5f9a24"/>
+            <path d="M129.24 135.92L203.1 127.99A8.1 8.1 0 0 1 212.07 135.99A89.15 89.15 0 1 1 84.22 56.29A8.1 8.1 0 0 1 95.35 60.82L120.76 130.63A8.1 8.1 0 0 0 129.24 135.92Z" fill="#f1f8df"/>
+            <path d="M154.66 140.32L195.65 135.92A8.1 8.1 0 0 1 204.57 144.79A82.05 82.05 0 0 1 147.27 214.96A8.1 8.1 0 0 1 136.84 208.37L131.09 168.4A8.1 8.1 0 0 1 135.33 160.07A26.55 26.55 0 0 0 147.9 145.62A8.1 8.1 0 0 1 154.66 140.32Z" fill="#9fd53c"/>
+            <path d="M124.07 169.41L129.82 209.38A8.1 8.1 0 0 1 121.68 218.64A82.05 82.05 0 0 1 55.92 183.96A8.1 8.1 0 0 1 58.97 172.01L95.21 154.18A8.1 8.1 0 0 1 104.43 155.64A26.55 26.55 0 0 0 117.66 162.62A8.1 8.1 0 0 1 124.07 169.41Z" fill="#4fd18f"/>
+            <path d="M92.08 147.82L55.84 165.64A8.1 8.1 0 0 1 44.51 160.76A82.05 82.05 0 0 1 46.23 107.44A8.1 8.1 0 0 1 57.84 103.3L92.86 123.41A8.1 8.1 0 0 1 96.8 131.88A26.55 26.55 0 0 0 96.55 139.62A8.1 8.1 0 0 1 92.08 147.82Z" fill="#ffe66b"/>
+            <path d="M99.32 118.95L61.37 97.15A8.1 8.1 0 0 1 59.11 85.03A82.05 82.05 0 0 1 79.62 66.9A8.1 8.1 0 0 1 91.51 71.01L106.63 112.55A3.56 3.56 0 0 1 105.61 116.47A26.55 26.55 0 0 0 103.68 118.31A3.56 3.56 0 0 1 99.32 118.95Z" fill="#1e9a5e"/>
+            <path d="M131.48 113.44L101.89 32.16A8.1 8.1 0 0 1 107.41 21.56A101.3 101.3 0 0 1 233.05 99.87A8.1 8.1 0 0 1 225.96 109.49L139.96 118.72A8.1 8.1 0 0 1 131.48 113.44Z" fill="#5f9a24"/>
+            <path d="M131.48 113.44L106.07 43.63A8.1 8.1 0 0 1 111.69 33A89.15 89.15 0 0 1 220.89 101.07A8.1 8.1 0 0 1 213.82 110.8L139.96 118.72A8.1 8.1 0 0 1 131.48 113.44Z" fill="#f1f8df"/>
+            <path d="M129.66 87.71L115.56 48.97A8.1 8.1 0 0 1 122.03 38.17A82.05 82.05 0 0 1 211.69 94.07A8.1 8.1 0 0 1 204.85 104.63L163.86 109.03A8.1 8.1 0 0 1 156.13 105.28A26.55 26.55 0 0 0 136.43 93A8.1 8.1 0 0 1 129.66 87.71Z" fill="#d4f27a"/>
+          </g>
+        </svg>
+        <span class="wordmark">Mojito</span>
+      </a>
+      <nav class="links" aria-label="开发文档">
+        <a class="ghost" href="./docs/"><svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>开发文档</a>
+        <a class="ghost" href="./docs/en/" lang="en">English</a>
+      </nav>
+    </header>
+
+    <main class="canvas">
+      <div class="page">
+        <div class="page-head">
+          <h1>插件包工作台</h1>
+          <fieldset class="segmented mode" aria-label="工作区">
+            <button id="pack-tab" type="button" aria-pressed="true" aria-controls="pack-panel">打包</button>
+            <button id="verify-tab" type="button" aria-pressed="false" aria-controls="verify-panel">校验</button>
+          </fieldset>
+        </div>
+
+        <div class="layout">
+          <div class="inputs">
+            <section id="pack-panel" class="steps" aria-label="打包">
+              <fieldset id="pack-inputs">
+                <article id="key-step" class="step" data-state="todo">
+                  <header class="step-head">
+                    <span class="marker" aria-hidden="true"><span>1</span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                    <h2>签名私钥</h2>
+                    <span id="key-chip" class="chip" data-kind="off">未选择</span>
+                  </header>
+                  <div class="step-body">
+                    <div id="key-drop" class="drop">
+                      <div id="key-empty" class="drop-empty">
+                        <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-key"/></svg></span>
+                        <div>
+                          <p class="drop-title">拖入私钥文件</p>
+                          <p class="drop-hint">发布过此插件的 Ed25519 私钥，JWK 格式</p>
+                        </div>
+                        <button id="import-key" type="button">选择文件</button>
+                      </div>
+                      <div id="key-loaded" class="object" hidden>
+                        <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-key"/></svg></span>
+                        <div class="object-text">
+                          <span id="key-name" class="object-title"></span>
+                          <span id="key-meta" class="object-meta"></span>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="key-backup" class="callout" data-tone="warn" hidden>
+                      <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+                      <p>导出并妥善保存这个私钥后才能打包。插件以后的每个版本都要用它签名。</p>
+                    </div>
+                    <div class="row">
+                      <button id="generate-key" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>为新插件生成私钥</button>
+                      <button id="export-key" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>导出私钥</button>
+                      <button id="clear-key" class="ghost" type="button" hidden>移除</button>
+                      <input id="key-file" type="file" accept=".jwk,.json,application/json" aria-label="私钥文件" hidden>
+                    </div>
+                    <p class="caption">私钥只保存在当前页面，刷新后需要重新导入。私钥丢失或更换后，用户更新插件时会看到发布者变化，继续安装会删除旧插件的全部数据和权限。</p>
+                  </div>
+                </article>
+
+                <article id="directory-step" class="step" data-state="todo">
+                  <header class="step-head">
+                    <span class="marker" aria-hidden="true"><span>2</span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                    <h2>插件目录</h2>
+                    <span id="directory-chip" class="chip" data-kind="off">未选择</span>
+                  </header>
+                  <div class="step-body">
+                    <div id="directory-drop" class="drop">
+                      <div id="directory-empty" class="drop-empty">
+                        <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg></span>
+                        <div>
+                          <p class="drop-title">拖入构建目录</p>
+                          <p class="drop-hint">例如 <code>dist</code>，根目录需要有 <code>plugin.json</code></p>
+                        </div>
+                        <button id="choose-directory" type="button">选择文件夹</button>
+                      </div>
+                      <div id="directory-loaded" class="object" hidden>
+                        <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg></span>
+                        <div class="object-text">
+                          <span id="directory-name" class="object-title mono"></span>
+                          <span id="directory-meta" class="object-meta"></span>
+                        </div>
+                        <button id="change-directory" type="button">更换</button>
+                      </div>
+                    </div>
+                    <p id="directory-unsupported" class="caption" hidden>此浏览器不支持选择文件夹，请把目录拖到上方，或换用 Chrome、Edge。</p>
+                    <input id="directory" type="file" webkitdirectory multiple aria-label="插件构建目录" hidden>
+                  </div>
+                </article>
+
+                <article id="pack-step" class="step" data-state="todo">
+                  <header class="step-head">
+                    <span class="marker" aria-hidden="true"><span>3</span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                    <h2>签名并打包</h2>
+                  </header>
+                  <div class="step-body">
+                    <div class="pack-row">
+                      <fieldset class="field">
+                        <legend class="label">压缩</legend>
+                        <div id="compression" class="segmented">
+                          <label><input type="radio" name="compression" value="lzma2" checked><span>LZMA2</span></label>
+                          <label><input type="radio" name="compression" value="copy"><span>不压缩</span></label>
+                        </div>
+                      </fieldset>
+                      <button id="pack" class="primary large" type="button" disabled><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg><span id="pack-label">签名并打包</span></button>
+                    </div>
+                    <p id="pack-hint" class="caption">先选择私钥和插件目录。</p>
+                  </div>
+                </article>
+              </fieldset>
+            </section>
+
+            <section id="verify-panel" class="steps" aria-label="校验" hidden>
+              <fieldset id="verify-inputs">
+                <article class="step">
+                  <header class="step-head">
+                    <h2>校验插件包</h2>
+                  </header>
+                  <div class="step-body">
+                    <div id="package-drop" class="drop">
+                      <div class="drop-empty">
+                        <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-file-check"/></svg></span>
+                        <div>
+                          <p class="drop-title">拖入 .mojito 文件</p>
+                          <p class="drop-hint">检查签名和包内的全部文件</p>
+                        </div>
+                        <button id="choose-package" type="button">选择插件包</button>
+                      </div>
+                    </div>
+                    <input id="package-file" type="file" accept=".mojito" aria-label="插件包文件" hidden>
+                    <p class="caption">签名有效只说明包在签名后没有被改动，不代表发布者的身份经过认证。</p>
+                  </div>
+                </article>
+              </fieldset>
+            </section>
+          </div>
+
+          <aside class="output" aria-label="插件包">
+            <section id="result-panel" class="panel result" data-state="empty">
+              <header class="result-head">
+                <h2>插件包</h2>
+                <span id="result-chip" class="chip" hidden></span>
+              </header>
+
+              <div id="result-empty" class="result-empty">
+                <span class="tile large"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg></span>
+                <p>打包或校验后，这里显示插件信息和发布条目。</p>
+              </div>
+
+              <div id="result-busy" class="result-busy" hidden>
+                <div class="progress" aria-hidden="true"><span></span></div>
+              </div>
+
+              <p id="status" class="status" role="status" aria-live="polite"></p>
+
+              <div id="result-error" class="callout result-error" data-tone="danger" hidden>
+                <svg class="icon" aria-hidden="true"><use href="#i-error"/></svg>
+                <div>
+                  <strong id="error-title"></strong>
+                  <span id="error-hint"></span>
+                  <code id="error-detail"></code>
+                </div>
+              </div>
+
+              <div id="result" hidden>
+                <div class="identity">
+                  <span class="tile large"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg></span>
+                  <div class="identity-text">
+                    <h3 id="plugin-name">插件</h3>
+                    <span id="plugin-id" class="mono"></span>
+                  </div>
+                </div>
+                <dl id="summary" class="facts"></dl>
+
+                <div class="entry">
+                  <h3>发布条目</h3>
+                  <p class="caption">填入 catalog.json 的对应条目。</p>
+                  <div class="value">
+                    <span class="label">size</span>
+                    <code id="size" class="value-text"></code>
+                    <button class="icon-button" type="button" data-copy="size" aria-label="复制 size" title="复制 size"><svg class="icon copy" aria-hidden="true"><use href="#i-copy"/></svg><svg class="icon done" aria-hidden="true"><use href="#i-check"/></svg></button>
+                  </div>
+                  <div class="value">
+                    <span class="label">sha256</span>
+                    <code id="sha256" class="value-text"></code>
+                    <button class="icon-button" type="button" data-copy="sha256" aria-label="复制 sha256" title="复制 sha256"><svg class="icon copy" aria-hidden="true"><use href="#i-copy"/></svg><svg class="icon done" aria-hidden="true"><use href="#i-check"/></svg></button>
+                  </div>
+                  <div class="row">
+                    <a id="download" class="button primary" href="./" hidden><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>下载插件包</a>
+                    <button id="copy-publication" type="button"><svg class="icon copy" aria-hidden="true"><use href="#i-copy"/></svg><svg class="icon done" aria-hidden="true"><use href="#i-check"/></svg><span>复制 JSON</span></button>
+                  </div>
+                </div>
+
+                <details class="more">
+                  <summary><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>签名与文件</summary>
+                  <div class="more-body">
+                    <h4>签名者指纹</h4>
+                    <code id="fingerprint" class="block"></code>
+                    <h4>包内文件</h4>
+                    <table class="files">
+                      <thead><tr><th scope="col">路径</th><th scope="col">大小</th></tr></thead>
+                      <tbody id="members"></tbody>
+                    </table>
+                    <h4>签名元数据</h4>
+                    <pre id="metadata" class="block"></pre>
+                  </div>
+                </details>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
 </html>

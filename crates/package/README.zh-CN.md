@@ -78,7 +78,13 @@ cargo install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm build:web
 ```
 
-用任意静态 HTTP 服务器提供 `dist/package-web` 即可。worker 使用与 npm 工具相同的 WASM，校验签名、归档、manifest，以及每个成员的解码大小和 CRC。文件只在浏览器中处理，不会上传。可选预期指纹可绑定已知密钥，自签名有效并不能证明发布者身份。
+用静态 HTTP 服务器提供 `dist/package-web`。工作台支持生成、导入和导出 Ed25519 私钥 JWK，
+从插件构建目录打包，以及校验已有包的签名与全部成员。worker 调用共享 WASM 编解码器，文件和私钥只在本机处理。
+新生成的私钥须先导出再打包，私钥仅在当前页面中使用。请妥善备份并在每次更新时使用同一私钥：
+私钥更换后发布者会变化，用户继续更新时，旧插件的全部数据和权限会被删除。
+
+打包和校验后直接显示完整 `.mojito` 的 `size`、`sha256`，供 catalog 发布条目使用。
+manifest、文件和签名者信息可在详情中查看。签名有效不能证明发布者的身份。
 
 `@ffcafe/mojito-package/web` 导出 `init`、`generatePrivateKey`、`validatePrivateKey`、`packFiles` 和 `verifyPackage`，使用前先等待 `init()`。私钥统一使用 JWK JSON 文本，独立私钥校验只返回公钥和指纹；包校验结果包含完整文件的 `size` 和 `sha256`。
 

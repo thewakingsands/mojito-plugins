@@ -35,6 +35,8 @@ npx @ffcafe/mojito-package verify ./MyPlugin-0.1.0.mojito
 
 将输出顶层的 `size` 和 `sha256` 填入发布条目。`metadata.archiveSize` 和 `metadata.archiveSha256` 描述内层归档，含义不同。
 
+[插件包工作台](https://thewakingsands.github.io/mojito-plugins/)在打包或校验后直接显示完整文件的 `size` 和 `sha256`，点击“复制发布信息 JSON”可以一起复制。
+
 ## 托管
 
 `catalog.json` 和 `.mojito` 都要用 HTTPS 地址直接下载到文件本身，例如 GitHub Pages 或 `raw.githubusercontent.com` 的地址。GitHub 网站上路径里带 `/blob/` 的地址是网页，不能用。

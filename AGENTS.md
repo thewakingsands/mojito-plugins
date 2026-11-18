@@ -23,9 +23,9 @@ SDK 开发文档在 `packages/plugin-sdk/docs/`，中文位于根目录，英文
 - `packages/package`：`@ffcafe/mojito-package`，Node CLI 和浏览器共用的 WASM 工具包。
 - `packages/*` 的其余目录：官方插件及其依赖（`matcha`、`combat-model`、`combat-statistics`、`overlay-plugins`、`raidboss`、`plugin-raidboss`、`raidboss-tools`、`plugin-skill-display`、`deepseek-tts`）。这些包都是 `private`，不发布到 npm；官方插件以签名的 `.mojito` 包发布，列表见 `scripts/pack-official.mjs`。
 - `examples/*`：开发者示例和测试插件，同属 pnpm workspace。
-- `crates/package`：包格式编解码器、CLI `mojito-package`、C ABI（`ffi` feature）和浏览器校验器（`crates/package/web`）。
+- `crates/package`：包格式编解码器、CLI `mojito-package`、C ABI（`ffi` feature）和插件包工作台（`crates/package/web`）。
 - `crates/plugin-protocol` 和 `include/`：原生插件协议和 C 头文件。
-- `scripts/`：官方包打包（`pack-official.mjs`）、悬浮窗模板构建（`overlay-templates/`）、浏览器校验器构建、冒烟测试和遥测验收脚本。
+- `scripts/`：官方包打包（`pack-official.mjs`）、悬浮窗模板构建（`overlay-templates/`）、插件包工作台构建、冒烟测试和遥测验收脚本。
 - `vendor/matcha-overlay`：git submodule，Matcha 的界面，也是 pnpm workspace 成员。`packages/raidboss/vendor/cactbot` 是改编的 cactbot 副本。`vendor/` 下的内容不经过 biome 检查。
 
 ## 构建与检查
@@ -37,14 +37,14 @@ SDK 开发文档在 `packages/plugin-sdk/docs/`，中文位于根目录，英文
 - `pnpm build`：构建 Rust CLI（`build:package`）和所有 workspace 包，包括 WASM 打包工具；`pnpm build:official` 等同于它。
 - `pnpm build:package:npm`：构建 npm 打包工具，需要 `wasm32-unknown-unknown` target 和 `wasm-bindgen-cli` 0.2.129。`pnpm test:package:npm` 验证 CLI、原生互操作和安装后的 tarball。
 - `pnpm docs:dev`、`pnpm docs:build`、`pnpm docs:preview`：启动、构建和预览插件开发文档。
-- `pnpm build:web`：构建浏览器校验器到 `dist/package-web`（需要 `wasm32-unknown-unknown` target 和 `wasm-bindgen-cli` 0.2.129）。
+- `pnpm build:web`：构建插件包工作台到 `dist/package-web`（需要 `wasm32-unknown-unknown` target 和 `wasm-bindgen-cli` 0.2.129）。
 - `pnpm typecheck`、`pnpm lint`（`biome check`）、`pnpm lint:fix`（`biome check --write`）。
 - `pnpm test`：vitest 加上 `scripts/overlay-templates/*.test.mjs`。
 - `pnpm test:package`：Rust 编解码器、协议、CLI 和 FFI 的测试与冒烟测试。
 - `pnpm test:official`：`scripts/pack-official.test.mjs`。
 - `pnpm pack:official <private.jwk> <expected-fingerprint>`：为官方插件签名打包。
 
-CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install --frozen-lockfile`、`pnpm docs:build`、`pnpm build:official`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm test:official`，并构建 `examples/overlayplugin-fixture`。改动 Rust 代码、协议、头文件或 `examples/catalog` 时，codec job 还会在 Linux 和 Windows 上运行 `cargo fmt --all --check`、`cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings`、Cargo 测试和冒烟测试。web job 在 PR 中构建受影响的验证器；启用 `PAGES_DEPLOY_ENABLED` 后，main push 的 pages job 构建验证器和文档，合并为一个 Pages 产物并部署。提交前在本地跑过对应的检查。
+CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install --frozen-lockfile`、`pnpm docs:build`、`pnpm build:official`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm test:official`，并构建 `examples/overlayplugin-fixture`。改动 Rust 代码、协议、头文件或 `examples/catalog` 时，codec job 还会在 Linux 和 Windows 上运行 `cargo fmt --all --check`、`cargo clippy --locked --package mojito-package --features ffi --all-targets -- -D warnings`、Cargo 测试和冒烟测试。web job 在 PR 中构建受影响的工作台；启用 `PAGES_DEPLOY_ENABLED` 后，main push 的 pages job 构建工作台和文档，合并为一个 Pages 产物并部署。提交前在本地跑过对应的检查。
 
 格式：TypeScript/JavaScript/JSON 由 biome 格式化（2 空格缩进、行宽 120、单引号、不写分号）；Rust 由 `rustfmt.toml` 约束（2 空格缩进，style edition 2024）。
 

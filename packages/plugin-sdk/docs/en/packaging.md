@@ -2,6 +2,16 @@
 
 Users install a `.mojito` file: an archive of the plugin's build output, plus a signature made with your private key. Mojito uses the signature to confirm that updates come from the same publisher.
 
+## Package in the browser
+
+The [package workbench](https://thewakingsands.github.io/mojito-plugins/) can generate or import a private key, package a build directory, and verify an existing `.mojito`. Files and keys stay on your device.
+
+1. Import your existing Ed25519 private JWK, or generate a key for the first release and export a backup before packing. Reuse that key for every update.
+2. Build the plugin, then drop the build directory, such as `dist`, into the workbench or choose it with the folder button. Its root must contain `plugin.json` and the entry file.
+3. Select compression, pack and download the `.mojito`. Copy the complete file's `size` and `sha256` into the [catalog release](publishing.md).
+
+The key stays in the current page only; import the backup again after closing or refreshing. You can export an imported key again. Keep the backup safe: losing or replacing it changes the publisher, and users who continue the update lose the old plugin's data and permissions.
+
 ## Prepare the packaging tool
 
 Install [Node 24 or later](https://nodejs.org/) and use the tool through `npx @ffcafe/mojito-package`. The npm package includes WebAssembly; Rust and system compression tools are unnecessary.
@@ -54,8 +64,8 @@ Modifying or recompressing a `.mojito` invalidates its signature; pack it again.
 
 The complete package and expanded contents are limited to 256 MiB each, individual files to 32 MiB, and the file count to 4096.
 
-## Check in the browser
+## Verify in the browser
 
-The [online tool](https://thewakingsands.github.io/mojito-plugins/) uses the same WASM codec to verify the signature and every file. Files are not uploaded.
+Open **校验** (Verify) in the [workbench](https://thewakingsands.github.io/mojito-plugins/) and drop or select a `.mojito`. It checks the signature, signed manifest and every archive member, then displays the manifest and complete file's `size` and `sha256`. No private key is required. The signer fingerprint is available in the details.
 
 For format details, see the [package format description](https://github.com/thewakingsands/mojito-plugins/blob/main/crates/package/README.md). Next: [Publish and update](publishing.md).

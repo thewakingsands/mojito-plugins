@@ -54,7 +54,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '开发文档', link: '/' },
-          { text: '验签工具', link: 'https://thewakingsands.github.io/mojito-plugins/', target: '_self' },
+          { text: '插件包工作台', link: 'https://thewakingsands.github.io/mojito-plugins/', target: '_self' },
         ],
         sidebar: sidebar(false),
         outline: { label: '本页内容' },
@@ -70,7 +70,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Documentation', link: '/en/' },
-          { text: 'Package verifier', link: 'https://thewakingsands.github.io/mojito-plugins/', target: '_self' },
+          { text: 'Package workbench', link: 'https://thewakingsands.github.io/mojito-plugins/', target: '_self' },
         ],
         sidebar: sidebar(true),
       },

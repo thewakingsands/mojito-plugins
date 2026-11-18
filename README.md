@@ -40,7 +40,7 @@ Skyline records the pinned upstream commit time as its build date.
 - `packages/plugin-skill-display`: SkillDisplay, described below.
 - `packages/deepseek-tts`: DeepSeek voices, described below.
 - `crates/plugin-protocol` and `include`: the shared native protocol and C ABI.
-- `crates/package`: the CLI, codec, native verifier and browser verifier.
+- `crates/package`: the CLI, codec, native verifier and browser package workbench.
 
 Package names and plugin IDs remain stable. The host consumes the SDK as a git dependency
 on a fixed commit of this repository, which pnpm builds with its `prepare` script, and
@@ -115,12 +115,12 @@ Host integration drivers stay in [Mojito](https://github.com/thewakingsands/moji
 ## Codec and web CI
 
 Codec validation runs on Linux and Windows when its Rust sources, protocol, headers,
-test scripts, the catalog example or shared Rust build inputs change. On pull requests, the web build watches its verifier
+test scripts, the catalog example or shared Rust build inputs change. On pull requests, the web build watches its codec
 library, web assets, npm packaging tool, build scripts and shared Rust inputs. Workspace dependency changes also trigger the web build. Changes to the checks workflow trigger both.
 
-The browser verifier is built into `dist/package-web` with relative Worker and WASM
+The browser package workbench is built into `dist/package-web` with relative Worker and WASM
 URLs, so it works under the `/mojito-plugins/` Pages path. When the repository variable
-`PAGES_DEPLOY_ENABLED` is `true`, each push to `main` builds the verifier and documentation
+`PAGES_DEPLOY_ENABLED` is `true`, each push to `main` builds the workbench and documentation
 into one `dist/pages` artifact, with documentation under `docs/`, and deploys through
 the `github-pages` environment. Enable
 Pages with GitHub Actions as its source, allow `main` in that environment, and authorize
