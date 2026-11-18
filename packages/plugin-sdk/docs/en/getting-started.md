@@ -29,17 +29,15 @@ Create a directory, for example `D:\hello-mojito`, and add two files.
 
 ```js
 export async function activate(context) {
-  const subscription = context.session.subscribe(async (batch) => {
-    for (const session of batch.items) {
-      await context.notifications.send({ title: 'Hello Mojito', detail: `Session state: ${session.state}` })
-    }
+  const subscription = context.session.subscribe((batch) => {
+    for (const session of batch.items) context.log.info('Session changed', { state: session.state })
   })
   await subscription.ready
   return () => subscription.dispose()
 }
 ```
 
-Mojito calls `activate(context)` when it starts the plugin. This code subscribes to session state and sends a Mojito notification on every change; when the subscription is established, it first receives the current state once. The returned function is called when the plugin stops and cancels the subscription.
+Mojito calls `activate(context)` when it starts the plugin. This code subscribes to session state and writes a log entry on every change; when the subscription is established, it first receives the current state once. The returned function is called when the plugin stops and cancels the subscription.
 
 ## 2. Open developer tools
 
@@ -55,7 +53,7 @@ Developer settings are hidden by default:
 2. Mojito shows the 登记插件开发来源 (register plugin development source) confirmation dialog; confirm it.
 3. Select Hello Mojito in the list and click 启动 (start).
 
-When the status changes to 运行中 (running), open 通知 (notifications) in the title bar. You see a notification titled Hello Mojito with the content “Session state: idle”. After you start the game, another one with `live` arrives.
+When the status changes to 运行中 (running), click 查看日志 (view logs) in the details, or open 开发者工具 › 插件日志 (developer tools › plugin logs). You see an entry `Session changed {"state":"idle"}`. After you start the game, another one with `live` appears.
 
 After changing `entry.mjs`, click 停止 (stop) and then 启动 to load the new code. If starting fails, the reason is shown at the top of the details; see [Troubleshooting](development.md#troubleshooting).
 

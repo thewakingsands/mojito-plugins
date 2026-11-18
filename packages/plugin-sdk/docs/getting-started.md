@@ -29,17 +29,15 @@
 
 ```js
 export async function activate(context) {
-  const subscription = context.session.subscribe(async (batch) => {
-    for (const session of batch.items) {
-      await context.notifications.send({ title: 'Hello Mojito', detail: `会话状态：${session.state}` })
-    }
+  const subscription = context.session.subscribe((batch) => {
+    for (const session of batch.items) context.log.info('Session changed', { state: session.state })
   })
   await subscription.ready
   return () => subscription.dispose()
 }
 ```
 
-Mojito 启动插件时调用 `activate(context)`。这段代码订阅会话状态，每次变化都发一条 Mojito 通知；订阅建立时先收到一次当前状态。返回的函数在插件停止时调用，用来取消订阅。
+Mojito 启动插件时调用 `activate(context)`。这段代码订阅会话状态，每次变化都写一条日志；订阅建立时先收到一次当前状态。返回的函数在插件停止时调用，用来取消订阅。
 
 ## 2. 打开开发者工具
 
@@ -55,7 +53,7 @@ Mojito 启动插件时调用 `activate(context)`。这段代码订阅会话状�
 2. Mojito 弹出“登记插件开发来源”确认框，确认。
 3. 在列表里选择 Hello Mojito，点击“启动”。
 
-状态变为“运行中”后，打开标题栏的“通知”，可以看到标题为 Hello Mojito 的通知，内容是“会话状态：idle”。启动游戏后会再收到一条 `live`。
+状态变为“运行中”后，点击详情里的“查看日志”，或进入“开发者工具 › 插件日志”，可以看到一条 `Session changed {"state":"idle"}`。启动游戏后会再出现一条 `live`。
 
 修改 `entry.mjs` 以后，点击“停止”再“启动”即可加载新代码。启动失败时，详情顶部会显示原因，见[排查问题](development.md#排查问题)。
 
