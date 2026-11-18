@@ -38,7 +38,7 @@ const input = async (source: string) => {
     entry,
     options: {
       privateJwk: JSON.stringify(generateKeyPairSync('ed25519').privateKey.export({ format: 'jwk' })),
-      id: 'CommunitySynthetic',
+      id: 'community.synthetic',
       name: 'Synthetic collection',
       version: '1.0.0',
       entries: [entry],
@@ -61,7 +61,7 @@ it('compiles default and Options registrations without executing input or npm sc
   expect((globalThis as Record<string, unknown>).__raidbossBuildExecuted).toBeUndefined()
   expect(pkg.metadata.formatVersion).toBe(1)
   expect(pkg.signer.fingerprint).toMatch(/^[a-f0-9]{64}$/)
-  expect(pkg.manifest.id).toBe('CommunitySynthetic')
+  expect(pkg.manifest.id).toBe('community.synthetic')
   expect(pkg.manifest.apiVersion).toBe('^2.0.0')
   expect(pkg.manifest.capabilities).toEqual([
     'session.read',
@@ -93,8 +93,8 @@ it('allows local helper modules and rejects a community package using the offici
     "import { text } from './helper.ts'; export default { id: 'local', zoneId: 1, triggers: [], timeline: text };",
   )
   await writeFile(join(f.root, 'helper.ts'), 'export const text = "0 Synthetic"')
-  expect((await readPackage(await buildCommunity(f.options))).manifest.id).toBe('CommunitySynthetic')
-  await expect(buildCommunity({ ...f.options, id: 'MojitoRaidbossOfficial' })).rejects.toThrow('own stable')
+  expect((await readPackage(await buildCommunity(f.options))).manifest.id).toBe('community.synthetic')
+  await expect(buildCommunity({ ...f.options, id: 'ffcafe.raidboss' })).rejects.toThrow('own stable')
 })
 it('rejects duplicate inputs and timeline names instead of silently replacing registrations', async () => {
   const f = await input('export default { triggers: [] }')

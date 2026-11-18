@@ -31,7 +31,7 @@ npm install --save-dev vite @ffcafe/mojito-plugin-sdk
 ```json
 {
   "schemaVersion": 1,
-  "id": "MyPlugin",
+  "id": "example.my-plugin",
   "name": "My plugin",
   "version": "0.1.0",
   "apiVersion": "^2.0.0",

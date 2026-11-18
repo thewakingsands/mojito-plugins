@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "ExampleTtsProvider",
+  "id": "example.tts-provider",
   "name": "提示音 TTS 示例",
   "version": "1.0.0",
   "apiVersion": "^2.0.0",

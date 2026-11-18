@@ -118,7 +118,7 @@ async function main() {
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   })
   async function open() {
-    const activation = await host.enable('CombatStatistics')
+    const activation = await host.enable('ffcafe.combat-statistics')
     const definition = host
       .listUi()
       .find((item) => item.owner.activationId === activation.activationId && item.definition.id === 'settings')

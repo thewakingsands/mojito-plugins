@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "SessionNotes",
+  "id": "example.session-notes",
   "name": "Session notes example",
   "version": "1.0.0",
   "apiVersion": "^2.0.0",

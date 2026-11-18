@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "Example.StaticCatalog",
+  "id": "example.static-catalog",
   "name": "Static catalog example",
   "version": "1.0.0",
   "apiVersion": "^2.0.0",

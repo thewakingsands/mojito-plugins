@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "releases": [
     {
-      "pluginId": "Example.StaticCatalog",
+      "pluginId": "example.static-catalog",
       "version": "1.0.0",
       "apiVersion": "^2.0.0",
       "downloadUrl": "https://plugins.example.test/first.mojito",

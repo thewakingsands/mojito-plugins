@@ -15,7 +15,7 @@ const { values } = parseArgs({
 })
 if (!values.key || !values.id || !values.name || !values.version || !values.out || !values.entry?.length) {
   throw new Error(
-    'Usage: --key private-key.json --id StablePluginId --name Name --version 1.0.0 --entry rule.ts [--entry another.js] [--timeline file.txt] --out plugin.mojito',
+    'Usage: --key private-key.json --id author.raidboss-pack --name Name --version 1.0.0 --entry rule.ts [--entry another.js] [--timeline file.txt] --out plugin.mojito',
   )
 }
 await writeFile(

@@ -12,7 +12,7 @@ pnpm --filter @ffcafe/mojito-plugin-raidboss build
 pnpm --filter @ffcafe/mojito-raidboss-tools build
 node packages/raidboss-tools/dist/cli.js \
   --key /path/to/private-key.json \
-  --id MyRaidbossRules --name 'My Raidboss rules' --version 1.0.0 \
+  --id author.raidboss-rules --name 'My Raidboss rules' --version 1.0.0 \
   --entry /path/to/rules.ts --timeline /path/to/timeline.txt \
   --out /path/to/MyRaidbossRules.mojito
 ```
@@ -21,7 +21,7 @@ node packages/raidboss-tools/dist/cli.js \
 `.ts` files on a common filesystem root. Timeline keys are their filenames; duplicate
 names fail. Keep an explicit stable `set.id` and `trigger.id` when updating rules.
 For a set without an ID, its entry path relative to the common entry directory is the
-fallback identity. Use a community plugin ID, distinct from `MojitoRaidbossOfficial`.
+fallback identity. Use a community plugin ID, distinct from `ffcafe.raidboss`.
 
 Entries may default-export a trigger set or use `Options.Triggers.push(...)` /
 `Options.Triggers = [...]`. Normal dynamic construction and callback closures are

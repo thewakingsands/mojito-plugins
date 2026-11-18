@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "ExampleViews",
+  "id": "example.views",
   "name": "Shared counter example",
   "version": "1.0.0",
   "apiVersion": "^2.0.0",

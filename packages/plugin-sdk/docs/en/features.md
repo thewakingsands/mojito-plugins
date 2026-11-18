@@ -31,7 +31,7 @@ The entry in `plugin.json` points to the built file name `entry.mjs`:
 ```json
 {
   "schemaVersion": 1,
-  "id": "MyPlugin",
+  "id": "example.my-plugin",
   "name": "My plugin",
   "version": "0.1.0",
   "apiVersion": "^2.0.0",

@@ -102,7 +102,7 @@ mod tests {
       "x":B64.encode(key.verifying_key().as_bytes()),"d":B64.encode(key.to_bytes())});
     pack_files(
       vec![
-        ("plugin.json".into(), r#"{"schemaVersion":1,"id":"ffi-test","version":"1.0.0","name":"测试","apiVersion":"*","entry":{"kind":"worker","path":"index.mjs"},"capabilities":{"required":[],"optional":[]},"networkOrigins":[]}"#.as_bytes().to_vec()),
+        ("plugin.json".into(), r#"{"schemaVersion":1,"id":"example.ffi-test","version":"1.0.0","name":"测试","apiVersion":"*","entry":{"kind":"worker","path":"index.mjs"},"capabilities":{"required":[],"optional":[]},"networkOrigins":[]}"#.as_bytes().to_vec()),
         ("index.mjs".into(), b"export {}".to_vec()),
       ],
       &jwk.to_string(),
@@ -118,7 +118,7 @@ mod tests {
         let (status, json) = verify(&bytes, MAX_PACKAGE as u64);
         assert_eq!(status, 0);
         assert_eq!(json["signatureValid"], true);
-        assert_eq!(json["metadata"]["manifest"]["id"], "ffi-test");
+        assert_eq!(json["metadata"]["manifest"]["id"], "example.ffi-test");
       }
       assert_eq!(verify(&bytes, bytes.len() as u64 - 1).0, 1);
       *bytes.last_mut().unwrap() ^= 1;

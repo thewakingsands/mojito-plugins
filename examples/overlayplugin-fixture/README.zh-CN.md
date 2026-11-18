@@ -2,8 +2,8 @@
 
 [English](README.md) | 简体中文
 
-请使用单独的验收配置。本测试插件有意使用 CombatStatistics 的 ID，向独立的悬浮窗插件提供合成的
-`CombatStatistics/overlay` 状态；日常使用的配置中请安装真正的战斗统计插件。
+请使用单独的验收配置。本测试插件有意使用 `ffcafe.combat-statistics` 的 ID，向独立的悬浮窗插件提供合成的
+`ffcafe.combat-statistics/overlay` 状态；日常使用的配置中请安装真正的战斗统计插件。
 
 先构建本仓库的 SDK、战斗统计和悬浮窗插件工作区，然后运行：
 

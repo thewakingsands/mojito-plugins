@@ -11,7 +11,7 @@ Create a directory, for example `D:\hello-mojito`, and add two files.
 ```json
 {
   "schemaVersion": 1,
-  "id": "HelloMojito",
+  "id": "example.hello-mojito",
   "name": "Hello Mojito",
   "version": "0.1.0",
   "apiVersion": "^2.0.0",

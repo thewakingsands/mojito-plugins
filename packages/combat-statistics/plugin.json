@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "CombatStatistics",
+  "id": "ffcafe.combat-statistics",
   "name": "战斗统计",
   "version": "0.4.0",
   "apiVersion": "^2.0.0",

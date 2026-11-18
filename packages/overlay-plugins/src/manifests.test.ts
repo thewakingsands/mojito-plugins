@@ -14,6 +14,6 @@ it.each(plugins)('$name declares a valid API 2.0 consumer of the statistics serv
   expect(plugin.apiVersion).toBe('^2.0.0')
   expect(plugin.capabilities).toContain('identity.read')
   expect(plugin.services?.consumes).toEqual([
-    { name: 'CombatStatistics/overlay', versionRange: '^1.0.0', optional: false },
+    { name: 'ffcafe.combat-statistics/overlay', versionRange: '^1.0.0', optional: false },
   ])
 })
