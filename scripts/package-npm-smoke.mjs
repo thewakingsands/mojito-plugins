@@ -20,7 +20,7 @@ const runNpm = (args, options) =>
       )
     : run('npm', args, options)
 try {
-  const manifest = { id: 'Distribution.Test', version: '1.0.0', entry: { path: 'backend/main.mjs' } }
+  const manifest = { id: 'example.distribution-test', version: '1.0.0', entry: { path: 'backend/main.mjs' } }
   const source = Buffer.from('export const activate = () => 42')
   const files = [
     { path: 'plugin.json', bytes: Buffer.from(JSON.stringify(manifest)) },

@@ -5,7 +5,7 @@
 | 字段 | 要求 |
 | --- | --- |
 | `schemaVersion` | 固定为 `1` |
-| `id` | 稳定的插件 ID；字母或数字开头，后续可用点、下划线、短横线；避开 Windows 保留名和末尾的点 |
+| `id` | 稳定的插件 ID，形如 `<命名空间>.<插件名>` 或 `<作者>.<插件名>`，例如 `ffcafe.matcha`：正好一个点，两段都只能用小写字母、数字、短横线和下划线，总长不超过 64，第一段不能是 Windows 保留设备名（如 `con`、`nul`） |
 | `name`, `version` | 非空名称和规范的 SemVer；更新时保留 `id` |
 | `apiVersion` | 包含宿主 Plugin API 版本的 SemVer 范围，例如 `^2.0.0` |
 | `entry` | Worker 使用 `{ "kind": "worker", "path": "entry.mjs" }`；native 见[原生插件](native.md) |
@@ -33,7 +33,7 @@ API 2 中这是插件申报和自行遵守的预算，宿主报告它们，但�
 {
   "services": {
     "provides": [{ "name": "summary", "version": "1.0.0" }],
-    "consumes": [{ "name": "CombatStatistics/overlay", "versionRange": "^1.0.0", "optional": true }]
+    "consumes": [{ "name": "ffcafe.combat-statistics/overlay", "versionRange": "^1.0.0", "optional": true }]
   },
   "tts": { "channels": [{ "id": "alarm", "name": "Alarm" }] }
 }

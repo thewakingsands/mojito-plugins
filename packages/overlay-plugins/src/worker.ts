@@ -3,7 +3,7 @@ import { pluginError } from '@ffcafe/mojito-plugin-sdk/errors'
 import { type OverlayCompatibility, overlayProducer, overlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { fields, object } from '@ffcafe/mojito-plugin-sdk/schema'
 
-const service = 'CombatStatistics/overlay'
+const service = 'ffcafe.combat-statistics/overlay'
 export async function activateOverlay(
   ctx: PluginContext,
   definition: {

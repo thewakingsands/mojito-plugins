@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "CombatStatistics",
+  "id": "ffcafe.combat-statistics",
   "name": "Synthetic overlay fixture",
   "version": "1.0.0",
   "apiVersion": "^2.0.0",

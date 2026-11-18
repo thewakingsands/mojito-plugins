@@ -5,7 +5,7 @@ Every package has a root `plugin.json`. Consult the [Manifest type](https://gith
 | Field | Requirement |
 | --- | --- |
 | `schemaVersion` | Always `1` |
-| `id` | Stable plugin ID; starts with a letter or digit, then may contain dots, underscores and hyphens; avoid Windows device names and trailing dots |
+| `id` | Stable plugin ID in the form `<namespace>.<plugin-name>` or `<author>.<plugin-name>`, such as `ffcafe.matcha`: exactly one dot, both parts only lowercase letters, digits, hyphens and underscores, at most 64 characters, and the first part is not a Windows device name (such as `con` or `nul`) |
 | `name`, `version` | Nonempty name and canonical SemVer; retain the ID across updates |
 | `apiVersion` | SemVer range containing the host's Plugin API version, such as `^2.0.0` |
 | `entry` | A Worker uses `{ "kind": "worker", "path": "entry.mjs" }`; see [Native plugins](native.md) for native entries |
@@ -33,7 +33,7 @@ In API 2 these are declared budgets for the plugin to follow. The host reports t
 {
   "services": {
     "provides": [{ "name": "summary", "version": "1.0.0" }],
-    "consumes": [{ "name": "CombatStatistics/overlay", "versionRange": "^1.0.0", "optional": true }]
+    "consumes": [{ "name": "ffcafe.combat-statistics/overlay", "versionRange": "^1.0.0", "optional": true }]
   },
   "tts": { "channels": [{ "id": "alarm", "name": "Alarm" }] }
 }

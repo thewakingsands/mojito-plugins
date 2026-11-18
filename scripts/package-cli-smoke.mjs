@@ -43,7 +43,7 @@ try {
   await mkdir(path.join(input, 'backend'), { recursive: true })
   const manifest = {
     schemaVersion: 1,
-    id: 'Smoke.Plugin',
+    id: 'example.smoke',
     name: 'Package smoke',
     version: '1.0.0',
     apiVersion: '^1.0.0',

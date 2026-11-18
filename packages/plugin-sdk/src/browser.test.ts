@@ -40,9 +40,9 @@ it.each(['index', 'schema', 'protocol', 'messages', 'client', 'transport', 'view
     const context = { URL, TextEncoder, TextDecoder }
     runInNewContext(chunk.code, context)
     if (entry === 'schema') {
-      expect(runInNewContext("MojitoSDK.id('CastNotice')", context)).toBe('CastNotice')
+      expect(runInNewContext("MojitoSDK.id('example.cast-notice')", context)).toBe('example.cast-notice')
       expect(runInNewContext("MojitoSDK.range('^1.0.0')", context)).toBe('^1.0.0')
-      expect(() => runInNewContext("MojitoSDK.id('CON.txt')", context)).toThrow()
+      expect(() => runInNewContext("MojitoSDK.id('con.txt')", context)).toThrow()
     } else if (entry === 'index') {
       expect(runInNewContext('MojitoSDK.limitNames.includes("queue.pluginItems")', context)).toBe(true)
       expect(runInNewContext("'manifest' in MojitoSDK", context)).toBe(false)
@@ -86,7 +86,7 @@ it('gives host events to view listeners and keeps the latest one for the first l
     activationId,
     kind: 'hello',
     apiVersion: '2.0.0',
-    identity: { id: 'Fixture', version: '1.0.0', activationId, mode: 'worker', environment: 'production' },
+    identity: { id: 'example.fixture', version: '1.0.0', activationId, mode: 'worker', environment: 'production' },
     limits: { schemaVersion: 1, revision: 'test', values: Object.fromEntries(limitNames.map((name) => [name, 128])) },
     capabilities: {},
     clock: { now: null, base: null, source: null, generation: 0, paused: false },

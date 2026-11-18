@@ -9,7 +9,7 @@
   "schemaVersion": 1,
   "releases": [
     {
-      "pluginId": "MyPlugin",
+      "pluginId": "example.my-plugin",
       "version": "0.1.0",
       "apiVersion": "^2.0.0",
       "downloadUrl": "https://example.com/plugins/MyPlugin-0.1.0.mojito",

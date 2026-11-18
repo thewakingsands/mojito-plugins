@@ -316,7 +316,7 @@ mod tests {
     serde_json::json!({"kty":"OKP","crv":"Ed25519","x":B64.encode(key.verifying_key().as_bytes()),"d":B64.encode([7;32])}).to_string()
   }
   fn files() -> Vec<(String, Vec<u8>)> {
-    let manifest = serde_json::json!({"schemaVersion":1,"id":"Example.Plugin","name":"Example","version":"1.0.0","apiVersion":"^1.0.0","entry":{"kind":"worker","path":"backend/main.mjs"},"capabilities":{"required":[],"optional":[]},"networkOrigins":[]});
+    let manifest = serde_json::json!({"schemaVersion":1,"id":"example.plugin","name":"Example","version":"1.0.0","apiVersion":"^1.0.0","entry":{"kind":"worker","path":"backend/main.mjs"},"capabilities":{"required":[],"optional":[]},"networkOrigins":[]});
     vec![
       ("plugin.json".into(), manifest.to_string().into_bytes()),
       ("backend/main.mjs".into(), b"import './lazy.mjs'".to_vec()),

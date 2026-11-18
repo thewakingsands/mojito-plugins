@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "MojitoDeepSeekTts",
+  "id": "ffcafe.tts-deepseek",
   "name": "DeepSeek 语音",
   "version": "0.1.0",
   "apiVersion": "^2.0.0",

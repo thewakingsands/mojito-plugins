@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "OverlayFaceroll",
+  "id": "ffcafe.overlay-faceroll",
   "name": "faceroll",
   "description": "需要先安装并启用战斗统计。",
   "version": "0.1.0",
@@ -23,7 +23,7 @@
   "services": {
     "consumes": [
       {
-        "name": "CombatStatistics/overlay",
+        "name": "ffcafe.combat-statistics/overlay",
         "versionRange": "^1.0.0",
         "optional": false
       }
