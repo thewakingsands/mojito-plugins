@@ -25,7 +25,7 @@ export function text(value: unknown): string {
 }
 export function id(value: unknown): string {
   const s = text(value)
-  check(/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(s) && !s.endsWith('.'), 'Invalid plugin ID')
+  check(s.length <= 64 && /^[a-z0-9_-]+\.[a-z0-9_-]+$/.test(s), 'Invalid plugin ID')
   check(!device(s), 'Windows reserved device name')
   return s
 }

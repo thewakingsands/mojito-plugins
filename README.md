@@ -9,6 +9,8 @@ Use Node 24, pnpm 12.13.0 and stable Rust. Clone this repository on its own:
 
 ```sh
 git submodule update --init --recursive
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm install --frozen-lockfile
 pnpm build:official
 pnpm typecheck
@@ -18,7 +20,7 @@ pnpm test:official
 pnpm lint
 ```
 
-`build:official` builds the SDK, Rust CLI and official plugins without a signing key.
+`build:official` builds the SDK, Rust CLI, WASM packaging tool and official plugins without a signing key.
 The overlays fetch the upstream URLs and full commits recorded in
 `scripts/overlay-templates/build.mjs`, then apply the checked-in patches and lockfiles.
 Their source archives and licenses are included beside the generated runtime trees.
@@ -27,6 +29,7 @@ Skyline records the pinned upstream commit time as its build date.
 ## Packages
 
 - `packages/plugin-sdk`: `@ffcafe/mojito-plugin-sdk` and its public exports.
+- `packages/package`: `@ffcafe/mojito-package`, the Node CLI and shared browser WASM API. Plugin authors only need Node 24 to use the published package.
 - `packages/matcha`: Matcha worker, settings and bundled UI from `vendor/matcha-overlay`.
 - `packages/combat-model`: the combat model (periodic damage splits, buff attribution, potency samples).
 - `packages/combat-statistics`: combat statistics and its overlay service.
@@ -60,6 +63,12 @@ Complete the first publish within two days of adding the npm trusted publisher.
 ```sh
 npm trust github @ffcafe/mojito-plugin-sdk --repo thewakingsands/mojito-plugins --file sdk-publish.yml --allow-publish
 ```
+
+## Publishing the packaging tool
+
+`pnpm build:package:npm` builds the WASM and JavaScript package; `pnpm test:package:npm` checks the CLI, native interoperability and an installed npm tarball without Rust on its PATH.
+Confirm the tool's license and include its text and metadata in the npm package before publishing. Configure the trusted npm publisher for `@ffcafe/mojito-package` with workflow `package-publish.yml` in this repository.
+An authorized `package-v<version>` tag must match `packages/package/package.json` and point to a commit on `main`. The workflow builds and tests the package before publishing through OIDC.
 
 ## Signing official packages
 
@@ -107,8 +116,7 @@ Host integration drivers stay in [Mojito](https://github.com/thewakingsands/moji
 
 Codec validation runs on Linux and Windows when its Rust sources, protocol, headers,
 test scripts, the catalog example or shared Rust build inputs change. On pull requests, the web build watches its verifier
-library, web assets, build script and shared Rust inputs. SDK/plugin sources and pnpm
-dependencies do not trigger these jobs. Changes to the checks workflow trigger both.
+library, web assets, npm packaging tool, build scripts and shared Rust inputs. Workspace dependency changes also trigger the web build. Changes to the checks workflow trigger both.
 
 The browser verifier is built into `dist/package-web` with relative Worker and WASM
 URLs, so it works under the `/mojito-plugins/` Pages path. When the repository variable

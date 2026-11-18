@@ -2,11 +2,21 @@
 
 [English](README.md) | 简体中文
 
-一个 Rust 编解码器，附带独立 CLI、Node-API addon 和浏览器 WASM 校验器。
+一个 Rust 编解码器，附带独立 CLI、Node-API addon，以及 Node 和浏览器共用的 WASM 工具。
 运行时不依赖系统安装的压缩工具。包使用非固实（non-solid）7z，压缩方式为 Copy 或 LZMA2；
 原生条目会自动解包到磁盘（unplugged）。
 
 ## 构建和使用
+
+插件作者使用 Node 24 即可运行 [npm 工具](../../packages/package/README.zh-CN.md)：
+
+```sh
+npx @ffcafe/mojito-package keygen
+npx @ffcafe/mojito-package pack ./dist
+npx @ffcafe/mojito-package verify ./dist.mojito
+```
+
+工具内置预编译 WASM，并输出完整文件的 catalog `size` 和 `sha256`。下文的原生 CLI 由宿主和服务端开发者从源码构建。
 
 使用仓库指定的 Node/pnpm 版本和 stable Rust：
 
@@ -68,11 +78,9 @@ cargo install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm build:web
 ```
 
-用任意静态 HTTP 服务器提供 `dist/package-web` 即可。其中包含查看页面、一个 worker 和 WASM/JS bindings。
-文件只在浏览器中处理，不需要后端，也不会上传。worker 校验内嵌的 JWS、签名的 manifest 元数据，
-以及完整内层归档的大小和 SHA-256。可选的预期指纹会把校验绑定到已知密钥。
-它不会解码单个 7z 成员，也不比对成员中的 manifest 与签名副本是否一致；这一步由 CLI 和安装过程完成。
-自签名有效并不能证明发布者的身份。
+用任意静态 HTTP 服务器提供 `dist/package-web` 即可。worker 使用与 npm 工具相同的 WASM，校验签名、归档、manifest，以及每个成员的解码大小和 CRC。文件只在浏览器中处理，不会上传。可选预期指纹可绑定已知密钥，自签名有效并不能证明发布者身份。
+
+`@ffcafe/mojito-package/web` 导出 `init`、`generatePrivateKey`、`validatePrivateKey`、`packFiles` 和 `verifyPackage`，使用前先等待 `init()`。私钥统一使用 JWK JSON 文本，独立私钥校验只返回公钥和指纹；包校验结果包含完整文件的 `size` 和 `sha256`。
 
 ## 格式版本 1
 
@@ -100,3 +108,7 @@ Mojito 把 JS 包作为一个不可变的归档快照安装，并通过 `mojito-
 
 已验证可直接用 7-Zip 25.01 和 26.05 打开。这不代表所有压缩工具都兼容：libarchive 3.7.4 会拒绝非空的
 自定义前缀。用其他工具编辑或重新打包会使签名失效；须用本编解码器重新签名。
+
+## 许可证
+
+AGPL-3.0-only，正文见 [LICENSE](LICENSE)。

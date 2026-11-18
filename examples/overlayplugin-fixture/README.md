@@ -2,8 +2,8 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Use an isolated acceptance profile. This fixture deliberately uses the CombatStatistics
-ID to supply synthetic `CombatStatistics/overlay` states to the standalone overlay
+Use an isolated acceptance profile. This fixture deliberately uses the `ffcafe.combat-statistics`
+ID to supply synthetic `ffcafe.combat-statistics/overlay` states to the standalone overlay
 plugins; install the real combat-statistics package in normal profiles.
 
 Build this repository’s SDK, statistics and overlay plugin workspace, then run:

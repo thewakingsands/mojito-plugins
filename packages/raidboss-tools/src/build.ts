@@ -36,7 +36,7 @@ export async function buildCommunity(input: BuildInput): Promise<Buffer> {
     capabilities: ['session.read', 'game.read', 'events.read', 'ui.register', 'audio.play', 'tts.say', 'identity.read'],
     networkOrigins: [],
   })
-  check(metadata.id !== 'MojitoRaidbossOfficial', 'Community packages must use their own stable plugin ID')
+  check(metadata.id !== 'ffcafe.raidboss', 'Community packages must use their own stable plugin ID')
   check(input.entries.length > 0, 'At least one local JS/TS entry is required')
   const entries = input.entries.map((entry) => resolve(entry))
   check(new Set(entries).size === entries.length, 'Duplicate entry')

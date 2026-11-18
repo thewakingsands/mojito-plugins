@@ -7,7 +7,7 @@ Build the SDK and this workspace to produce one runtime tree per OverlayPlugin t
 `amethyst`, `klondike` and `glass`. The build fetches the fixed upstream commits into its own temporary directory. Source
 archives and build patches are emitted under `dist/sources` beside the runtime trees.
 
-Each plugin requires Mojito plugin API 2.0.0 and the `CombatStatistics/overlay` service v1. Install
+Each plugin requires Mojito plugin API 2.0.0 and the `ffcafe.combat-statistics/overlay` service v1. Install
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
 

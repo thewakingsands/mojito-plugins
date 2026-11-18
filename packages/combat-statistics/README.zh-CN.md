@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-普通的可选 Worker 插件。用 `pnpm --filter @ffcafe/mojito-combat-statistics build` 构建，再按现有插件流程安装或注册 `dist/plugin.json`。插件声明会话、游戏、事件和数据读取、UI 注册和 `services.provide`，以及敏感权限 `identity.read` 和 `http.request`；未授予 `identity.read` 时显示宿主提供的替代名称。`http.request` 只用于自愿开启的匿名状态样本（设置项 `共享匿名状态样本`，默认关闭）：战斗结束后发送到 `https://mojo.ffcafe.cn`，这是插件声明的唯一网络源。插件把悬浮窗数据作为 `overlay` 服务提供，其他插件以 `CombatStatistics/overlay` 使用；兼容悬浮窗模板是 `@ffcafe/mojito-overlay-plugins` 中单独的插件，它们消费这个服务。
+普通的可选 Worker 插件。用 `pnpm --filter @ffcafe/mojito-combat-statistics build` 构建，再按现有插件流程安装或注册 `dist/plugin.json`。插件声明会话、游戏、事件和数据读取、UI 注册和 `services.provide`，以及敏感权限 `identity.read` 和 `http.request`；未授予 `identity.read` 时显示宿主提供的替代名称。`http.request` 只用于自愿开启的匿名状态样本（设置项 `共享匿名状态样本`，默认关闭）：战斗结束后发送到 `https://mojo.ffcafe.cn`，这是插件声明的唯一网络源。插件把悬浮窗数据作为 `overlay` 服务提供，其他插件以 `ffcafe.combat-statistics/overlay` 使用；兼容悬浮窗模板是 `@ffcafe/mojito-overlay-plugins` 中单独的插件，它们消费这个服务。
 
 规范化后的直接效果、目标 HP（`hpChanged`）和战斗模型的输入共用一个有序订阅。插件在自己的 worker 中运行 `@ffcafe/mojito-combat-model`，根据 Plugin API 1.9.0 的事件拆分持续效果的合计跳数、在各增益之间分摊伤害，并采集威力样本。模型的状态数据只对应一个 opcode 版本；宿主用其他版本解析时，统计暂停。角色身份依据来源世代和观察到的实体生命周期确定。统计范围设置决定计入谁的伤害：`party`（默认）包括本地玩家和本小队成员，`alliance` 包括小队列表中的所有人（含团队中的其他小队），`all` 包括所有玩家角色和 NPC 队员。冒险者分队、亲信战友和剧情辅助器的 NPC 队员（`BattleNpcSubKind` 9）不在游戏的小队列表中，因此每种范围都按子类型把他们算作成员；在记录子类型之前写入的日志，其中的战斗重新计算时不包括他们，回放的录像也不包括录像开始前已经出现的 NPC 队员。每种范围都包括其成员已确认的宠物。在这个选项出现之前保存的设置按 `party` 读取。保存新的范围会立即重新归类已知角色；已作为范围外处理的伤害不会恢复。`all` 范围不依赖小队数据，也不会根据职业或名字把其他玩家推断为队员。战斗开始需要 NPC 证据和敌对效果。所有者未知、特殊效果方向以及缺少小队或玩家数据都作为已知限制保留，不做猜测归属。
 

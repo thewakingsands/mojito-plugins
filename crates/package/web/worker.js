@@ -1,10 +1,10 @@
-import init, { inspectPackage } from './pkg/package.js'
+import { init, verifyPackage } from './tool/dist/web.js'
 
 const ready = init()
 self.onmessage = async ({ data }) => {
   try {
     await ready
-    const inspection = JSON.parse(inspectPackage(new Uint8Array(data.bytes)))
+    const inspection = verifyPackage(new Uint8Array(data.bytes))
     if (data.fingerprint && data.fingerprint !== inspection.signer.fingerprint) throw new Error('签名者指纹不匹配')
     self.postMessage({ inspection })
   } catch (error) {

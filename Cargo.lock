@@ -238,6 +238,7 @@ version = "0.0.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
+ "js-sys",
  "serde",
  "serde_json",
  "sevenz-rust2",

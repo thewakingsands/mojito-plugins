@@ -2,11 +2,21 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A Rust codec with a standalone CLI, a Node-API addon and a browser WASM verifier.
+A Rust codec with a standalone CLI, a Node-API addon and shared Node/browser WASM tools.
 The runtime needs no installed archive executable. Packages use non-solid 7z with
 Copy or LZMA2; native entries are automatically unplugged.
 
 ## Build and use
+
+Plugin authors can use the [npm tool](../../packages/package/README.md) with Node 24:
+
+```sh
+npx @ffcafe/mojito-package keygen
+npx @ffcafe/mojito-package pack ./dist
+npx @ffcafe/mojito-package verify ./dist.mojito
+```
+
+It includes precompiled WASM and prints the complete file's catalog `size` and `sha256`. The native CLI below is built from source for host and server development.
 
 Use the repository's Node/pnpm versions and stable Rust:
 
@@ -78,13 +88,9 @@ cargo install wasm-bindgen-cli --version 0.2.129 --locked
 pnpm build:web
 ```
 
-Serve `dist/package-web` using any static HTTP server. It contains the viewer, a worker and
-WASM/JS bindings. Files stay in the browser; no backend or upload is used. The worker
-verifies the embedded JWS, signed manifest metadata, and the complete inner archive's
-size/SHA-256. An optional expected fingerprint binds verification to a known key.
-It does not decode individual 7z members or compare their manifest with the signed
-copy; CLI and installation perform that additional check. A valid self-signature
-does not authenticate a publisher's identity.
+Serve `dist/package-web` using any static HTTP server. Its worker uses the same WASM as the npm tool to verify the signature, archive, manifest and every member's decoded size and CRC. Files stay in the browser and are not uploaded. An optional expected fingerprint binds verification to a known key; a valid self-signature does not authenticate a publisher's identity.
+
+`@ffcafe/mojito-package/web` exports `init`, `generatePrivateKey`, `validatePrivateKey`, `packFiles` and `verifyPackage`. Await `init()` before use. Private keys use JWK JSON text; independent key validation returns only the public key and fingerprint. The verification result includes the complete file's `size` and `sha256`.
 
 ## Format version 1
 
@@ -118,3 +124,7 @@ Direct archive-tool compatibility is verified for 7-Zip 25.01 and 26.05. It is n
 promise for every archive tool: libarchive 3.7.4 rejects nonempty custom prefixes.
 Editing or repacking with another tool invalidates the signature; sign the result
 again with this codec.
+
+## License
+
+AGPL-3.0-only. See [LICENSE](LICENSE).

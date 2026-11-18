@@ -7,6 +7,14 @@ pub struct FileInfo {
   pub path: String,
   pub size: u64,
 }
+#[derive(Clone, Debug, Serialize)]
+pub struct Verification {
+  #[serde(flatten)]
+  pub inspection: Inspection,
+  pub files: Vec<FileInfo>,
+  pub size: usize,
+  pub sha256: String,
+}
 #[derive(Clone)]
 pub struct Package {
   bytes: Arc<Vec<u8>>,
@@ -22,6 +30,7 @@ impl Package {
       .map_err(|e| e.to_string())?;
     let archive = reader.archive();
     ensure(!archive.is_solid, "Solid archives are not supported")?;
+    ensure(archive.files.len() <= MAX_FILES, "Too many package entries")?;
     for block in &archive.blocks {
       ensure(block.coders.len() == 1, "Invalid compression block")?;
       let coder = &block.coders[0];
@@ -40,7 +49,11 @@ impl Package {
     }
     let mut names: BTreeMap<String, (String, bool, bool)> = BTreeMap::new();
     let mut files = Vec::new();
+    let mut total = 0u64;
     for entry in &archive.files {
+      ensure(entry.size <= MAX_FILE as u64, "Package member too large")?;
+      total += entry.size;
+      ensure(total <= MAX_PACKAGE as u64, "Decoded package too large")?;
       resource_path(&entry.name)?;
       ensure(
         !entry.is_anti_item && (!entry.is_directory || entry.size == 0),
@@ -113,12 +126,8 @@ impl Package {
   }
 }
 
-pub fn pack_files(
-  files: Vec<(String, Vec<u8>)>,
-  private_jwk: &str,
-  compression: Compression,
-) -> Result<Vec<u8>> {
-  let jwk = json(private_jwk.as_bytes())?;
+fn signing_key(private_jwk: &str) -> Result<SigningKey> {
+  let jwk = json(private_jwk.as_bytes()).map_err(|_| "Invalid private JWK")?;
   ensure(
     jwk["kty"] == "OKP" && jwk["crv"] == "Ed25519",
     "Expected Ed25519 private JWK",
@@ -132,6 +141,58 @@ pub fn pack_files(
   );
   let public_key = B64.encode(key.verifying_key().as_bytes());
   ensure(jwk["x"] == public_key, "Private and public JWK differ")?;
+  Ok(key)
+}
+
+pub fn private_jwk(seed: &[u8]) -> Result<String> {
+  let key = SigningKey::from_bytes(seed.try_into().map_err(|_| "Invalid private key seed")?);
+  Ok(
+    serde_json::json!({
+      "kty": "OKP", "crv": "Ed25519",
+      "x": B64.encode(key.verifying_key().as_bytes()), "d": B64.encode(seed)
+    })
+    .to_string(),
+  )
+}
+
+pub fn validate_private_key(private_jwk: &str) -> Result<PackageSigner> {
+  let key = signing_key(private_jwk)?;
+  let public = key.verifying_key();
+  Ok(PackageSigner {
+    public_key: B64.encode(public.as_bytes()),
+    fingerprint: hash(public.as_bytes()),
+  })
+}
+
+pub fn verify_package(bytes: Vec<u8>) -> Result<Verification> {
+  let size = bytes.len();
+  let sha256 = hash(&bytes);
+  let package = Package::open(bytes)?;
+  for file in &package.files {
+    package.read(&file.path)?;
+  }
+  Ok(Verification {
+    inspection: package.inspection,
+    files: package.files,
+    size,
+    sha256,
+  })
+}
+
+pub fn pack_files(
+  files: Vec<(String, Vec<u8>)>,
+  private_jwk: &str,
+  compression: Compression,
+) -> Result<Vec<u8>> {
+  let key = signing_key(private_jwk)?;
+  let public_key = B64.encode(key.verifying_key().as_bytes());
+  ensure(files.len() <= MAX_FILES, "Too many package entries")?;
+  let mut total = 0usize;
+  for (_, bytes) in &files {
+    ensure(bytes.len() <= MAX_FILE, "Package member too large")?;
+    total += bytes.len();
+    ensure(total <= MAX_PACKAGE, "Decoded package too large")?;
+  }
   let mut writer = ArchiveWriter::new(Cursor::new(Vec::new())).map_err(|e| e.to_string())?;
   writer.set_content_methods(vec![
     match compression {
@@ -255,7 +316,7 @@ mod tests {
     serde_json::json!({"kty":"OKP","crv":"Ed25519","x":B64.encode(key.verifying_key().as_bytes()),"d":B64.encode([7;32])}).to_string()
   }
   fn files() -> Vec<(String, Vec<u8>)> {
-    let manifest = serde_json::json!({"schemaVersion":1,"id":"Example.Plugin","name":"Example","version":"1.0.0","apiVersion":"^1.0.0","entry":{"kind":"worker","path":"backend/main.mjs"},"capabilities":{"required":[],"optional":[]},"networkOrigins":[]});
+    let manifest = serde_json::json!({"schemaVersion":1,"id":"example.plugin","name":"Example","version":"1.0.0","apiVersion":"^1.0.0","entry":{"kind":"worker","path":"backend/main.mjs"},"capabilities":{"required":[],"optional":[]},"networkOrigins":[]});
     vec![
       ("plugin.json".into(), manifest.to_string().into_bytes()),
       ("backend/main.mjs".into(), b"import './lazy.mjs'".to_vec()),
@@ -377,6 +438,52 @@ mod tests {
     jwk["x"] = "wrong".into();
     assert!(pack_files(files(), &jwk.to_string(), Compression::Copy).is_err());
     assert!(Compression::parse("deflate").is_err());
+  }
+  #[test]
+  fn private_keys_share_validation_with_signing() {
+    let jwk = private_jwk(&[7; 32]).unwrap();
+    assert_eq!(
+      json(jwk.as_bytes()).unwrap(),
+      json(key().as_bytes()).unwrap()
+    );
+    let signer = validate_private_key(&jwk).unwrap();
+    let bytes = pack_files(files(), &jwk, Compression::Copy).unwrap();
+    let result = verify_package(bytes.clone()).unwrap();
+    assert_eq!(result.size, bytes.len());
+    assert_eq!(result.sha256, hash(&bytes));
+    assert_eq!(result.inspection.signer.public_key, signer.public_key);
+    assert_eq!(result.inspection.signer.fingerprint, signer.fingerprint);
+    assert_eq!(result.files.len(), files().len());
+    assert!(private_jwk(&[7; 31]).is_err());
+    for (field, value) in [
+      ("kty", "RSA"),
+      ("crv", "X25519"),
+      ("x", "wrong"),
+      ("d", "wrong"),
+      ("d", "AA=="),
+    ] {
+      let mut bad = json(jwk.as_bytes()).unwrap();
+      bad[field] = value.into();
+      let bad = bad.to_string();
+      assert!(validate_private_key(&bad).is_err());
+      assert!(pack_files(files(), &bad, Compression::Copy).is_err());
+    }
+    assert!(
+      validate_private_key(r#"{"d":"private", "d":"private"}"#)
+        .unwrap_err()
+        .contains("Invalid private JWK")
+    );
+  }
+  #[test]
+  fn memory_inputs_obey_package_limits() {
+    let oversized = vec![("file".into(), vec![0; MAX_FILE + 1])];
+    assert!(
+      matches!(pack_files(oversized, &key(), Compression::Copy), Err(e) if e == "Package member too large")
+    );
+    let too_many = vec![("file".into(), Vec::new()); MAX_FILES + 1];
+    assert!(
+      matches!(pack_files(too_many, &key(), Compression::Copy), Err(e) if e == "Too many package entries")
+    );
   }
   #[test]
   fn path_limits_fail() {

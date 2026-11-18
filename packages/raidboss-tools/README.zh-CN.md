@@ -12,7 +12,7 @@ pnpm --filter @ffcafe/mojito-plugin-raidboss build
 pnpm --filter @ffcafe/mojito-raidboss-tools build
 node packages/raidboss-tools/dist/cli.js \
   --key /path/to/private-key.json \
-  --id MyRaidbossRules --name 'My Raidboss rules' --version 1.0.0 \
+  --id author.raidboss-rules --name 'My Raidboss rules' --version 1.0.0 \
   --entry /path/to/rules.ts --timeline /path/to/timeline.txt \
   --out /path/to/MyRaidbossRules.mojito
 ```
@@ -20,7 +20,7 @@ node packages/raidboss-tools/dist/cli.js \
 `--entry` 和 `--timeline` 可以重复。入口必须是同一文件系统根下的本地 `.js`、`.mjs` 或 `.ts` 文件。
 时间轴以文件名为键，文件名重复会失败。更新规则时保持明确且稳定的 `set.id` 和 `trigger.id`。
 没有 ID 的 set 以其入口相对于公共入口目录的路径作为备用标识。使用社区自己的插件 ID，不能与
-`MojitoRaidbossOfficial` 相同。
+`ffcafe.raidboss` 相同。
 
 入口可以默认导出一个触发器集合，也可以使用 `Options.Triggers.push(...)` /
 `Options.Triggers = [...]`。普通的动态构造和回调闭包会保留。模块加载完成后注册即关闭，不支持运行时追加。

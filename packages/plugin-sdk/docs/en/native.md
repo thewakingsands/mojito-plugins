@@ -17,7 +17,7 @@ The script creates the example's `dist` directory. Register the built manifest d
 ```json
 {
   "schemaVersion": 1,
-  "id": "NativeSessionNotes",
+  "id": "example.native-session-notes",
   "name": "Native session notes example",
   "version": "0.1.0",
   "apiVersion": "^2.0.0",

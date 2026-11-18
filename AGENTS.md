@@ -20,6 +20,7 @@ SDK 开发文档在 `packages/plugin-sdk/docs/`，中文位于根目录，英文
 ## 目录结构
 
 - `packages/plugin-sdk`：`@ffcafe/mojito-plugin-sdk`，插件作者使用的 SDK，以 LGPL-3.0-only 发布到 npm。
+- `packages/package`：`@ffcafe/mojito-package`，Node CLI 和浏览器共用的 WASM 工具包。
 - `packages/*` 的其余目录：官方插件及其依赖（`matcha`、`combat-model`、`combat-statistics`、`overlay-plugins`、`raidboss`、`plugin-raidboss`、`raidboss-tools`、`plugin-skill-display`、`deepseek-tts`）。这些包都是 `private`，不发布到 npm；官方插件以签名的 `.mojito` 包发布，列表见 `scripts/pack-official.mjs`。
 - `examples/*`：开发者示例和测试插件，同属 pnpm workspace。
 - `crates/package`：包格式编解码器、CLI `mojito-package`、C ABI（`ffi` feature）和浏览器校验器（`crates/package/web`）。
@@ -33,7 +34,8 @@ SDK 开发文档在 `packages/plugin-sdk/docs/`，中文位于根目录，英文
 
 根目录 `package.json` 中的脚本：
 
-- `pnpm build`：构建 Rust CLI（`build:package`）和所有 workspace 包；`pnpm build:official` 等同于它。
+- `pnpm build`：构建 Rust CLI（`build:package`）和所有 workspace 包，包括 WASM 打包工具；`pnpm build:official` 等同于它。
+- `pnpm build:package:npm`：构建 npm 打包工具，需要 `wasm32-unknown-unknown` target 和 `wasm-bindgen-cli` 0.2.129。`pnpm test:package:npm` 验证 CLI、原生互操作和安装后的 tarball。
 - `pnpm docs:dev`、`pnpm docs:build`、`pnpm docs:preview`：启动、构建和预览插件开发文档。
 - `pnpm build:web`：构建浏览器校验器到 `dist/package-web`（需要 `wasm32-unknown-unknown` target 和 `wasm-bindgen-cli` 0.2.129）。
 - `pnpm typecheck`、`pnpm lint`（`biome check`）、`pnpm lint:fix`（`biome check --write`）。
@@ -50,6 +52,7 @@ CI（`.github/workflows/checks.yml`）的 plugins job 依次运行 `pnpm install
 
 - 宿主以 `github:thewakingsands/mojito-plugins#<commit>&path:packages/plugin-sdk` 引用 SDK，pnpm 通过 `prepare` 脚本构建；原生 crate 通过 Cargo git tag `v0.1.0` 引用。包名和插件 ID 要保持不变。
 - `sdk-v*` tag 会把 SDK 发布到 npm（`.github/workflows/sdk-publish.yml`）。不要给只供宿主锁定的提交推送这类 tag；发布时 tag 必须与 `packages/plugin-sdk/package.json` 的版本一致，并指向 `main` 上的提交。
+- `package-v*` tag 发布 `@ffcafe/mojito-package`（`.github/workflows/package-publish.yml`），须匹配该包版本并指向 `main`。npm 产物携带预编译 WASM；发布前须具备确认适用的许可证和 npm 发布权限。
 - 宿主从不含 submodule 的 GitHub tarball 安装 SDK，因此 Matcha 用 `link:` 引用 `vendor/matcha-overlay`，`pnpm-workspace.yaml` 设置 `frozenLockfile: false`。本仓库的检查仍要使用 `--frozen-lockfile`。
 - 同时改两个仓库时，开发阶段用临时的本地链接或 Cargo override，最后提交锁定的 git 源；不要提交本地 override。
 - SDK 包的 `files` 包含 `dist`、`GUIDE.md`、`docs` 和 `COPYING`；移动或重命名这些文档时同步修改 `files`。

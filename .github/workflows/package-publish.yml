@@ -1,0 +1,45 @@
+name: Publish package tools to npm
+on:
+  push:
+    tags: ['package-v*']
+permissions:
+  contents: read
+concurrency:
+  group: package-publish-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - name: Check release tag, license and source
+        run: |
+          node scripts/check-package-release.mjs
+          git merge-base --is-ancestor HEAD origin/main
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:package
+      - run: pnpm build:package:npm
+      - run: pnpm --filter @ffcafe/mojito-package typecheck
+      - run: pnpm --filter @ffcafe/mojito-package test
+      - run: node scripts/package-npm-smoke.mjs
+      - name: Publish package tools with OIDC
+        working-directory: packages/package
+        run: npm publish --access public --ignore-scripts

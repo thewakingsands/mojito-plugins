@@ -9,7 +9,7 @@
   "schemaVersion": 1,
   "releases": [
     {
-      "pluginId": "MyPlugin",
+      "pluginId": "example.my-plugin",
       "version": "0.1.0",
       "apiVersion": "^2.0.0",
       "downloadUrl": "https://example.com/plugins/MyPlugin-0.1.0.mojito",
@@ -27,21 +27,13 @@
 
 完整示例见 [examples/catalog](https://github.com/thewakingsands/mojito-plugins/tree/main/examples/catalog)。
 
-用下面的脚本得到 `size` 和 `sha256`，保存为 `package-info.mjs`：
-
-```js
-// node package-info.mjs <.mojito 文件>
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-
-const bytes = readFileSync(process.argv[2])
-const sha256 = createHash('sha256').update(bytes).digest('hex')
-console.log(JSON.stringify({ size: bytes.length, sha256 }))
-```
+打包工具的 `pack` 和 `verify` 命令直接输出完整文件的 `size` 和 `sha256`。已有包可随时重新查询：
 
 ```sh
-node package-info.mjs ./MyPlugin-0.1.0.mojito
+npx @ffcafe/mojito-package verify ./MyPlugin-0.1.0.mojito
 ```
+
+将输出顶层的 `size` 和 `sha256` 填入发布条目。`metadata.archiveSize` 和 `metadata.archiveSha256` 描述内层归档，含义不同。
 
 ## 托管
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "MojitoSkillDisplay",
+  "id": "ffcafe.skill-display",
   "name": "SkillDisplay",
   "version": "0.2.0",
   "apiVersion": "^2.0.0",

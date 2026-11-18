@@ -6,3 +6,4 @@ node_modules/
 *.tgz
 *.log
 .env
+packages/package/wasm/

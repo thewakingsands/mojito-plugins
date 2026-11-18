@@ -82,7 +82,7 @@ Providers register a local manifest name using `services.provide`. Consumers use
 import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
 
 export async function activate(context: PluginContext) {
-  const provider = await context.services.connect('CombatStatistics/overlay', '^1.0.0')
+  const provider = await context.services.connect('ffcafe.combat-statistics/overlay', '^1.0.0')
   context.log.info('Service lookup', { available: provider !== null })
 }
 ```

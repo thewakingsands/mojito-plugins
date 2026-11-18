@@ -48,7 +48,7 @@ function fixture() {
   const ctx = {
     signal: new AbortController().signal,
     services: {
-      connect: async () => ({ service: 'CombatStatistics/overlay', version: '1.0.0' }),
+      connect: async () => ({ service: 'ffcafe.combat-statistics/overlay', version: '1.0.0' }),
       request,
       subscribe: (_selector: unknown, receive: typeof listener) => {
         listener = receive
@@ -107,7 +107,7 @@ it('keeps a newer event when the initial snapshot arrives late and flushes encou
   await h.send(3, 'next')
   expect(h.calls.slice(-2)).toEqual(['flush', 'set'])
   await h.command({ kind: 'endEncounter', encounterId: 'newer' })
-  expect(h.request).toHaveBeenLastCalledWith('CombatStatistics/overlay', 'endEncounter', {
+  expect(h.request).toHaveBeenLastCalledWith('ffcafe.combat-statistics/overlay', 'endEncounter', {
     encounterId: 'newer',
   })
   await stop()
