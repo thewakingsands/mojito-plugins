@@ -68,7 +68,57 @@ jobs:
       - name: Remove temporary signing file
         if: always()
         run: rm -f "$RUNNER_TEMP/official.jwk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: official-packages
+          if-no-files-found: error
+          path: dist/official
       - name: Upload release attachments
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/official/* --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; upload to Mojito server through its administration interface.'
+        run: gh release create "$GITHUB_REF_NAME" dist/official/* --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; CI uploads drafts to Mojito server for publication through its administration interface.'
+  upload:
+    needs: sign
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: official-packages
+          path: dist/official
+      - name: Upload plugin drafts
+        env:
+          MOJITO_SERVER_URL: ${{ vars.MOJITO_SERVER_URL }}
+        shell: bash
+        run: |
+          : "${MOJITO_SERVER_URL:?Missing MOJITO_SERVER_URL}"
+          upload_url="${MOJITO_SERVER_URL%/}/api/admin/drafts"
+          shopt -s nullglob
+          packages=(dist/official/*.mojito)
+          if (( ${#packages[@]} == 0 )); then
+            echo 'No official plugin packages found'
+            exit 1
+          fi
+          response="$RUNNER_TEMP/plugin-upload-response.json"
+          for file in "${packages[@]}"; do
+            echo "Uploading $file"
+            token=$(curl --silent --show-error --fail --proto '=https' --get \
+              -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              --data-urlencode "audience=$upload_url" "$ACTIONS_ID_TOKEN_REQUEST_URL" \
+              | jq -er '.value | strings | select(length > 0)')
+            echo "::add-mask::$token"
+            : > "$response"
+            if ! status=$(curl --silent --show-error --fail-with-body --proto '=https' \
+              -H "Authorization: Bearer $token" \
+              -F "archive=@$file" -o "$response" -w '%{http_code}' \
+              "$upload_url"); then
+              cat "$response"
+              exit 1
+            fi
+            cat "$response"
+            case "$status" in
+              200|201) ;;
+              *) echo "Unexpected upload status: $status"; exit 1 ;;
+            esac
+          done

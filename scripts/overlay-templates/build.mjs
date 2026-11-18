@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -49,7 +49,11 @@ const sources = {
     output: 'dist',
     async build(work) {
       run('npx', ['--yes', 'bun@1.3.11', 'run', 'scripts/genIconIdx.ts'], work)
-      run('npx', ['--yes', 'bun@1.3.11', 'run', 'scripts/genMeta.ts'], work)
+      const timestamp = execFileSync('git', ['show', '-s', '--format=%ct', this.revision], {
+        cwd: path.join(cache, 'sources/skyline'),
+        encoding: 'utf8',
+      }).trim()
+      run('npx', ['--yes', 'bun@1.3.11', 'run', 'scripts/genMeta.ts'], work, { SOURCE_DATE_EPOCH: timestamp })
       run('npx', ['--no-install', 'vite', 'build'], work, { VITE_BASE_URL: '/plugin/' })
       await rm(path.join(work, 'dist/devbg'), { recursive: true, force: true })
       await rm(path.join(work, 'dist/fonts'), { recursive: true, force: true })
