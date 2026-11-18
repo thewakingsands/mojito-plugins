@@ -83,9 +83,9 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 再在单独的 job 中签名。把共用私钥配置为 secret `OFFICIAL_SIGNING_JWK`，把它的公钥指纹配置为
 变量 `OFFICIAL_SIGNER_FINGERPRINT`。签名产物继续作为 GitHub Release 附件保存。
 
-上传 job 从签名产物中取出 `.mojito` 包，自动上传为 Mojito server 的草稿。
-先在服务端配置 `ci_upload_token` / `MOJITO_CI_UPLOAD_TOKEN`，再把相同凭据配置为仓库 secret
-`MOJITO_SERVER_UPLOAD_TOKEN`，服务端根地址配置为仓库变量 `MOJITO_SERVER_URL`。
+上传 job 使用 GitHub Actions 签发的短期 OIDC 令牌，将签名后的 `.mojito` 包发送至
+`POST /api/admin/drafts`。将仓库变量 `MOJITO_SERVER_URL` 设为服务端的 HTTPS `public_url`。
+上传地址同时用作令牌的 audience。`official-v*` tag 的写权限只授予受信任的发布维护者。
 上传后仍需在后台确认签名者并发布到 TEST、PROD。失败时使用 Actions 的“重新运行失败的作业”，
 继续使用原来的签名产物。已发布过的版本若包内容相同则返回成功；内容变化时须提高对应插件的 manifest 版本号。
 发布 SDK 版本、推送 tag 和发布官方包都需要相应的发布授权。Cargo 使用的源码 tag `v0.1.0`

@@ -90,10 +90,10 @@ CLI through an artifact, then signs in a separate job. Configure `OFFICIAL_SIGNI
 as the shared private key secret and `OFFICIAL_SIGNER_FINGERPRINT` as its public
 fingerprint variable. Signed artifacts remain available as GitHub Release attachments.
 
-The upload job takes `.mojito` packages from the signed artifact and uploads them as
-Mojito server drafts. Set `ci_upload_token` / `MOJITO_CI_UPLOAD_TOKEN` on the server,
-configure the same credential as the repository secret `MOJITO_SERVER_UPLOAD_TOKEN`,
-and set the server root address in the repository variable `MOJITO_SERVER_URL`.
+The upload job sends the signed `.mojito` packages to `POST /api/admin/drafts`
+using short-lived GitHub Actions OIDC tokens. Set the repository variable
+`MOJITO_SERVER_URL` to the server's HTTPS `public_url`. The upload URL is also
+the token audience. Restrict `official-v*` tag writes to trusted release maintainers.
 Confirm the signer and publish to TEST and PROD in the administration interface.
 Use Actions' **Re-run failed jobs** after an upload failure to reuse the original signed
 artifact. Re-uploading an identical published package succeeds; changed bytes require

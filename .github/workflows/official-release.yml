@@ -80,6 +80,8 @@ jobs:
   upload:
     needs: sign
     runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -88,11 +90,10 @@ jobs:
       - name: Upload plugin drafts
         env:
           MOJITO_SERVER_URL: ${{ vars.MOJITO_SERVER_URL }}
-          MOJITO_SERVER_UPLOAD_TOKEN: ${{ secrets.MOJITO_SERVER_UPLOAD_TOKEN }}
         shell: bash
         run: |
           : "${MOJITO_SERVER_URL:?Missing MOJITO_SERVER_URL}"
-          : "${MOJITO_SERVER_UPLOAD_TOKEN:?Missing MOJITO_SERVER_UPLOAD_TOKEN}"
+          upload_url="${MOJITO_SERVER_URL%/}/api/admin/drafts"
           shopt -s nullglob
           packages=(dist/official/*.mojito)
           if (( ${#packages[@]} == 0 )); then
@@ -102,11 +103,16 @@ jobs:
           response="$RUNNER_TEMP/plugin-upload-response.json"
           for file in "${packages[@]}"; do
             echo "Uploading $file"
+            token=$(curl --silent --show-error --fail --proto '=https' --get \
+              -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              --data-urlencode "audience=$upload_url" "$ACTIONS_ID_TOKEN_REQUEST_URL" \
+              | jq -er '.value | strings | select(length > 0)')
+            echo "::add-mask::$token"
             : > "$response"
-            if ! status=$(curl --silent --show-error --fail-with-body \
-              -H "Authorization: Bearer $MOJITO_SERVER_UPLOAD_TOKEN" \
+            if ! status=$(curl --silent --show-error --fail-with-body --proto '=https' \
+              -H "Authorization: Bearer $token" \
               -F "archive=@$file" -o "$response" -w '%{http_code}' \
-              "${MOJITO_SERVER_URL%/}/api/ci/plugins/drafts"); then
+              "$upload_url"); then
               cat "$response"
               exit 1
             fi
