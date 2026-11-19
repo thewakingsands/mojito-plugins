@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import type { Hello } from './client.js'
+import { decodeHello, type Hello } from './client.js'
 import { ClientClock } from './clock.js'
 import { pluginError } from './errors.js'
 import { limitNames, limitsSnapshot } from './limits.js'
@@ -16,6 +16,12 @@ const limits = limitsSnapshot({
   schemaVersion: 1,
   revision: 'test',
   values: Object.fromEntries(limitNames.map((name) => [name, 128])),
+})
+it('accepts both 2.0 and 2.1 host handshakes and retains the advertised version', () => {
+  const message = { ...hello, limits, protocol: 1, kind: 'hello', activationId: hello.identity.activationId } as const
+  expect(decodeHello(message).apiVersion).toBe('2.0.0')
+  expect(decodeHello({ ...message, apiVersion: '2.1.0' }).apiVersion).toBe('2.1.0')
+  expect(() => decodeHello({ ...message, apiVersion: '3.0.0' })).toThrow('incompatible_version')
 })
 it.each(['views', 'services'] as const)(
   '%s disposal can be retried after quota failure, and an old disposer cannot remove a new registration',
