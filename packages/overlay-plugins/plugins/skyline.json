@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "ffcafe.overlay-skyline",
   "name": "Skyline",
-  "description": "需要先安装并启用战斗统计。",
-  "version": "0.2.0",
+  "description": "横向布局的精简伤害统计悬浮窗，支持展开详细数据、查看战斗历史与自定义配色。",
+  "version": "0.2.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

@@ -2,6 +2,19 @@
   "schemaVersion": 1,
   "releases": [
     {
+      "manifest": {
+        "apiVersion": "^2.0.0",
+        "capabilities": [],
+        "entry": {
+          "kind": "worker",
+          "path": "entry.mjs"
+        },
+        "id": "example.static-catalog",
+        "name": "Static catalog example",
+        "networkOrigins": [],
+        "schemaVersion": 1,
+        "version": "1.0.0"
+      },
       "pluginId": "example.static-catalog",
       "version": "1.0.0",
       "apiVersion": "^2.0.0",

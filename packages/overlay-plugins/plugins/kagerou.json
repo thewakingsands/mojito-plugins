@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "ffcafe.overlay-kagerou",
   "name": "Kagerou",
-  "description": "需要先安装并启用战斗统计。",
-  "version": "0.2.0",
+  "description": "Material Design 风格的伤害统计悬浮窗，显示项目与样式均可自定义。",
+  "version": "0.2.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
