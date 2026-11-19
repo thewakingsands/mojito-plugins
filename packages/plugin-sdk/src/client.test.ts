@@ -18,7 +18,15 @@ const limits = limitsSnapshot({
   values: Object.fromEntries(limitNames.map((name) => [name, 128])),
 })
 it('accepts both 2.0 and 2.1 host handshakes and retains the advertised version', () => {
-  const message = { ...hello, limits, protocol: 1, kind: 'hello', activationId: hello.identity.activationId } as const
+  const message = {
+    ...hello,
+    identity: { ...hello.identity },
+    clock: { ...hello.clock },
+    limits,
+    protocol: 1,
+    kind: 'hello',
+    activationId: hello.identity.activationId,
+  } as const
   expect(decodeHello(message).apiVersion).toBe('2.0.0')
   expect(decodeHello({ ...message, apiVersion: '2.1.0' }).apiVersion).toBe('2.1.0')
   expect(() => decodeHello({ ...message, apiVersion: '3.0.0' })).toThrow('incompatible_version')
