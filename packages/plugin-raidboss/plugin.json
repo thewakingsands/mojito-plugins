@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ffcafe.raidboss",
   "name": "Raidboss",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
@@ -11,5 +11,5 @@
   "capabilities": ["session.read", "game.read", "events.read", "ui.register", "audio.play", "tts.say", "identity.read"],
   "networkOrigins": [],
   "author": "FFCafe",
-  "description": "结构化事件驱动的 Raidboss 提示与时间轴，包含固定上游的官方规则集。"
+  "description": "根据副本机制提供文字、音效与语音提示，并显示技能时间轴。触发规则来自 cactbot。"
 }

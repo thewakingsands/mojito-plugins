@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "ffcafe.tts-deepseek",
   "name": "DeepSeek 语音",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "apiVersion": "^2.0.0",
   "entry": { "kind": "worker", "path": "entry.mjs" },
   "capabilities": ["ui.register", "tts.provide", "http.request"],
   "networkOrigins": ["https://api.deepseek.com"],
   "author": "FFCafe",
-  "description": "为 Mojito 提供 DeepSeek 的海星、暗潮两个 TTS 音色。需要自行提供 DeepSeek API Key。"
+  "description": "为语音播报提供 DeepSeek 的海星与暗潮两种音色，需配置 DeepSeek API Key。"
 }

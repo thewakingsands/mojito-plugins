@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "ffcafe.overlay-cmskin",
   "name": "CMSkin",
-  "description": "需要先安装并启用战斗统计。",
-  "version": "0.1.0",
+  "description": "由 CanisMinor 制作的中文伤害统计悬浮窗，支持查看成员详细数据，并提供迷你与透明模式。",
+  "version": "0.1.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

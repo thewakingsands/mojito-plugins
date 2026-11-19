@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ffcafe.matcha",
   "name": "Matcha",
-  "version": "4.0.0-mojito.10",
+  "version": "4.0.0-mojito.11",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
@@ -29,6 +29,6 @@
     "https://map-v2.ffcafe.cn"
   ],
   "author": "FFCafe",
-  "description": "Matcha 的 Mojito 版本：通知、市场、装备、挖宝、仙人微彩、潜水艇和钓鱼。",
+  "description": "提供 FATE、副本匹配与寻宝结果通知，以及市场板比价、潜水艇航行与钓鱼记录等功能，各项功能均在悬浮窗中使用。",
   "license": "AGPL-3.0-only"
 }

@@ -19,8 +19,9 @@ For GitHub Pages, use direct file URLs such as
 HTTP is accepted only on loopback hosts, such as `http://127.0.0.1:18080/catalog.json`.
 HTTPS redirects cannot downgrade to HTTP. ETag and Last-Modified are optional.
 
-Each release requires `pluginId`, `version`, `apiVersion`, `downloadUrl`, `size` and
-`sha256`. `display` and `changelog` are optional. Native plugins specify `os: win32`
+Each release requires `pluginId`, `version`, `apiVersion`, `downloadUrl`, `size`,
+`sha256` and `manifest`, the package's signed `plugin.json`; Mojito shows the plugin's
+details from it before downloading. `changelog` is optional. Native plugins specify `os: win32`
 and `arch: x64` together; Worker plugins omit both. Signatures are embedded in the
 package; catalogs do not have a `signatureUrl` field.
 
@@ -37,8 +38,8 @@ signature and every archive member. A valid self-signature does not authenticate
 a publisher; supply a separately trusted fingerprint to `verify` when needed.
 
 To build your own package, keep your private JWK outside the plugin directory and
-use the [package CLI](../../crates/package/README.md). Use the size and SHA-256 of the
-resulting `.mojito` file in your catalog, and copy its plugin ID, version and API range
-from the signed manifest. The host's
+use the [package CLI](../../crates/package/README.md). Generate the catalog entry from the
+resulting `.mojito` file with the host's `tools/catalog/entry.mjs` instead of writing it
+by hand: it records the file's size and SHA-256 and copies the signed manifest. The host's
 [catalog validator](https://github.com/thewakingsands/mojito/tree/master/tools/catalog)
 checks metadata with the client's parser and enforces the 2 MiB catalog limit.

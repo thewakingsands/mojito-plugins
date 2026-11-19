@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "ffcafe.overlay-mopimopi1",
   "name": "MopiMopi v1",
-  "description": "需要先安装并启用战斗统计。",
-  "version": "0.1.0",
+  "description": "MopiMopi 伤害统计悬浮窗第一版，提供简体中文界面。",
+  "version": "0.1.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

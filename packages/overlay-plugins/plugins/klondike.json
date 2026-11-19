@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "ffcafe.overlay-klondike",
   "name": "Klondike",
-  "description": "需要先安装并启用战斗统计。",
-  "version": "0.1.0",
+  "description": "现代风格的伤害统计悬浮窗，提供伤害占比条，支持点击成员查看详细数据，并可在非战斗时收起。",
+  "version": "0.1.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

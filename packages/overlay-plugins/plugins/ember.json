@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "ffcafe.overlay-ember",
   "name": "Ember",
-  "description": "需要先安装并启用战斗统计。",
-  "version": "0.1.0",
+  "description": "数据详尽的伤害统计悬浮窗，按标签页分别显示伤害、治疗、承伤与团队数据。",
+  "version": "0.1.1",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
