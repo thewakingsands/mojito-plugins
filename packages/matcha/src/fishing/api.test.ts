@@ -31,6 +31,17 @@ describe('fishing HTTP adapter', () => {
       headers: { 'Content-Type': 'application/cbor', 'X-Client-Timestamp': '123' },
     })
   })
+  it('treats null distributions as an empty sample set', async () => {
+    const api = createFishingApi({
+      request: async (url) => ({
+        status: 200,
+        headers: {},
+        body: new TextEncoder().encode(JSON.stringify({ spot_id: 20, distributions: null })),
+        url,
+      }),
+    })
+    await expect(api.query(20, new AbortController().signal)).resolves.toEqual([])
+  })
   it('rejects missing fields, mismatched spots, oversized bodies, redirects and invalid ranges', async () => {
     let body: unknown = { spot_id: 20, distributions: [{}] }
     let alternateUrl = false,
@@ -45,7 +56,9 @@ describe('fishing HTTP adapter', () => {
     })
     const signal = new AbortController().signal
     await expect(api.query(20, signal)).rejects.toThrow('distribution')
-    body = { spot_id: 21, distributions: [] }
+    body = { spot_id: 20 }
+    await expect(api.query(20, signal)).rejects.toThrow('response')
+    body = { spot_id: 21, distributions: null }
     await expect(api.query(20, signal)).rejects.toThrow('response')
     body = { spot_id: 20, distributions: [] }
     alternateUrl = true

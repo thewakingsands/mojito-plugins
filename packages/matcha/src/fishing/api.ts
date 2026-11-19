@@ -14,14 +14,11 @@ const object = (value: unknown): value is Record<string, unknown> =>
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const positiveInteger = (value: unknown): value is number => finite(value) && Number.isSafeInteger(value) && value > 0
 export function parseDistributions(input: unknown, place: number): FishingDistribution[] {
-  if (
-    !object(input) ||
-    input.spot_id !== place ||
-    !Array.isArray(input.distributions) ||
-    input.distributions.length > 10000
-  )
-    throw new Error('Invalid fishing response')
-  for (const row of input.distributions) {
+  if (!object(input) || input.spot_id !== place) throw new Error('Invalid fishing response')
+  const { distributions } = input
+  if (distributions === null) return []
+  if (!Array.isArray(distributions) || distributions.length > 10000) throw new Error('Invalid fishing response')
+  for (const row of distributions) {
     if (
       !object(row) ||
       !positiveInteger(row.bait_id) ||
@@ -51,7 +48,7 @@ export function parseDistributions(input: unknown, place: number): FishingDistri
     )
       throw new Error('Invalid fishing range')
   }
-  return structuredClone(input.distributions) as FishingDistribution[]
+  return structuredClone(distributions) as FishingDistribution[]
 }
 export function createFishingApi(
   http: HttpService,

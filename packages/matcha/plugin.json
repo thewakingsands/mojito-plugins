@@ -20,15 +20,7 @@
     "http.request",
     "identity.read"
   ],
-  "networkOrigins": [
-    "https://xivapi-v2.xivcdn.com",
-    "https://universalis.app",
-    "https://api.ffxiv.cyou",
-    "https://map-cdn.wakingsands.com",
-    "https://cafemaker.wakingsands.com",
-    "https://map.ffcafe.cn",
-    "https://map-v2.ffcafe.cn"
-  ],
+  "networkOrigins": ["https://universalis.app", "https://api.ffxiv.cyou"],
   "author": "FFCafe",
   "description": "提供 FATE、副本匹配与寻宝结果通知，以及市场板比价、潜水艇航行与钓鱼记录等功能，各项功能均在悬浮窗中使用。",
   "license": "AGPL-3.0-only"

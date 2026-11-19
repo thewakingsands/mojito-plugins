@@ -53,7 +53,7 @@ Mojito 模式通过宿主本地数据接口读取物品、地图、图标、FATE
 
 鱼漂与 Universalis 各使用一个开关，同时控制查询和上传，默认关闭。回放不会触发通知、Webhook 或上报。Universalis 的 API key 和 uploader ID 在打包时由环境变量 `MATCHA_UNIVERSALIS_API_KEY`、`MATCHA_UNIVERSALIS_UPLOADER_ID` 注入，用户不能自行填写；打包时没有这两个值，Universalis 的查询和上传都不可用，设置页里的开关也不可用。
 
-默认允许的网络源限于游戏资料、地图及图标资源、Universalis 和鱼漂查询。使用自建 Webhook 服务时，需要在打包时明确加入对应 HTTPS origin，再重新安装并授权：
+默认允许访问 `https://universalis.app` 和 `https://api.ffxiv.cyou`，用于 Universalis 和鱼漂的查询与上报。使用自建 Webhook 服务时，在打包命令中用 `--origin` 加入对应的 HTTPS 源，再重新安装并授权。
 
 ```powershell
 node packages/matcha/scripts/package.mjs --origin=https://your-service.example

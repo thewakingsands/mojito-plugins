@@ -53,7 +53,7 @@ Session, game info, local data, UI and audio are enabled on install. Packets, me
 
 鱼漂 and Universalis each have one switch that controls both queries and uploads, off by default. Replays never trigger notifications, webhooks or uploads. The Universalis API key and uploader ID are injected at build time from the environment variables `MATCHA_UNIVERSALIS_API_KEY` and `MATCHA_UNIVERSALIS_UPLOADER_ID`; users cannot enter them. Without both values at build time, Universalis queries and uploads are unavailable and the switch on the settings page is disabled.
 
-The default allowed network origins are limited to game data, map and icon resources, Universalis and 鱼漂 queries. To use your own webhook service, add its HTTPS origin explicitly when packaging, then reinstall and grant access:
+The default network origins are `https://universalis.app` and `https://api.ffxiv.cyou` for Universalis and 鱼漂 queries and uploads. To use your own webhook service, add its HTTPS origin with `--origin` when packaging, then reinstall and grant access.
 
 ```powershell
 node packages/matcha/scripts/package.mjs --origin=https://your-service.example
