@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "releases": [
     {
+      "pluginId": "example.static-catalog",
+      "version": "1.0.0",
+      "apiVersion": "^2.0.0",
+      "downloadUrl": "https://plugins.example.test/first.mojito",
+      "size": 1071,
+      "sha256": "46a937c4c4e517ba7a29cd6064d70b437e5d3f0b8cb862e9c05aa749620fa331",
       "manifest": {
         "apiVersion": "^2.0.0",
         "capabilities": [],
@@ -15,12 +21,7 @@
         "schemaVersion": 1,
         "version": "1.0.0"
       },
-      "pluginId": "example.static-catalog",
-      "version": "1.0.0",
-      "apiVersion": "^2.0.0",
-      "downloadUrl": "https://plugins.example.test/first.mojito",
-      "size": 1071,
-      "sha256": "46a937c4c4e517ba7a29cd6064d70b437e5d3f0b8cb862e9c05aa749620fa331"
+      "signer": "83b2b626af08d925f9dc103e1b3515797b2bb097b073291e5516afb751cf9af4"
     }
   ]
 }
