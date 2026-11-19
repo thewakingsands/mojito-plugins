@@ -133,8 +133,9 @@ describe('local Eureka NM evidence', () => {
     const tracker = new EurekaTracker()
     tracker.observe(event('end', 1))
     tracker.observe(event('info', 2, T + 1000))
-    expect(entry(tracker).activity).toBe('ended')
-    expect(entry(tracker).cooldown.readyAt).toBeNull()
+    expect(entry(tracker, T + 1999).activity).toBe('unknown')
+    expect(entry(tracker, T + 2000).activity).toBe('ended')
+    expect(entry(tracker, T + 2000).cooldown.readyAt).toBeNull()
   })
   it('stops at unconfirmed after the deadline and preserves explicit end evidence', () => {
     const tracker = new EurekaTracker()
@@ -142,8 +143,9 @@ describe('local Eureka NM evidence', () => {
     tracker.observe(event('info', 2))
     expect(entry(tracker, T + 1_140_000).activity).toBe('unconfirmed')
     tracker.observe(event('end', 3, T + 1_150_000))
-    expect(entry(tracker, T + 1_150_000).activity).toBe('ended')
-    expect(entry(tracker, T + 1_150_000).cooldown.basis).toBe('fate-start')
+    expect(entry(tracker, T + 1_150_000).activity).toBe('unconfirmed')
+    expect(entry(tracker, T + 1_152_000).activity).toBe('ended')
+    expect(entry(tracker, T + 1_152_000).cooldown.basis).toBe('fate-start')
   })
   it('rejects old sequence, invalid progress and zero, future or expired timings', () => {
     const tracker = new EurekaTracker()

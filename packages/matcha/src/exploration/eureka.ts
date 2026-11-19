@@ -20,6 +20,9 @@ interface Round {
   timing: Timing | null
 }
 
+// Leaving an instance can remove its whole FATE list before zoneChanged arrives.
+const endConfirmationMs = 2_000
+
 function timingFrom(event: Extract<FateObservation, { kind: 'info' }>): Timing | null {
   if (
     !Number.isInteger(event.startTimeSeconds) ||
@@ -161,14 +164,16 @@ export class EurekaTracker {
       const durationMs = referenceAt === null ? null : rule.respawnMinutes * 60_000
       const readyAt = referenceAt !== null && durationMs !== null ? referenceAt + durationMs : null
       const activityEndsAt = timing?.end ?? null
+      const endedAt = round?.endedAt ?? null
+      const ended = endedAt !== null && sourceTime !== null && sourceTime - endedAt >= endConfirmationMs
       entries.push({
         fateId: rule.fateId,
         name: fate.name,
         position: fate.position,
-        activity: !round
-          ? 'unknown'
-          : round.endedAt !== null
-            ? 'ended'
+        activity: ended
+          ? 'ended'
+          : round?.firstObservedAt == null
+            ? 'unknown'
             : activityEndsAt !== null && sourceTime !== null && sourceTime >= activityEndsAt
               ? 'unconfirmed'
               : 'active',

@@ -382,8 +382,31 @@ describe('shared exploration collection', () => {
     const entry = (f.values.get('EurekaState') as unknown as EurekaState).entries[0]!
     expect(entry.activity).toBe('active')
     expect(entry.cooldown.referenceAt).toBe(10500)
-    f.service.observeFate({ kind: 'end', fateId: 1332, packetSeq: 12, timestamp: 999999 })
+    f.service.observeFate({ kind: 'end', fateId: 1332, packetSeq: 12, timestamp: 999999, extra: 0 })
     expect((f.values.get('EurekaState') as unknown as EurekaState).entries[0]?.activity).toBe('active')
+  })
+
+  it('does not publish the FATE removal burst preceding an island exit as completed NM rounds', async () => {
+    const f = fixture()
+    f.catalog.eureka[732] = {
+      mapId: 1,
+      fates: [1332, 1333].map((id) => ({ id, name: `NM ${id}`, position: null })),
+      weatherRates: null,
+      weatherNames: new Map(),
+    }
+    const state = () => f.values.get('EurekaState') as unknown as EurekaState
+    await f.zone(732)
+    f.service.observeFate({ kind: 'end', fateId: 1332, packetSeq: 9, timestamp: 10000, extra: 0 })
+    f.service.observeFate({ kind: 'end', fateId: 1333, packetSeq: 10, timestamp: 10000, extra: 0 })
+    await f.advance(800)
+    expect(state().entries.map((entry) => entry.activity)).toEqual(['unknown', 'unknown'])
+    await f.changed(628, 12)
+    await f.zone(628)
+    await f.advance(2250)
+    expect(state()).toMatchObject({ status: 'outside', entries: [] })
+    await f.changed(732, 13)
+    await f.zone(732)
+    expect(state().entries.map((entry) => entry.activity)).toEqual(['unknown', 'unknown'])
   })
 
   it('clears dynamic state when the structured event stream closes', async () => {
