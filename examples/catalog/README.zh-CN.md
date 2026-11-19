@@ -16,8 +16,9 @@ HTTPS 绝对地址。修改下载地址不需要重新签名；改动包的任�
 只有回环地址可以使用 HTTP，例如 `http://127.0.0.1:18080/catalog.json`。
 HTTPS 重定向不能降级到 HTTP。ETag 和 Last-Modified 是可选的。
 
-每个发布条目必须包含 `pluginId`、`version`、`apiVersion`、`downloadUrl`、`size`、`sha256`
-和 `manifest`（插件包里签名的 `plugin.json`），Mojito 在下载前用它显示插件的详情；`changelog` 可选。原生插件要同时指定 `os: win32` 和 `arch: x64`；Worker 插件两者都不写。
+每个发布条目必须包含 `pluginId`、`version`、`apiVersion`、`downloadUrl`、`size`、`sha256`、
+`manifest`（插件包里签名的 `plugin.json`，Mojito 在下载前用它显示插件的详情）和 `signer`（签名公钥的
+SHA-256 指纹）；`changelog` 可选。原生插件要同时指定 `os: win32` 和 `arch: x64`；Worker 插件两者都不写。
 签名内嵌在包中，仓库没有 `signatureUrl` 字段。
 
 构建 CLI 并在本地校验示例：
@@ -32,6 +33,6 @@ Windows 上使用 `target/release/mojito-package.exe`。校验会检查内嵌签
 自签名有效并不能证明发布者的身份；需要时向 `verify` 提供另行确认可信的指纹。
 
 构建自己的包时，把私钥 JWK 放在插件目录之外，并使用 [包 CLI](../../crates/package/README.zh-CN.md)。
-仓库条目不必手写：用宿主的 `tools/catalog/entry.mjs` 从生成的 `.mojito` 文件生成，它会记录文件的大小和 SHA-256，并复制签名的 manifest。
+仓库条目不必手写：用宿主的 `tools/catalog/entry.mjs` 从生成的 `.mojito` 文件生成，它会记录文件的大小、SHA-256 和签名者，并复制签名的 manifest。
 宿主的 [仓库校验工具](https://github.com/thewakingsands/mojito/tree/master/tools/catalog)
 用客户端的解析器检查元数据，并执行 2 MiB 的仓库大小上限。
