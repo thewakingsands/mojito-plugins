@@ -105,7 +105,8 @@ function readers(call: Call, subscribe: Subscribe): Omit<CallContext, 'signal'> 
       map: (id, opts) => call('data.map', { id }, opts),
       icon: (id, opts) => call('data.icon', { id }, opts),
       name: (kind, id, language, opts) => call('data.name', { kind, id, language }, opts),
-      rows: (sheet, ids, language, opts) => call('data.rows', { sheet, ids, language }, opts),
+      rows: (sheet, ids, language, opts) =>
+        call('data.rows', { sheet, ids, language, ...(opts?.columns && { columns: [...opts.columns] }) }, opts),
       version: (opts) => call('data.version', {}, opts),
     },
   }

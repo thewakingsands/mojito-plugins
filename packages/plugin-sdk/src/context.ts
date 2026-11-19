@@ -146,7 +146,13 @@ export interface DataService {
     language: string,
     options?: SubscribeOptions,
   ): Promise<string>
-  rows(sheet: string, ids: number[], language: string, options?: SubscribeOptions): Promise<DataRow[]>
+  /** With columns, cells are returned in the requested EXDSchema field order (Plugin API 2.1). */
+  rows(
+    sheet: string,
+    ids: number[],
+    language: string,
+    options?: SubscribeOptions & { columns?: readonly string[] },
+  ): Promise<DataRow[]>
   /**
    * The version of the open game data, the content of ffxivgame.ver in the game directory; null when the file is
    * missing or empty. Read again on each call, so it changes once the game is updated.

@@ -68,6 +68,8 @@ export async function activate(context: PluginContext) {
 
 `data.version()` reads `ffxivgame.ver` on each call. It returns `null` for a missing/empty file and rejects with `stale_session` if data changes during the call. Invalidate game-data caches by version. `rowIds` lists actual ordinary-sheet row IDs in ascending order; read cells with `rows`. Use `none` for language-neutral sheets.
 
+Since Plugin API 2.1, `rows('Map', ids, 'none', { columns: ['Id', 'TerritoryType'] })` returns cells in the requested EXDSchema field order. Named selection currently supports recognized `Map` layouts. Omit `columns` to receive all cells in client EXH declaration order.
+
 ## Speech
 
 Declare channels in manifest `tts.channels`. `tts.say(text, { channel })` defaults to `default`; users choose voices and playback modes in Mojito. It resolves when speech completes, rejects with `cancelled` when aborted/replaced, and with `unavailable` when no voice can speak.

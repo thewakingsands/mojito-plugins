@@ -68,6 +68,8 @@ export async function activate(context: PluginContext) {
 
 `data.version()` 每次读取 `ffxivgame.ver`，文件不存在或为空时为 `null`，调用期间数据切换时为 `stale_session`。用版本清理游戏数据缓存。`rowIds` 按升序返回普通表的实际行 ID，单元格由 `rows` 读取；无语言的表使用 `none`。
 
+Plugin API 2.1 起，`rows('Map', ids, 'none', { columns: ['Id', 'TerritoryType'] })` 按请求的 EXDSchema 列名顺序返回单元格。目前支持已识别的 `Map` 布局。省略 `columns` 时按客户端 EXH 的原始声明顺序返回所有单元格。
+
 ## 语音
 
 manifest 用 `tts.channels` 声明 channel；`tts.say(text, { channel })` 默认使用 `default`。用户在 Mojito 中选择声音和播放模式。朗读完成后 resolve，中止或被替换时以 `cancelled` 拒绝；无可用声音时为 `unavailable`。

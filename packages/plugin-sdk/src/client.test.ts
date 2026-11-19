@@ -162,6 +162,18 @@ it('returns a complete ordinary-sheet ID array without pagination parameters', a
   fixture.close()
 })
 
+it('requests selected EXDSchema fields in the caller’s order', async () => {
+  const fixture = createTestContext(hello, limits, { 'data.rows': () => [] })
+  await fixture.context.data.rows('Map', [858], 'none', { columns: ['Id', 'IsEvent', 'TerritoryType'] })
+  expect(fixture.requests).toEqual([
+    {
+      method: 'data.rows',
+      params: { sheet: 'Map', ids: [858], language: 'none', columns: ['Id', 'IsEvent', 'TerritoryType'] },
+    },
+  ])
+  fixture.close()
+})
+
 it('speaks in a channel and keeps the signal off the wire', async () => {
   const fixture = createTestContext(hello, limits, { 'tts.say': () => null })
   await fixture.context.tts.say('a')
