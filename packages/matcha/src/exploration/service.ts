@@ -11,6 +11,7 @@ import type {
   Subscription,
 } from '@ffcafe/mojito-plugin-sdk'
 import { asJson } from '../protocol.js'
+import { fieldValue, freshField, observedPlayerPosition } from './coordinates.js'
 import { EurekaTracker } from './eureka.js'
 import type { FateObservation } from './eureka-types.js'
 import { HuntTracker } from './hunts.js'
@@ -37,6 +38,7 @@ export class ExplorationService {
   private recentFates: { observation: FateObservation; requiredZoneSeq: number }[] = []
   private target: { itemId: number; spotIndex: number } | null = null
   private player: PlayerState | null = null
+  private playerSampleTime: number | null = null
   private entities: CombatantState[] | null = null
   private territoryId: number | null = null
   private expectedTerritory: number | null = null
@@ -108,10 +110,45 @@ export class ExplorationService {
     }
   }
 
+  private playerContext(): ExplorationContext {
+    const context = this.context()
+    // A sample can arrive before the worker's local clock estimate reaches the host's timestamp.
+    if (this.playerSampleTime !== null && context.clock.now !== null && this.playerSampleTime > context.clock.now)
+      context.clock = { ...context.clock, now: this.playerSampleTime }
+    return context
+  }
+
+  private acceptPlayer(sample: Sample<PlayerState>) {
+    const context = this.playerContext()
+    if (
+      !this.sourceMatches(sample.meta) ||
+      sample.meta.timeBase !== context.clock.base ||
+      !Number.isFinite(sample.meta.observedAt) ||
+      context.clock.now === null
+    )
+      return
+    const previous = this.player
+    const actorId = fieldValue(sample.value.actorId)
+    const sameActor = actorId !== null && actorId === fieldValue(previous?.actorId)
+    if (actorId !== null && !sameActor) this.player = null
+    context.clock = { ...context.clock, now: Math.max(context.clock.now, sample.meta.observedAt) }
+    const position = observedPlayerPosition(sample.value, context, this.boundaryAt)
+    const previousPosition = sameActor ? previous?.position : undefined
+    // A missed read does not replace the last observation or extend its expiry.
+    if (!position || (previousPosition?.state === 'ok' && position.observedAt < previousPosition.observedAt)) return
+    this.playerSampleTime = sample.meta.observedAt
+    this.player = {
+      ...sample.value,
+      rotation:
+        freshField(sample.value.rotation, context, this.boundaryAt) ?? (sameActor ? previous?.rotation : undefined),
+    }
+  }
+
   private clearObservations(preserveFates = false) {
     if (!preserveFates) this.recentFates = []
     this.zoneEpoch++
     this.player = null
+    this.playerSampleTime = null
     this.entities = null
     this.hunts.reset()
     this.eureka.reset()
@@ -242,7 +279,10 @@ export class ExplorationService {
     const wasConfirmed = this.territoryId !== null
     this.territoryId = confirmed ? field.value : null
     if (confirmed && this.expectedTerritory === null) this.expectedTerritory = field.value
-    if (!confirmed) this.player = this.entities = null
+    if (!confirmed) {
+      this.player = this.entities = null
+      this.playerSampleTime = null
+    }
     // Packet and structured-event streams may flush in either order.
     if (confirmed && !wasConfirmed)
       for (const { observation, requiredZoneSeq } of this.recentFates) {
@@ -293,14 +333,14 @@ export class ExplorationService {
   private publishNavigation() {
     this.publish(
       'NavigationState',
-      navigationState(this.context(), this.options.catalog(), this.target, this.player, this.boundaryAt),
+      navigationState(this.playerContext(), this.options.catalog(), this.target, this.player, this.boundaryAt),
     )
   }
 
   private publishHunts() {
     this.publish(
       'HuntState',
-      this.hunts.update(this.context(), this.options.catalog(), this.entities, this.player, this.boundaryAt),
+      this.hunts.update(this.playerContext(), this.options.catalog(), this.entities, this.player, this.boundaryAt),
     )
   }
 
@@ -334,6 +374,7 @@ export class ExplorationService {
     else this.connect()
     if (!this.enabled()) {
       this.player = null
+      this.playerSampleTime = null
       this.entities = null
       this.territoryId = null
     }
@@ -349,11 +390,10 @@ export class ExplorationService {
           .getPlayer({ fields: ['actorId', 'position', 'rotation'] }, { signal })
           .then(
             (sample) => {
-              if (current()) this.player = this.sourceMatches(sample.meta) ? sample.value : null
+              if (current()) this.acceptPlayer(sample)
             },
-            () => {
-              if (current()) this.player = null
-            },
+            // The next sample can recover a transient read failure. Freshness is checked on every tick.
+            () => {},
           )
           .finally(() => {
             this.playerBusy = false

@@ -5,15 +5,7 @@ import { ClientMapData } from './map-data.js'
 const n = (value: number): Cell => ({ type: 'number', value })
 const s = (value: string): Cell => ({ type: 'string', value })
 function map(rowId: number, id: string, marker = 99): DataRow {
-  const cells: Cell[] = Array.from({ length: 13 }, () => n(0))
-  cells[5] = n(marker)
-  cells[6] = s(id)
-  cells[7] = n(100)
-  cells[8] = n(-5)
-  cells[9] = n(7)
-  cells[10] = n(1)
-  cells[11] = n(2)
-  cells[12] = n(0)
+  const cells = [n(marker), s(id), n(100), n(-5), n(7), n(1), n(2), n(0)]
   return { rowId, subrows: [{ subrowId: null, cells }] }
 }
 function fixture() {
@@ -128,6 +120,6 @@ it('retries failed marker reads and rejects unsupported field layouts instead of
   await expect(f.client.getMapMarkers(100)).rejects.toThrow('read failed')
   expect(await f.client.getMapMarkers(100)).toHaveLength(2)
   const broken = fixture()
-  broken.maps[1].subrows[0].cells[7] = s('wrong layout')
+  broken.maps[1].subrows[0].cells[2] = s('wrong layout')
   await expect(broken.client.getMap(100)).rejects.toThrow('numeric map column')
 })

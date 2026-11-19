@@ -34,7 +34,7 @@ function fixture() {
     ContentType: [row(2, 1, { 0: '迷宫' })],
     ContentRoulette: [row(1, 1, { 0: '随机任务' })],
     ContentFinderCondition: [row(1, 46, { 17: 24, 43: '客户端副本', 45: 2 })],
-    Map: [row(4, 13, { 6: 'f1f1/00', 7: 100, 8: 0, 9: 0, 10: 54, 11: 54, 12: 0 })],
+    Map: [row(4, 8, { 0: 'f1f1/00', 1: 100, 4: 54, 6: 148, 7: false })],
     Fate: [row(120, 11, { 0: '客户端危命', 9: 3824577, 10: 5 })],
     DynamicEvent: [row(1, 12, { 5: 8373717, 11: '客户端临界遭遇' })],
     DynamicEventSet: [{ rowId: 1, subrows: [{ subrowId: 0, cells: [cell(1)] }] }],
@@ -75,7 +75,7 @@ function fixture() {
   }
   const data = {
     rowIds: vi.fn(async (sheet: string) => (sheets[sheet] ?? []).map((r) => r.rowId)),
-    rows: vi.fn(async (sheet: string, ids: number[], _language: string) =>
+    rows: vi.fn(async (sheet: string, ids: number[], _language: string, _options?: { columns?: readonly string[] }) =>
       (sheets[sheet] ?? []).filter((r) => ids.includes(r.rowId)),
     ),
     image: vi.fn(async () => 'mojito-plugin://runtime/submarine-map'),
@@ -178,17 +178,22 @@ it('retains raw treasure height separately without changing the legacy 2D catalo
   expect(withoutHeight.exploration.treasures[2001087][0].world.y).toBeNull()
 })
 
-it('reads territory and event flags from both Map table layouts', async () => {
+it('requests Map fields by EXDSchema name', async () => {
   const f = fixture()
-  f.sheets.Map = [
-    row(4, 20, { 6: 'f1f1/00', 7: 100, 11: 54, 14: 16382, 15: 148, 16: true, 17: false, 18: false }),
-    row(5, 21, { 6: 'f1f1/01', 7: 100, 11: 54, 15: 16382, 16: 148, 17: true, 18: false, 19: false }),
-    row(6, 21, { 6: 'f1f1/02', 7: 100, 11: 54, 15: 16382, 16: 148, 17: true, 18: true, 19: false }),
-  ]
+  f.sheets.Map.push(row(6, 8, { 0: 'f1f1/02', 1: 100, 4: 54, 6: 148, 7: true }))
   const c = await f.client.load('chs', new AbortController().signal)
+  expect(f.data.rows.mock.calls.find(([name]) => name === 'Map')?.[3]?.columns).toEqual([
+    'Id',
+    'SizeFactor',
+    'OffsetX',
+    'OffsetY',
+    'PlaceName',
+    'PlaceNameSub',
+    'TerritoryType',
+    'IsEvent',
+  ])
   expect(c.exploration.maps).toEqual({
     4: { resource: 'f1f1/00', territoryId: 148, isEvent: false },
-    5: { resource: 'f1f1/01', territoryId: 148, isEvent: false },
     6: { resource: 'f1f1/02', territoryId: 148, isEvent: true },
   })
 })

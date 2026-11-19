@@ -3,7 +3,7 @@
   "id": "ffcafe.matcha",
   "name": "Matcha",
   "version": "4.0.0-mojito.11",
-  "apiVersion": "^2.0.0",
+  "apiVersion": "^2.1.0",
   "entry": {
     "kind": "worker",
     "path": "entry.mjs"

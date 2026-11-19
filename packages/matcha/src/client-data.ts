@@ -123,18 +123,36 @@ const coordinate = (value: number, offset: number, size: number) => {
 }
 
 /** Read EXH column declaration order, not byte-offset-sorted table exports. */
+const mapFields = [
+  'Id',
+  'SizeFactor',
+  'OffsetX',
+  'OffsetY',
+  'PlaceName',
+  'PlaceNameSub',
+  'TerritoryType',
+  'IsEvent',
+] as const
+const mapColumn = (name: (typeof mapFields)[number]) => mapFields.indexOf(name)
+
 export class ClientGameData {
   constructor(private readonly data: DataService) {}
-  private async rows(sheet: string, ids: number[], language: string, signal: AbortSignal): Promise<DataRow[]> {
+  private async rows(
+    sheet: string,
+    ids: number[],
+    language: string,
+    signal: AbortSignal,
+    columns?: readonly string[],
+  ): Promise<DataRow[]> {
     const result: DataRow[] = []
     for (let offset = 0; offset < ids.length; offset += 128) {
       signal.throwIfAborted()
-      result.push(...(await this.data.rows(sheet, ids.slice(offset, offset + 128), language, { signal })))
+      result.push(...(await this.data.rows(sheet, ids.slice(offset, offset + 128), language, { signal, columns })))
     }
     return result
   }
-  private async sheet(sheet: string, language: string, signal: AbortSignal) {
-    return this.rows(sheet, await this.data.rowIds(sheet, language, { signal }), language, signal)
+  private async sheet(sheet: string, language: string, signal: AbortSignal, columns?: readonly string[]) {
+    return this.rows(sheet, await this.data.rowIds(sheet, language, { signal }), language, signal, columns)
   }
   // rowIds accepts ordinary sheets only; the EXD index also enumerates parent rows of subrow sheets.
   private async subrows(sheet: string, ids: number[] | null, signal: AbortSignal) {
@@ -175,19 +193,19 @@ export class ClientGameData {
       level: number(c, 17),
       type: number(c, 45),
     }))
-    const maps = await read('Map')
+    const maps = await this.sheet('Map', 'none', signal, mapFields)
     result.maps = dictionary(maps, (c) => ({
-      name: [places[number(c, 11)], places[number(c, 12)]].filter(Boolean).join(' '),
-      sizeFactor: number(c, 7),
-      offset: [number(c, 8), number(c, 9)] as [number, number],
+      name: [places[number(c, mapColumn('PlaceName'))], places[number(c, mapColumn('PlaceNameSub'))]]
+        .filter(Boolean)
+        .join(' '),
+      sizeFactor: number(c, mapColumn('SizeFactor')),
+      offset: [number(c, mapColumn('OffsetX')), number(c, mapColumn('OffsetY'))] as [number, number],
     }))
     result.exploration.maps = dictionary(maps, (c) => {
-      // Newer Map layouts insert a numeric column before the territory and boolean flags.
-      const territoryColumn = c[16]?.type === 'number' ? 16 : 15
-      const isEvent = c[territoryColumn + 2]
+      const isEvent = c[mapColumn('IsEvent')]
       return {
-        resource: c[6]?.type === 'string' ? c[6].value : '',
-        territoryId: optionalNumber(c, territoryColumn),
+        resource: text(c, mapColumn('Id')),
+        territoryId: optionalNumber(c, mapColumn('TerritoryType')),
         isEvent: isEvent?.type === 'boolean' ? isEvent.value : null,
       }
     })

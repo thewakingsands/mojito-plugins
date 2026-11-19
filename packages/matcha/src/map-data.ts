@@ -27,8 +27,17 @@ export interface MapRegion {
   maps: { rowId: number; placeName: string; placeNameSub?: string }[]
 }
 type LocalMap = MapInfo & { region: string }
-// EXH column order follows SaintCoinach 0b22b78, not EXDSchema's offset-sorted fields.
-const mapColumns = { marker: 5, id: 6, size: 7, x: 8, y: 9, region: 10, place: 11, sub: 12 }
+const mapFields = [
+  'MapMarkerRange',
+  'Id',
+  'SizeFactor',
+  'OffsetX',
+  'OffsetY',
+  'PlaceNameRegion',
+  'PlaceName',
+  'PlaceNameSub',
+] as const
+const mapColumn = (name: (typeof mapFields)[number]) => mapFields.indexOf(name)
 const markerColumns = { x: 0, y: 1, icon: 2, name: 3, orientation: 4, type: 6, dataType: 7, dataKey: 8 }
 const compact = <T extends object>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== '')) as T
@@ -80,12 +89,20 @@ export class ClientMapData {
     fresh()
     return fresh
   }
-  private async rows(sheet: string, ids: number[], language: string, fresh: () => void): Promise<DataRow[]> {
+  private async rows(
+    sheet: string,
+    ids: number[],
+    language: string,
+    fresh: () => void,
+    columns?: readonly string[],
+  ): Promise<DataRow[]> {
     const result: DataRow[] = []
     const signal = this.signal()
     for (let offset = 0; offset < ids.length; offset += this.batchSize) {
       fresh()
-      result.push(...(await this.data.rows(sheet, ids.slice(offset, offset + this.batchSize), language, { signal })))
+      result.push(
+        ...(await this.data.rows(sheet, ids.slice(offset, offset + this.batchSize), language, { signal, columns })),
+      )
       fresh()
     }
     return result
@@ -130,11 +147,11 @@ export class ClientMapData {
   private async loadMaps(fresh: () => void): Promise<Map<number, LocalMap>> {
     const ids = await this.data.rowIds('Map', 'none', { signal: this.signal() })
     fresh()
-    const rows = await this.rows('Map', ids, 'none', fresh)
+    const rows = await this.rows('Map', ids, 'none', fresh, mapFields)
     await this.placeNames(
       rows.flatMap((row) =>
-        [mapColumns.region, mapColumns.place, mapColumns.sub].map((index) =>
-          reference(row.subrows[0]?.cells ?? [], index),
+        (['PlaceNameRegion', 'PlaceName', 'PlaceNameSub'] as const).map((name) =>
+          reference(row.subrows[0]?.cells ?? [], mapColumn(name)),
         ),
       ),
       fresh,
@@ -142,7 +159,7 @@ export class ClientMapData {
     const result = new Map<number, LocalMap>()
     for (const row of rows) {
       const cells = row.subrows[0]?.cells ?? [],
-        id = text(cells, mapColumns.id)
+        id = text(cells, mapColumn('Id'))
       if (!id) continue
       if (!/^[a-zA-Z0-9_-]+\/\d{2}$/.test(id)) throw new Error(`Unexpected Map ${row.rowId} ID`)
       result.set(
@@ -150,13 +167,13 @@ export class ClientMapData {
         compact({
           rowId: row.rowId,
           id,
-          sizeFactor: number(cells, mapColumns.size),
-          marker: reference(cells, mapColumns.marker),
-          offsetX: number(cells, mapColumns.x) || undefined,
-          offsetY: number(cells, mapColumns.y) || undefined,
-          region: await this.name(reference(cells, mapColumns.region)),
-          placeName: await this.name(reference(cells, mapColumns.place)),
-          placeNameSub: await this.name(reference(cells, mapColumns.sub)),
+          sizeFactor: number(cells, mapColumn('SizeFactor')),
+          marker: reference(cells, mapColumn('MapMarkerRange')),
+          offsetX: number(cells, mapColumn('OffsetX')) || undefined,
+          offsetY: number(cells, mapColumn('OffsetY')) || undefined,
+          region: await this.name(reference(cells, mapColumn('PlaceNameRegion'))),
+          placeName: await this.name(reference(cells, mapColumn('PlaceName'))),
+          placeNameSub: await this.name(reference(cells, mapColumn('PlaceNameSub'))),
         }),
       )
     }

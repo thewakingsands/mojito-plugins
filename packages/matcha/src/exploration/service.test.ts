@@ -208,6 +208,32 @@ function fixture() {
 }
 
 describe('shared exploration collection', () => {
+  it('accepts the host timestamp and preserves a fresh position through a missing sample', async () => {
+    const f = fixture()
+    const seen = 10300
+    const sample = f.sample({
+      actorId: { state: 'ok', value: 1, observedAt: seen, timeBase: 'host-monotonic-unix', from: 'memory' },
+      position: {
+        state: 'ok',
+        value: { x: 0, y: 0, z: 0 },
+        observedAt: seen,
+        timeBase: 'host-monotonic-unix',
+        from: 'memory',
+      },
+    } satisfies PlayerState)
+    sample.meta.observedAt = seen
+    const query = vi.mocked(f.context.game.getPlayer)
+    query.mockResolvedValueOnce(sample).mockRejectedValue(new Error('transient sampling failure'))
+    await f.zone()
+    f.service.treasure(9, 0)
+    await f.advance(250)
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { observedAt: seen } })
+    await f.advance(500)
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { observedAt: seen } })
+    await f.advance(1750)
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'unavailable', player: null })
+  })
+
   it('clears the navigation target when the game reports an empty treasure slot', async () => {
     const f = fixture()
     await f.zone()
