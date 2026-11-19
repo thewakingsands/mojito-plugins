@@ -14,7 +14,7 @@ A `Field<T>` with `state === 'ok'` contains `value`, `observedAt`, `timeBase` an
 
 A subscription exposes `ready`, `dispose()` and `closed`. Await `ready` to confirm establishment. Inspect the closure reason and optional error. Callbacks receive `Batch<T>` with `items`, sequence numbers, `initial` and `complete`. Consume in order and handle completeness rather than treating every batch as a full snapshot.
 
-An asynchronous callback delays acknowledgement until it completes, maintaining flow control. Return promptly after retaining needed data. Reflect failure, cancellation, source termination and missing data in feature state.
+The SDK does not send the next batch until an asynchronous callback completes. Each time the host waits for plugins, it waits at most 300ms for each subscription; a subscription that runs over is not waited for until it has processed the data it had received by then, and meanwhile the game state it queries may be newer than the event being processed. Once the backlog exceeds the limit, the subscription closes with `overflow`. Return promptly after retaining needed data. Reflect failure, cancellation, source termination and missing data in feature state.
 
 ## Initial snapshots and invalidation
 

@@ -37,7 +37,7 @@ Continuously changing data (sessions, game state, events) comes through subscrip
 - `dispose()`: cancels the subscription.
 - `closed`: resolves when the subscription ends, with the reason.
 
-Each callback call receives a **batch** (`Batch`): `items` is the data for that period; process it in order. The first batch after the subscription is established carries `initial: true` and is usually the current state. When the callback is an async function, the SDK waits for it to finish before sending the next batch, so do not do long-running work in the callback.
+Each callback call receives a **batch** (`Batch`): `items` is the data for that period; process it in order. The first batch after the subscription is established carries `initial: true` and is usually the current state. When the callback is an async function, the SDK waits for it to finish before sending the next batch. Each time the host waits for plugins to process data, it waits at most 300ms for each subscription; a subscription that runs over is not waited for until it has processed the data it had received by then, and the plugin log records this. During that time the game state the plugin queries (such as character names) may be newer than the event it is processing; once the backlog exceeds the limit, the subscription closes with `overflow`. So in the callback do only the work that must correspond to this batch, and do the rest after the callback returns.
 
 ## Data may be unknown
 
