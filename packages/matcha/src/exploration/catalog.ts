@@ -2,6 +2,7 @@
 import type { Cell, DataRow, DataService } from '@ffcafe/mojito-plugin-sdk'
 import type { GameCatalog } from '../client-data.js'
 import { project } from './coordinates.js'
+import { EUREKA_TERRITORIES } from './rules.js'
 import type { ExplorationCatalog, HuntRank } from './types.js'
 
 const cells = (row: DataRow) => row.subrows[0]?.cells ?? []
@@ -146,21 +147,37 @@ export async function loadExplorationCatalog(
     )
     return { names, rates }
   })
-  for (const territoryId of [732, 763, 795, 827]) {
-    const mapId = result.territoryMaps[territoryId] ?? null
-    const weatherId = base.exploration.territories[territoryId]?.weatherRateId
+  for (const territoryId of EUREKA_TERRITORIES) {
+    const territory = base.exploration.territories[territoryId]
+    const primaryMapId = territory?.mapId ?? null
+    const primaryMap = primaryMapId === null ? undefined : base.exploration.maps[primaryMapId]
+    let mapId = result.territoryMaps[territoryId] ?? null
+    // Hydatos shares its territory with the Arsenal maps. Island NM positions use its outdoor map.
+    if (
+      territoryId === 827 &&
+      primaryMapId !== null &&
+      primaryMap?.territoryId === territoryId &&
+      primaryMap.resource === 'z3fd/01' &&
+      primaryMap.isEvent === false &&
+      result.maps[primaryMapId]
+    )
+      mapId = primaryMapId
+    const map = mapId === null ? undefined : result.maps[mapId]
+    const weatherId = territory?.weatherRateId
     const rates = weatherId === null || weatherId === undefined ? null : (weather?.rates.get(weatherId) ?? null)
     result.eureka[territoryId] = {
       mapId,
       fates: Object.entries(base.fates)
         .filter(([, f]) => f.location === territoryId || f.location === 0)
         .map(([id, f]) => {
-          const point = base.exploration.fatePositions[+id],
-            map = mapId === null ? undefined : result.maps[mapId]
+          const point = base.exploration.fatePositions[+id]
           return {
             id: +id,
             name: f.name[language] ?? Object.values(f.name)[0] ?? '',
-            position: point && map ? project({ x: point.x, y: null, z: point.z }, map) : null,
+            position:
+              map && point?.territoryId === territoryId && point.mapId === map.mapId
+                ? project({ x: point.x, y: null, z: point.z }, map)
+                : null,
           }
         }),
       weatherRates: rates?.reduce((sum, r) => sum + r.rate, 0) === 100 ? rates : null,

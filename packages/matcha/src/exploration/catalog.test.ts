@@ -86,6 +86,26 @@ it('merges equivalent map rows and rejects real alternate projections only in th
   expect(c.mapIssues[732]).toBeTruthy()
   expect(c.eureka[732].fates[0].position).toBeNull()
 })
+
+it('plots Hydatos FATEs on the outdoor map when the static position uses that map', async () => {
+  const f = fixture()
+  f.base.maps[515] = { name: 'Hydatos', sizeFactor: 100, offset: [0, 475] }
+  f.base.maps[520] = { name: 'Arsenal', sizeFactor: 200, offset: [0, -754] }
+  f.base.exploration.maps[515] = { resource: 'z3fd/01', territoryId: 827, isEvent: false }
+  f.base.exploration.maps[520] = { resource: 'z3fd/02', territoryId: 827, isEvent: false }
+  f.base.exploration.territories[827] = { mapId: 515, weatherRateId: 1 }
+  f.base.fates[1412] = { name: { en: 'Island NM' }, location: 827, level: 1, patch: 4 }
+  f.base.fates[1413] = { name: { en: 'Mismatched point' }, location: 827, level: 1, patch: 4 }
+  f.base.exploration.fatePositions[1412] = { territoryId: 827, mapId: 515, x: -518, z: -288 }
+  f.base.exploration.fatePositions[1413] = { territoryId: 827, mapId: 520, x: -570, z: -656 }
+
+  const c = await f.load()
+  expect(c.territoryMaps[827]).toBeNull()
+  expect(c.eureka[827].mapId).toBe(515)
+  expect(c.eureka[827].fates.find(({ id }) => id === 1412)?.position).toMatchObject({ mapId: 515 })
+  expect(c.eureka[827].fates.find(({ id }) => id === 1413)?.position).toBeNull()
+})
+
 it('does not cache results across client languages and discards canceled reads', async () => {
   const f = fixture()
   await f.load(undefined, 'ja')

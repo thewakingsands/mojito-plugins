@@ -177,6 +177,22 @@ it('retains raw treasure height separately without changing the legacy 2D catalo
   expect(withoutHeight.treasures).toEqual(c.treasures)
   expect(withoutHeight.exploration.treasures[2001087][0].world.y).toBeNull()
 })
+
+it('reads territory and event flags from both Map table layouts', async () => {
+  const f = fixture()
+  f.sheets.Map = [
+    row(4, 20, { 6: 'f1f1/00', 7: 100, 11: 54, 14: 16382, 15: 148, 16: true, 17: false, 18: false }),
+    row(5, 21, { 6: 'f1f1/01', 7: 100, 11: 54, 15: 16382, 16: 148, 17: true, 18: false, 19: false }),
+    row(6, 21, { 6: 'f1f1/02', 7: 100, 11: 54, 15: 16382, 16: 148, 17: true, 18: true, 19: false }),
+  ]
+  const c = await f.client.load('chs', new AbortController().signal)
+  expect(c.exploration.maps).toEqual({
+    4: { resource: 'f1f1/00', territoryId: 148, isEvent: false },
+    5: { resource: 'f1f1/01', territoryId: 148, isEvent: false },
+    6: { resource: 'f1f1/02', territoryId: 148, isEvent: true },
+  })
+})
+
 it('retains zero height and leaves missing FATE scene positions unknown', async () => {
   const f = fixture()
   f.data.resource.mockImplementation(async () => null)

@@ -181,11 +181,16 @@ export class ClientGameData {
       sizeFactor: number(c, 7),
       offset: [number(c, 8), number(c, 9)] as [number, number],
     }))
-    result.exploration.maps = dictionary(maps, (c) => ({
-      resource: c[6]?.type === 'string' ? c[6].value : '',
-      territoryId: optionalNumber(c, 15),
-      isEvent: c[17]?.type === 'boolean' ? c[17].value : null,
-    }))
+    result.exploration.maps = dictionary(maps, (c) => {
+      // Newer Map layouts insert a numeric column before the territory and boolean flags.
+      const territoryColumn = c[16]?.type === 'number' ? 16 : 15
+      const isEvent = c[territoryColumn + 2]
+      return {
+        resource: c[6]?.type === 'string' ? c[6].value : '',
+        territoryId: optionalNumber(c, territoryColumn),
+        isEvent: isEvent?.type === 'boolean' ? isEvent.value : null,
+      }
+    })
     const fateRows = await read('Fate', true)
     const dynamicRows = await read('DynamicEvent', true)
     const wanted = new Set(
