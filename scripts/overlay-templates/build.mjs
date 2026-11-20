@@ -78,7 +78,6 @@ const sources = {
   },
   horizoverlay: {
     jobIconDirectory: 'src/images',
-    keepJobIcons: ['ast', 'drk', 'rdm', 'rpr', 'sam', 'sge', 'vpr'],
     jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/horizoverlay.git',
@@ -270,11 +269,7 @@ for (const [name, source] of entries) {
     const directory = path.join(work, source.jobIconDirectory)
     for (const file of await readdir(directory)) {
       const code = path.basename(file, '.png').toLowerCase()
-      if (
-        file.endsWith('.png') &&
-        (jobId(code) > 0 || source.jobIconAliases?.includes(code)) &&
-        !source.keepJobIcons?.includes(code)
-      )
+      if (file.endsWith('.png') && (jobId(code) > 0 || source.jobIconAliases?.includes(code)))
         await rm(path.join(directory, file))
     }
   }

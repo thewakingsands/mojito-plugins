@@ -185,20 +185,16 @@ index 23df15f..de87494 100644
  // - onLogLine
  // This event occurs when anything in the chat happens, so we need to clean it up a bit before sending to the component or else it will polute and re-render it a lot unnecessarily
 diff --git a/src/CombatantHorizontal.js b/src/CombatantHorizontal.js
-index 538eb2d..17ecaa0 100644
+index 538eb2d..0981128 100644
 --- a/src/CombatantHorizontal.js
 +++ b/src/CombatantHorizontal.js
-@@ -1,2 +1,3 @@
-+import JobIcon from './JobIcon'
- import React, { Component } from 'react'
- import { bool, string, number, object, oneOfType } from 'prop-types'
-@@ -30,5 +31,4 @@ export default class CombatantHorizontal extends Component {
+@@ -30,5 +30,4 @@ export default class CombatantHorizontal extends Component {
      const { config, data, isSelf } = this.props
      const order = this.props.rank
 -    const jobName = data.Job || 'WHO?'
      const name = data.name.toLowerCase()
      let jobStyleClass, jobIcon, damageWidth
-@@ -64,21 +64,10 @@ export default class CombatantHorizontal extends Component {
+@@ -64,21 +63,10 @@ export default class CombatantHorizontal extends Component {
      // Job icon
      if (config.showJobIcon) {
 -      jobIcon = './'
@@ -211,7 +207,7 @@ index 538eb2d..17ecaa0 100644
 -        }
 -        jobIcon += newIcon
 +      if (data.Job) {
-+        jobIcon = <JobIcon job={data.Job.toLowerCase()} />
++        jobIcon = <mojito-job-icon class="job" job={data.Job} />
        } else {
 -        jobIcon += data.Job.toLowerCase()
 -      }
@@ -225,46 +221,24 @@ index 538eb2d..17ecaa0 100644
 +        jobIcon = <img src={images(`./${mark}.png`)} className="job" alt={mark} />
        }
      }
-@@ -111,5 +100,5 @@ export default class CombatantHorizontal extends Component {
+@@ -111,5 +99,5 @@ export default class CombatantHorizontal extends Component {
            }`}
          >
 -          {jobIcon && <img src={jobIcon} className="job" alt={jobName} />}
 +          {jobIcon}
            <DataText type="hps" show={config.showHps} {...data} />
            <DataText type="job" show={!config.showHps} {...data} />
-diff --git a/src/JobIcon.js b/src/JobIcon.js
-new file mode 100644
-index 0000000..86407fd
---- /dev/null
-+++ b/src/JobIcon.js
-@@ -0,0 +1,12 @@
-+import React from 'react'
-+
-+const images = require.context('./images', false, /\.png$/)
-+
-+const retained = new Set(images.keys())
-+
-+export default function JobIcon({ job }) {
-+  const path = `./${job}.png`
-+  return retained.has(path)
-+    ? <img src={images(path)} className="job" alt={job} />
-+    : <mojito-job-icon class="job" job={job} />
-+}
 diff --git a/src/SetupMode.js b/src/SetupMode.js
-index cef8382..36f36dd 100644
+index cef8382..e3f5807 100644
 --- a/src/SetupMode.js
 +++ b/src/SetupMode.js
-@@ -1,2 +1,3 @@
-+import JobIcon from './JobIcon'
- import React from 'react'
- import { withHelper } from './helpers'
-@@ -6,5 +7,4 @@ import './css/reboot.css'
+@@ -6,5 +6,4 @@ import './css/reboot.css'
  import './css/setupMode.css'
  
 -var images = require.context('./images', false, /\.png$/)
  
  function SetupModeRaw(props) {
-@@ -56,9 +56,5 @@ function SetupModeRaw(props) {
+@@ -56,9 +55,5 @@ function SetupModeRaw(props) {
                    >
                      {props.config.showJobIcon ? (
 -                      <img
@@ -272,6 +246,6 @@ index cef8382..36f36dd 100644
 -                        className="job"
 -                        alt={mock.jobFull}
 -                      />
-+                      <JobIcon job={mock.job} />
++                      <mojito-job-icon class="job" job={mock.job} />
                      ) : null}
                      <div
