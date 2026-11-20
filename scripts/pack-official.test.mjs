@@ -76,7 +76,10 @@ test('official packages and checksums contain exactly the approved plugins and s
       for (const manifest of manifests) {
         const file = path.join(output, `${manifest.id}-${manifest.version}.mojito`)
         execFileSync(cli, ['verify', file, fingerprint])
-        assert.deepEqual(JSON.parse(execFileSync(cli, ['read', file, 'plugin.json'], { encoding: 'utf8' })), manifest)
+        const packaged = JSON.parse(execFileSync(cli, ['read', file, 'plugin.json'], { encoding: 'utf8' }))
+        packaged.networkOrigins?.sort()
+        manifest.networkOrigins?.sort()
+        assert.deepEqual(packaged, manifest)
       }
       for (const file of expectedArchives)
         assert.deepEqual(await readFile(path.join(output, file)), await readFile(path.join(sources, file)))
