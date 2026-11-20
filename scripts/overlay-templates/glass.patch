@@ -223,3 +223,107 @@ index f8ea54e..86dc6b9 100644
    build: {
      outDir: 'build',
      modulePreload: {
+diff --git a/src/components/AggroList/AggroList.tsx b/src/components/AggroList/AggroList.tsx
+index 59c1f5e..96d7bfa 100644
+--- a/src/components/AggroList/AggroList.tsx
++++ b/src/components/AggroList/AggroList.tsx
+@@ -1,3 +1,3 @@
+-import { useMemo } from 'react';
++import { createElement, useMemo } from 'react';
+ import { useTranslation } from 'react-i18next';
+ 
+@@ -8,5 +8,4 @@ import styles from './AggroList.module.css';
+ import type { EnmityEntry, AggroListData, Settings } from '../../types';
+ 
+-const JOB_ICON_PATH = './images/icons/jobs/';
+ 
+ // Map job ID to job abbreviation
+@@ -141,5 +140,4 @@ export function AggroList({ entries, target, settings }: AggroListProps) {
+           const roleColor = getRoleColor(job);
+           const safeJob = isValidJob(job) ? job : '';
+-          const jobIconUrl = safeJob ? `${JOB_ICON_PATH}${safeJob}.png` : '';
+           const enmityWidth = maxEnmity > 0 ? (entry.Enmity / maxEnmity) * 100 : 0;
+           const isFirst = index === 0;
+@@ -157,9 +155,6 @@ export function AggroList({ entries, target, settings }: AggroListProps) {
+                 {index + 1}
+               </span>
+-              {settings.display.showJobIcons && jobIconUrl && (
+-                <div
+-                  className={styles.jobIcon}
+-                  style={{ backgroundImage: `url('${jobIconUrl}')` }}
+-                />
++              {settings.display.showJobIcons && safeJob && (
++                createElement('mojito-job-icon', { class: styles.jobIcon, job: safeJob })
+               )}
+               <span className={entry.isMe ? styles.aggroNameIsYou : styles.aggroName}>
+diff --git a/src/components/PlayerDetail/PlayerDetail.tsx b/src/components/PlayerDetail/PlayerDetail.tsx
+index d95c5d0..be388b9 100644
+--- a/src/components/PlayerDetail/PlayerDetail.tsx
++++ b/src/components/PlayerDetail/PlayerDetail.tsx
+@@ -1,3 +1,3 @@
+-import { useMemo } from 'react';
++import { createElement, useMemo } from 'react';
+ import { useTranslation } from 'react-i18next';
+ 
+@@ -10,5 +10,4 @@ import { getEncDps, getEncHps, getJobFromPlayer } from '../../utils/combatantAcc
+ import type { RawCombatant, Settings } from '../../types';
+ 
+-const JOB_ICON_PATH = './images/icons/jobs/';
+ 
+ interface PlayerDetailProps {
+@@ -30,5 +29,4 @@ export function PlayerDetail({ player, settings, onClose }: PlayerDetailProps) {
+   const roleColor = getRoleColor(job);
+   const safeJob = isValidJob(job) ? job : '';
+-  const jobIconUrl = safeJob ? `${JOB_ICON_PATH}${safeJob}.png` : '';
+ 
+   // Format options
+@@ -72,9 +70,6 @@ export function PlayerDetail({ player, settings, onClose }: PlayerDetailProps) {
+       <div className={styles.playerDetailPanel} onClick={(e) => e.stopPropagation()}>
+         <div className={styles.playerDetailHeader} style={{ borderColor: roleColor }}>
+-          {jobIconUrl && (
+-            <div
+-              className={styles.playerDetailJobIcon}
+-              style={{ backgroundImage: `url('${jobIconUrl}')` }}
+-            />
++          {safeJob && (
++            createElement('mojito-job-icon', { class: styles.playerDetailJobIcon, job: safeJob })
+           )}
+           <div className={styles.playerDetailName}>
+diff --git a/src/components/PlayerRow/PlayerRow.tsx b/src/components/PlayerRow/PlayerRow.tsx
+index 2076291..d2ddbba 100644
+--- a/src/components/PlayerRow/PlayerRow.tsx
++++ b/src/components/PlayerRow/PlayerRow.tsx
+@@ -1,3 +1,3 @@
+-import { useMemo } from 'react';
++import { createElement, useMemo } from 'react';
+ 
+ import {
+@@ -15,5 +15,4 @@ import { getEncDps, getEncHps, getJobFromPlayer } from '../../utils/combatantAcc
+ import type { RawCombatant, ViewType, Settings } from '../../types';
+ 
+-const JOB_ICON_PATH = './images/icons/jobs/';
+ 
+ interface PlayerRowProps {
+@@ -116,11 +115,5 @@ export function PlayerRow({
+   const isLimitBreak = player.name?.toLowerCase() === 'limit break';
+ 
+-  // Security: Only use job abbreviation in URL if it's a valid job
+-  const safeJob = isValidJob(job) ? job : '';
+-  const jobIconUrl = isLimitBreak
+-    ? `${JOB_ICON_PATH}LMB.png`
+-    : safeJob
+-      ? `${JOB_ICON_PATH}${safeJob}.png`
+-      : '';
++  const iconJob = isLimitBreak ? 'LMB' : isValidJob(job) ? job : '';
+ 
+   // Determine row class
+@@ -165,8 +158,5 @@ export function PlayerRow({
+ 
+       {settings.display.showJobIcons && (
+-        <div
+-          className={styles.jobIcon}
+-          style={jobIconUrl ? { backgroundImage: `url('${jobIconUrl}')` } : undefined}
+-        />
++        createElement('mojito-job-icon', { class: styles.jobIcon, job: iconJob })
+       )}
+ 

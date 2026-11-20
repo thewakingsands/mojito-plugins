@@ -2,7 +2,7 @@ import type { PluginContext, Value } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it, vi } from 'vitest'
 import { registerGameIcons } from './icons.js'
 
-async function fixture() {
+async function fixture(kinds: 'all' | 'job' = 'all') {
   let command!: (input: Value) => Promise<Value>
   const rows = vi.fn(async () => [
     { rowId: 3, subrows: [{ subrowId: null, cells: [{}, {}, { type: 'number', value: 104 }] }] },
@@ -21,7 +21,7 @@ async function fixture() {
       },
     },
   } as unknown as PluginContext
-  const stop = await registerGameIcons(ctx)
+  const stop = await registerGameIcons(ctx, kinds)
   return { rows, image, dispose, stop, command: (input: Value) => command(input) }
 }
 
@@ -63,4 +63,13 @@ it.each([1, 19, 42, 43])('reads the game job icon for ClassJob %i without lookin
   expect(f.rows).not.toHaveBeenCalled()
   f.image.mockResolvedValue(null)
   expect(await f.command({ type: 'job', id })).toBeNull()
+})
+
+it('limits job-only overlays to ClassJob icons', async () => {
+  const f = await fixture('job')
+  for (const type of ['action', 'status'])
+    expect(await f.command({ type, id: 3 })).toEqual({ error: 'invalid_argument' })
+  expect(f.image).not.toHaveBeenCalled()
+  expect(f.rows).not.toHaveBeenCalled()
+  expect(await f.command({ type: 'job', id: 19 })).toContain('/062000/062119_hr1.tex')
 })

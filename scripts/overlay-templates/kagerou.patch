@@ -173,3 +173,100 @@
      OverlayPluginApi.broadcastMessage(message)
    } else if (window.opener) {
      window.opener.postMessage(message, '*')
+diff --git a/config/index.js b/config/index.js
+index 45a42cf..dbf0d32 100644
+--- a/config/index.js
++++ b/config/index.js
+@@ -18,2 +18,8 @@ document.addEventListener('DOMContentLoaded', (_) => {
+   setTimeout((_) => window.locale.localizeAll(), 500)
+ })
++
++for (const label of document.querySelectorAll('label.job[for^="input-color-"]')) {
++  const icon = document.createElement('mojito-job-icon')
++  icon.setAttribute('job', label.htmlFor.slice('input-color-'.length))
++  label.querySelector('.flex-column-i-icon').appendChild(icon)
++}
+diff --git a/overlay/lib/render.js b/overlay/lib/render.js
+index b85bf5b..7a7a0b1 100644
+--- a/overlay/lib/render.js
++++ b/overlay/lib/render.js
+@@ -270,5 +270,9 @@
+       }
+ 
+-      el.innerHTML = text
++      if (data && c === 'i.icon') {
++        const icon = document.createElement('mojito-job-icon')
++        icon.setAttribute('job', COLUMN_INDEX.i.class.v(data) || '')
++        el.appendChild(icon)
++      } else el.innerHTML = text
+       el.className = classes
+       if (locale) el.setAttribute('data-locale', locale)
+diff --git a/share/css/job-icons.css b/share/css/job-icons.css
+index 5f7cdc7..f483654 100644
+--- a/share/css/job-icons.css
++++ b/share/css/job-icons.css
+@@ -1,62 +1,2 @@
+-.flex-column-i-icon /* default */    {
+-  background-image: url('../img/classes.png?v=6');
+-  background-size: 1100% 600%;
+-  background-repeat: no-repeat;
+-  background-position: 90% 60%;
+-  opacity: 1 !important;
+-}
+-.class-gla > .flex-column-i-icon,
+-.class-gld > .flex-column-i-icon     { background-position:  0%  0% }
+-.class-mrd > .flex-column-i-icon     { background-position: 10%  0% }
+-.class-pug > .flex-column-i-icon,
+-.class-pgl > .flex-column-i-icon     { background-position: 20%  0% }
+-.class-lnc > .flex-column-i-icon     { background-position: 30%  0% }
+-.class-rog > .flex-column-i-icon     { background-position: 40%  0% }
+-.class-arc > .flex-column-i-icon     { background-position: 50%  0% }
+-.class-thm > .flex-column-i-icon     { background-position: 60%  0% }
+-.class-acn > .flex-column-i-icon     { background-position: 70%  0% }
+-.class-cnj > .flex-column-i-icon     { background-position: 90%  0% }
+-.class-pld > .flex-column-i-icon     { background-position:  0% 20% }
+-.class-war > .flex-column-i-icon     { background-position: 10% 20% }
+-.class-mnk > .flex-column-i-icon     { background-position: 20% 20% }
+-.class-drg > .flex-column-i-icon     { background-position: 30% 20% }
+-.class-nin > .flex-column-i-icon     { background-position: 40% 20% }
+-.class-brd > .flex-column-i-icon     { background-position: 50% 20% }
+-.class-blm > .flex-column-i-icon     { background-position: 60% 20% }
+-.class-smn > .flex-column-i-icon     { background-position: 70% 20% }
+-.class-sch > .flex-column-i-icon     { background-position: 80% 20% }
+-.class-whm > .flex-column-i-icon     { background-position: 90% 20% }
+-.class-drk > .flex-column-i-icon     { background-position:  0% 40% }
+-.class-mch > .flex-column-i-icon     { background-position: 10% 40% }
+-.class-ast > .flex-column-i-icon     { background-position: 20% 40% }
+-.class-sam > .flex-column-i-icon     { background-position: 30% 40% }
+-.class-rdm > .flex-column-i-icon     { background-position: 40% 40% }
+-.class-blu > .flex-column-i-icon     { background-position: 50% 40% }
+-.class-gnb > .flex-column-i-icon     { background-position: 60% 40% }
+-.class-dnc > .flex-column-i-icon     { background-position: 70% 40% }
+-.class-rpr > .flex-column-i-icon     { background-position: 80% 40% }
+-.class-sge > .flex-column-i-icon     { background-position: 90% 40% }
+-.class-vpr > .flex-column-i-icon     { background-position: 30% 100% }
+-.class-pct > .flex-column-i-icon     { background-position: 40% 100% }
+-.class-acn-pet > .flex-column-i-icon { background-position:  0% 60% }
+-.class-garuda > .flex-column-i-icon  { background-position: 10% 60% }
+-.class-ifrit  > .flex-column-i-icon  { background-position: 20% 60% }
+-.class-titan  > .flex-column-i-icon  { background-position: 30% 60% }
+-.class-eos    > .flex-column-i-icon  { background-position: 40% 60% }
+-.class-selene > .flex-column-i-icon  { background-position: 50% 60% }
+-.class-rook   > .flex-column-i-icon  { background-position: 60% 60% }
+-.class-bishop > .flex-column-i-icon  { background-position: 70% 60% }
+-.class-crp > .flex-column-i-icon     { background-position:  0% 80% }
+-.class-bsm > .flex-column-i-icon     { background-position: 10% 80% }
+-.class-arm > .flex-column-i-icon     { background-position: 20% 80% }
+-.class-gsm > .flex-column-i-icon     { background-position: 30% 80% }
+-.class-ltw > .flex-column-i-icon     { background-position: 40% 80% }
+-.class-wvr > .flex-column-i-icon     { background-position: 50% 80% }
+-.class-alc > .flex-column-i-icon     { background-position: 60% 80% }
+-.class-cul > .flex-column-i-icon     { background-position: 70% 80% }
+-
+-.class-min > .flex-column-i-icon     { background-position:  0% 100% }
+-.class-btn > .flex-column-i-icon     { background-position: 10% 100% }
+-.class-fsh > .flex-column-i-icon     { background-position: 20% 100% }
+-.class-chocobo > .flex-column-i-icon { background-position: 90% 80% }
+-.class-limit-break>.flex-column-i-icon{background-position: 90% 100% }
++.flex-column-i-icon { opacity: 1 !important; }
++.flex-column-i-icon mojito-job-icon { width: 100%; height: 100%; }

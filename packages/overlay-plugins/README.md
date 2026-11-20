@@ -11,8 +11,9 @@ Each plugin requires Mojito plugin API 2.0.0 and the `ffcafe.combat-statistics/o
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
 
-Ember reads job, action and status icons from Mojito through `getGameIcon`. Job icons use the
-ClassJob row number and show the abbreviation when an image is unavailable.
+CMSkin, Ember, Faceroll, Glass, Horizoverlay, Ikegami (legacy icon style), Kagerou and MopiMopi1
+read game job icons through `getGameIcon` using the ClassJob row number. A missing image shows the job
+abbreviation. Ember also supports action and status icons.
 Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.
 
 Use the existing Rust CLI with a private Ed25519 JWK to create each package, for example:

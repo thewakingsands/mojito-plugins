@@ -403,3 +403,26 @@ index 08265a4..599ee8e 100644
  </head>
  <body>
  <div id="table_box">
+diff --git a/faceroll_parse.js b/faceroll_parse.js
+index 614b729..50488e8 100644
+--- a/faceroll_parse.js
++++ b/faceroll_parse.js
+@@ -536,5 +536,17 @@ function writeJobCell(combatant) {
+     // ジョブ表示モード
+     if (jobMode == 2) {
+-        cell.innerHTML = "<img src='./jobicon/" + combatant.exJob + ".png' width='25' height='25'>";
++        var mark = combatant.exJob;
++        if (petRole.indexOf(mark) !== -1 || ['Err', 'LtB', 'Mob', 'Chocobo', 'Selene'].indexOf(mark) !== -1) {
++            var image = document.createElement('img');
++            image.src = './jobicon/' + mark + '.png';
++            image.width = image.height = 25;
++            cell.appendChild(image);
++        } else {
++            var icon = document.createElement('mojito-job-icon');
++            var aliases = { Cpt: 'CRP', botanist: 'BTN' };
++            icon.setAttribute('job', aliases[mark] || mark);
++            icon.style.width = icon.style.height = '25px';
++            cell.appendChild(icon);
++        }
+     } else {
+         if (tanJob[combatant.exJob] !== null) {

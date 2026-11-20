@@ -507,3 +507,65 @@ index 6797644..cafa5f8 100644
    ],
    resolve: {
      alias: {
+diff --git a/components/user/cell.vue b/components/user/cell.vue
+index f3ad487..ea81004 100644
+--- a/components/user/cell.vue
++++ b/components/user/cell.vue
+@@ -7,5 +7,6 @@
+     <div class="user-cell-wrap">
+       <label class="name-row" @click="toggleBlur">
+-        <i :class="[ 'icon', 'class-' + combatant.job ]"></i>
++        <mojito-job-icon v-if="!hide_job_icon && job_icons === 'legacy'" class="icon" :job="combatant.job"></mojito-job-icon>
++        <i v-else :class="[ 'icon', 'class-' + combatant.job ]"></i>
+         <span class="name">{{ combatant.name | name(shorten_name) }}</span>
+       </label>
+@@ -88,4 +89,6 @@ export default {
+       'tickers_healer_pct',
+       'shorten_name',
++      'hide_job_icon',
++      'job_icons',
+       'highlight_self'
+     ]),
+diff --git a/styles/enum/_class-icons-raster.scss b/styles/enum/_class-icons-raster.scss
+index 48f41d6..9586958 100644
+--- a/styles/enum/_class-icons-raster.scss
++++ b/styles/enum/_class-icons-raster.scss
+@@ -1,35 +1,4 @@
+-.root.icon-legacy {
+-  .icon {
+-    background-image: url('./assets/classes.png');
+-    background-size: 1100% 600%;
+-    background-repeat: no-repeat;
+-    background-position: 90% 60%;
+-    opacity: 1 !important;
+-
+-    &::before {
+-      content: '' !important;
+-    }
+-  }
+-  $class-matrix: (
+-    ( 'gla', 'mrd', 'pgl', 'lnc', 'rog', 'arc', 'thm', 'acn', null,  'cnj' ),
+-    ( 'pld', 'war', 'mnk', 'drg', 'nin', 'brd', 'blm', 'smn', 'sch', 'whm' ),
+-    ( 'drk', 'mch', 'ast', 'sam', 'rdm', 'blu', 'gnb', 'dnc', 'rpr', 'sge' ),
+-    ( 'acn-pet', 'garuda', 'ifrit', 'titan', 'eos', 'selene', 'rook', 'bishop' ),
+-    ( 'crp', 'bsm', 'arm', 'gsm', 'ltw', 'wvr', 'alc', 'cul', null,  'chocobo' ),
+-    ( 'min', 'btn', 'fsh', 'vpr', 'pct', null,  null,  null,  null,  'limit-break' )
+-  );
+-
+-  $y: 0%;
+-  @each $l in $class-matrix {
+-    $x: 0%;
+-    @each $class in $l {
+-      @if $class != null {
+-        .icon.class-#{$class} {
+-          background-position: $x $y;
+-        }
+-      }
+-      $x: $x + 10%;
+-    }
+-    $y: $y + 20%;
+-  }
++.root.icon-legacy .icon {
++  opacity: 1 !important;
++  &::before { content: none; }
+ }

@@ -3,7 +3,7 @@
   "id": "ffcafe.overlay-faceroll",
   "name": "faceroll",
   "description": "Faceroll 样式的伤害统计悬浮窗。",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

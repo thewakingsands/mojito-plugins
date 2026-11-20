@@ -185,7 +185,7 @@ After registration, users add it in Mojito's overlay manager and set topmost, lo
 
 Existing overlays written for ACT/OverlayPlugin can also run as plugins: declare `ui.overlayplugin` and register with `compatibility` instead of `entry`. See [overlayplugin.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/packages/plugin-sdk/src/overlayplugin.ts) for definitions.
 
-Modern compatibility pages can request action icons with `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)`; use `type: 'status'` for status icons. Ember also supports `type: 'job'` with a ClassJob row ID.
+Modern compatibility pages can request action icons with `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)`; use `type: 'status'` for status icons. Packaged overlays that register a job icon worker can use `type: 'job'` with a ClassJob row ID in modern and legacy pages.
 The host forwards `{ type, id }` to the owning plugin's `${channel}/icons` view command. The worker reads game data under its existing `data.read` permission and returns a `data.image` URL or `null`. The callback receives a JSON string containing that URL, `null`, or `{ error }`.
 
 ## Preference search

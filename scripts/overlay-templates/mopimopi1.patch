@@ -993,3 +993,204 @@ index 0000000..ef4da30
 @@ -0,0 +1 @@
 +{"name":"mopimopi-build-resources","version":"0.0.0","private":true,"devDependencies":{"@fontsource/montserrat":"5.3.0","@fontsource/roboto":"5.3.0","@fontsource/roboto-condensed":"5.3.0"}}
 \ No newline at end of file
+diff --git a/css/mopimopi.css b/css/mopimopi.css
+index cfad8e7..d82f940 100644
+--- a/css/mopimopi.css
++++ b/css/mopimopi.css
+@@ -251,5 +251,5 @@ ul.dropdown-content div i {
+ }
+ 
+-.circle img {
++.circle img, .circle mojito-job-icon {
+     width: 4.5rem;
+     height: 4.5rem;
+diff --git a/index.html b/index.html
+index 4dff2f5..d8cdb57 100644
+--- a/index.html
++++ b/index.html
+@@ -739,5 +739,5 @@
+                             <tbody>
+                             <tr>
+-                                <td class="iconCell"><img class="pngIcon" src="images/glow/smn.png"></td>
++                                <td class="iconCell"><mojito-job-icon class="pngIcon" job="smn"></mojito-job-icon></td>
+                                 <td class="nameCell" name="rankingName2"></td>
+                                 <td id="c1" class="narrowCell2" value="1234.56"></td>
+@@ -779,5 +779,5 @@
+                             <tbody>
+                             <tr>
+-                                <td class="iconCell"><img class="pngIcon" src="images/glow/smn.png"></td>
++                                <td class="iconCell"><mojito-job-icon class="pngIcon" job="smn"></mojito-job-icon></td>
+                                 <td class="nameCell" name="rankingName2"></td>
+                                 <td id="c9" class="narrowCell2" value="925.92"></td>
+@@ -1067,5 +1067,5 @@
+                     <div class="col s5" name="m130"></div>
+                     <div class="col s3">
+-                        <div id="tank1" class="circle z-depth-1"><img src="images/glow/pld.png"></div>
++                        <div id="tank1" class="circle z-depth-1"><mojito-job-icon job="pld"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1082,5 +1082,5 @@
+                     <div class="col s5" name="m131"></div>
+                     <div class="col s3">
+-                        <div id="tank2" class="circle z-depth-1"><img src="images/glow/war.png"></div>
++                        <div id="tank2" class="circle z-depth-1"><mojito-job-icon job="war"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1097,5 +1097,5 @@
+                     <div class="col s5" name="m132"></div>
+                     <div class="col s3">
+-                        <div id="tank3" class="circle z-depth-1"><img src="images/glow/drk.png"></div>
++                        <div id="tank3" class="circle z-depth-1"><mojito-job-icon job="drk"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1112,5 +1112,5 @@
+                     <div class="col s5" name="m278"></div>
+                     <div class="col s3">
+-                        <div id="tank4" class="circle z-depth-1"><img src="images/glow/gnb.png"></div>
++                        <div id="tank4" class="circle z-depth-1"><mojito-job-icon job="gnb"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1129,5 +1129,5 @@
+                     <div class="col s5" name="m133"></div>
+                     <div class="col s3">
+-                        <div id="heal1" class="circle z-depth-1"><img src="images/glow/whm.png"></div>
++                        <div id="heal1" class="circle z-depth-1"><mojito-job-icon job="whm"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1144,5 +1144,5 @@
+                     <div class="col s5" name="m134"></div>
+                     <div class="col s3">
+-                        <div id="heal2" class="circle z-depth-1"><img src="images/glow/sch.png"></div>
++                        <div id="heal2" class="circle z-depth-1"><mojito-job-icon job="sch"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1159,5 +1159,5 @@
+                     <div class="col s5" name="m135"></div>
+                     <div class="col s3">
+-                        <div id="heal3" class="circle z-depth-1"><img src="images/glow/ast.png"></div>
++                        <div id="heal3" class="circle z-depth-1"><mojito-job-icon job="ast"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1206,5 +1206,5 @@
+                     <div class="col s5" name="m136"></div>
+                     <div class="col s3">
+-                        <div id="dps1" class="circle z-depth-1"><img src="images/glow/mnk.png"></div>
++                        <div id="dps1" class="circle z-depth-1"><mojito-job-icon job="mnk"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1221,5 +1221,5 @@
+                     <div class="col s5" name="m137"></div>
+                     <div class="col s3">
+-                        <div id="dps2" class="circle z-depth-1"><img src="images/glow/drg.png"></div>
++                        <div id="dps2" class="circle z-depth-1"><mojito-job-icon job="drg"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1236,5 +1236,5 @@
+                     <div class="col s5" name="m138"></div>
+                     <div class="col s3">
+-                        <div id="dps3" class="circle z-depth-1"><img src="images/glow/nin.png"></div>
++                        <div id="dps3" class="circle z-depth-1"><mojito-job-icon job="nin"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1251,5 +1251,5 @@
+                     <div class="col s5" name="m231"></div>
+                     <div class="col s3">
+-                        <div id="dps8" class="circle z-depth-1"><img src="images/glow/sam.png"></div>
++                        <div id="dps8" class="circle z-depth-1"><mojito-job-icon job="sam"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1266,5 +1266,5 @@
+                     <div class="col s5" name="m141"></div>
+                     <div class="col s3">
+-                        <div id="dps6" class="circle z-depth-1"><img src="images/glow/brd.png"></div>
++                        <div id="dps6" class="circle z-depth-1"><mojito-job-icon job="brd"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1281,5 +1281,5 @@
+                     <div class="col s5" name="m142"></div>
+                     <div class="col s3">
+-                        <div id="dps7" class="circle z-depth-1"><img src="images/glow/mch.png"></div>
++                        <div id="dps7" class="circle z-depth-1"><mojito-job-icon job="mch"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1296,5 +1296,5 @@
+                     <div class="col s5" name="m139"></div>
+                     <div class="col s3">
+-                        <div id="dps4" class="circle z-depth-1"><img src="images/glow/blm.png"></div>
++                        <div id="dps4" class="circle z-depth-1"><mojito-job-icon job="blm"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1311,5 +1311,5 @@
+                     <div class="col s5" name="m140"></div>
+                     <div class="col s3">
+-                        <div id="dps5" class="circle z-depth-1"><img src="images/glow/smn.png"></div>
++                        <div id="dps5" class="circle z-depth-1"><mojito-job-icon job="smn"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1326,5 +1326,5 @@
+                     <div class="col s5" name="m232"></div>
+                     <div class="col s3">
+-                        <div id="dps9" class="circle z-depth-1"><img src="images/glow/rdm.png"></div>
++                        <div id="dps9" class="circle z-depth-1"><mojito-job-icon job="rdm"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1341,5 +1341,5 @@
+                     <div class="col s5" name="m277"></div>
+                     <div class="col s3">
+-                        <div id="dps10" class="circle z-depth-1"><img src="images/glow/dnc.png"></div>
++                        <div id="dps10" class="circle z-depth-1"><mojito-job-icon job="dnc"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1358,5 +1358,5 @@
+                     <div class="col s5" name="m143"></div>
+                     <div class="col s3">
+-                        <div id="life1" class="circle z-depth-1"><img src="images/glow/min.png"></div>
++                        <div id="life1" class="circle z-depth-1"><mojito-job-icon job="min"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -1373,5 +1373,5 @@
+                     <div class="col s5" name="m144"></div>
+                     <div class="col s3">
+-                        <div id="life2" class="circle z-depth-1"><img src="images/glow/wvr.png"></div>
++                        <div id="life2" class="circle z-depth-1"><mojito-job-icon job="wvr"></mojito-job-icon></div>
+                     </div>
+                     <div class="input-field col s4">
+@@ -2433,5 +2433,5 @@
+                 <tbody>
+                 <tr>
+-                    <td class="iconCell"><img class="pngIcon" src="images/glow/smn.png"></td>
++                    <td class="iconCell"><mojito-job-icon class="pngIcon" job="smn"></mojito-job-icon></td>
+                     <td class="nameCell" name="rankingName2"></td>
+                     <td class="narrowCell2" id="c21" value="1234.56"></td>
+diff --git a/js/mopimopi.js b/js/mopimopi.js
+index 4922b76..093b87c 100644
+--- a/js/mopimopi.js
++++ b/js/mopimopi.js
+@@ -2001,5 +2001,5 @@ function onCreateRaidBody(a, flag, userName) {
+     var you = '<div class="header"><table class="divBody" name="RaidYOU" style="background:' + accentColor + ';"><tr>';
+     var other = '<div class="header"><table class="divBody header"><tr>';
+-    var header = '<td class="index" style="width: .3rem; background:' + inputColor(a) + ';" ></td>' + '<td style="width: 2rem"><img src="images/glow/' + a.get("Job").toLowerCase() + '.png" class="pngIcon"></td>' + '<td class="raidName">' + inputName(a.get("name"), a.get("Class"), a.get("rank") + 1, a.get("petOwner")) + '</td></tr><tr>' + '<td class="index" style="width: .3rem; background:' + inputColor(a) + ';" ></td>' + '<td style="width: 1.9rem" class="center"><img src="images/glow/' + inputRanking(a, flag) + '.png" style="width:1.5rem;"></td>' + '<td class="raidName value">' + addComma(a.get("enc" + flag).toFixed(inputNumber)) + '</td></tr></table></div>';
++    var header = '<td class="index" style="width: .3rem; background:' + inputColor(a) + ';" ></td>' + '<td style="width: 2rem">' + jobImage(a.get("Job")) + '</td>' + '<td class="raidName">' + inputName(a.get("name"), a.get("Class"), a.get("rank") + 1, a.get("petOwner")) + '</td></tr><tr>' + '<td class="index" style="width: .3rem; background:' + inputColor(a) + ';" ></td>' + '<td style="width: 1.9rem" class="center"><img src="images/glow/' + inputRanking(a, flag) + '.png" style="width:1.5rem;"></td>' + '<td class="raidName value">' + addComma(a.get("enc" + flag).toFixed(inputNumber)) + '</td></tr></table></div>';
+     var body = '<div class="body"><table class="divBody">';
+     for (var i in data) {
+@@ -2179,4 +2179,13 @@ function inputRanking(a, flag, preRank) {
+ }
+ 
++function jobImage(job) {
++    var code = String(job || '').toLowerCase();
++    if (['lmb', 'cbo', 'ava'].indexOf(code) !== -1) return '<img class="pngIcon" src="images/glow/' + code + '.png">';
++    var icon = document.createElement('mojito-job-icon');
++    icon.className = 'pngIcon';
++    icon.setAttribute('job', code);
++    return icon.outerHTML;
++}
++
+ function inputData(name, a, petFlag) {
+     var rank = a.get("rank") + 1;
+@@ -2185,5 +2194,5 @@ function inputData(name, a, petFlag) {
+         case 'dps1':
+         case 'hps1':
+-            return '<img src="./images/glow/' + a.get("Job").toLowerCase() + '.png" class="pngIcon"/>';
++            return jobImage(a.get("Job"));
+         case 'dps2':
+         case 'hps2':

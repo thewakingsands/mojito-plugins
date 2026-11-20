@@ -3,7 +3,7 @@
   "id": "ffcafe.overlay-ember",
   "name": "Ember",
   "description": "数据详尽的伤害统计悬浮窗，按标签页分别显示伤害、治疗、承伤与团队数据。",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

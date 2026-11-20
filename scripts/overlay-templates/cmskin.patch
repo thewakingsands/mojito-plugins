@@ -302,3 +302,27 @@ index af398cc..52bdc02 100644
  
 -const parseHighest = db => db.replace('unknown', Lang('role.other'));
 +const parseHighest = db => typeof db === 'string' ? db.replace('unknown', Lang('role.other')) : '—';
+diff --git a/src/components/Avatar/index.js b/src/components/Avatar/index.js
+index 6d8cdf0..21065f3 100644
+--- a/src/components/Avatar/index.js
++++ b/src/components/Avatar/index.js
+@@ -17,5 +17,7 @@ export default ({ size = '2.5rem', deaths = 0, job, diy }) => {
+     </div>
+   ) : (
+-    <img src={path.join('img/jobs', Job + '.png')} />
++    ['default', 'chocobo', 'limitbreak'].includes(Job)
++      ? <img src={path.join('img/jobs', Job + '.png')} />
++      : <mojito-job-icon job={Job} />
+   );
+   return (
+diff --git a/src/components/Avatar/index.scss b/src/components/Avatar/index.scss
+index 33b575c..faf9383 100644
+--- a/src/components/Avatar/index.scss
++++ b/src/components/Avatar/index.scss
+@@ -3,5 +3,5 @@
+   margin-right: 0.8rem;
+   position: relative;
+-  > img {
++  > img, > mojito-job-icon {
+     width: 100%;
+     height: 100%;

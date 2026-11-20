@@ -1,7 +1,8 @@
 import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
 import { jobs } from './job-icons.js'
+import { activateOverlay } from './worker.js'
 
-export async function registerGameIcons(ctx: PluginContext) {
+export async function registerGameIcons(ctx: PluginContext, kinds: 'all' | 'job' = 'all') {
   return ctx.views.onCommand('combat/icons', async (input) => {
     if (!input || typeof input !== 'object' || Array.isArray(input) || input instanceof Uint8Array)
       return { error: 'invalid_argument' }
@@ -12,7 +13,7 @@ export async function registerGameIcons(ctx: PluginContext) {
       !Number.isSafeInteger(id) ||
       id < 1 ||
       id > 0xffffffff ||
-      (type !== 'action' && type !== 'status' && type !== 'job') ||
+      (type !== 'job' && (kinds !== 'all' || (type !== 'action' && type !== 'status'))) ||
       (type === 'job' && !jobs[id])
     )
       return { error: 'invalid_argument' }
@@ -29,4 +30,22 @@ export async function registerGameIcons(ctx: PluginContext) {
     const name = `ui/icon/${directory}/${String(iconId).padStart(6, '0')}`
     return (await ctx.data.image(`${name}_hr1.tex`)) ?? ctx.data.image(`${name}.tex`)
   })
+}
+
+export async function activateOverlayWithIcons(
+  ctx: PluginContext,
+  definition: Parameters<typeof activateOverlay>[1],
+  kinds: 'all' | 'job' = 'job',
+) {
+  const removeIcons = await registerGameIcons(ctx, kinds)
+  try {
+    const stop = await activateOverlay(ctx, definition)
+    return async () => {
+      await removeIcons()
+      await stop()
+    }
+  } catch (error) {
+    await removeIcons()
+    throw error
+  }
 }
