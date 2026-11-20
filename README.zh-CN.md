@@ -25,6 +25,10 @@ pnpm lint
 再应用仓库里的补丁和 lockfile。源码归档和许可证放在生成的运行时目录旁边。
 Skyline 的构建日期使用已锁定上游提交的时间。
 
+## 许可证
+
+[根许可证](LICENSE)为 AGPL-3.0-only，适用于本项目中未单独声明许可的自有代码。[插件 SDK](packages/plugin-sdk/LICENSE) 使用 LGPL-3.0-only，[打包工具](packages/package/LICENSE) 使用 AGPL-3.0-only。根许可证不覆盖第三方代码和素材，包括游戏素材。相关声明见各组件随附的许可说明。
+
 ## 包
 
 - `packages/plugin-sdk`：`@ffcafe/mojito-plugin-sdk` 及其公开导出。

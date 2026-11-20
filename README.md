@@ -26,6 +26,10 @@ The overlays fetch the upstream URLs and full commits recorded in
 Their source archives and licenses are included beside the generated runtime trees.
 Skyline records the pinned upstream commit time as its build date.
 
+## License
+
+The [root license](LICENSE) is AGPL-3.0-only. It covers this project's own code unless a component specifies its own license. The [plugin SDK](packages/plugin-sdk/LICENSE) uses LGPL-3.0-only and the [packaging tool](packages/package/LICENSE) uses AGPL-3.0-only. Third-party code and assets, including game assets, are outside the scope of the root license. See the notices supplied with each component.
+
 ## Packages
 
 - `packages/plugin-sdk`: `@ffcafe/mojito-plugin-sdk` and its public exports.
