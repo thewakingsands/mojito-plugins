@@ -74,6 +74,8 @@ export async function activate(context: PluginContext): Promise<Disposer> {
   let catalogKey: string | null = null
   let gameDataVersion: string | null = null
   let catalogLoading: Promise<void> | undefined
+  /** False until the first catalog load at activation has finished or failed; packets are not read before that. */
+  let catalogSettled = false
   const dataKey = () =>
     `${session.dataLanguage ?? settings.language}:${session.build}:${gameDataVersion}:${granted('data.read')}`
   const loadCatalog = async () => {
@@ -94,21 +96,19 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     catalogLoading = (async () => {
       const loaded = await clientData.load(session.dataLanguage ?? settings.language, signal)
       if (key !== dataKey() || signal.aborted) throw new Error('stale_session')
-      catalog = loaded
+      let extra: ExplorationCatalog | null = null
       try {
-        const extra = await loadExplorationCatalog(
-          context.data,
-          loaded,
-          session.dataLanguage ?? settings.language,
-          signal,
-        )
+        extra = await loadExplorationCatalog(context.data, loaded, session.dataLanguage ?? settings.language, signal)
         if (key !== dataKey() || signal.aborted) throw new Error('stale_session')
-        explorationCatalog = extra
       } catch {
         signal.throwIfAborted()
         if (key !== dataKey()) throw new Error('stale_session')
-        explorationCatalog = null
+        extra = null
       }
+      // The tables and their key are stored together: a session event during the load clears tables whose key is
+      // not current, and must not empty a catalog that is then marked as loaded.
+      catalog = loaded
+      explorationCatalog = extra
       catalogKey = key
       catalogRevision++
       exploration?.reset(true)
@@ -403,7 +403,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const epoch = ++packetEpoch
     packetSubscription?.dispose()
     packetSubscription = undefined
-    if (stopped || session.state === 'idle' || !granted('packets.read')) return
+    if (stopped || !catalogSettled || session.state === 'idle' || !granted('packets.read')) return
     const subscription = context.packets.subscribe(
       'ipc',
       (batch) => {
@@ -733,13 +733,11 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     await storage.drain()
   }
   try {
-    if (granted('data.read')) {
-      try {
-        await loadCatalog()
-      } catch {
-        diagnostic('客户端游戏数据暂不可用，等待客户端资料加载。')
-      }
-    }
+    // Reading the client data takes seconds. Activation does not wait for it: the host shows the plugin as running
+    // and its pages can open meanwhile, and a command that needs the catalog waits for this load.
+    const firstCatalog = granted('data.read')
+      ? loadCatalog().catch(() => diagnostic('客户端游戏数据暂不可用，等待客户端资料加载。'))
+      : Promise.resolve()
     disposers.push(await context.views.onCommand('matcha.command', command))
     fishingService.setEnabled(settings.fishing.enabled)
     await flush()
@@ -764,8 +762,14 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const revision = sessionRevision
     const current = await context.session.get()
     if (revision === sessionRevision) observeSession(current)
-    if (!packetSubscription) connectPackets()
-    exploration.start()
+    // Packets and exploration are read against the catalog's tables, so they start when the first load has settled,
+    // as they did when activation waited for it.
+    void firstCatalog.then(() => {
+      if (stopped) return
+      catalogSettled = true
+      if (!packetSubscription) connectPackets()
+      exploration.start()
+    })
     disposers.push(
       await context.ui.registerFeature({
         id: 'settings',

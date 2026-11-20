@@ -373,7 +373,9 @@ function fixture(
 async function start(f: ReturnType<typeof fixture>) {
   const dispose = await activate(f.context)
   disposers.push(dispose)
-  await flush()
+  // Activation no longer waits for the client catalog; packets start once its first load has settled.
+  await Promise.allSettled(loadClientData.mock.results.map((result) => result.value))
+  for (let i = 0; i < 5; i++) await flush()
   return dispose
 }
 function submarineData(): Uint8Array {
@@ -703,6 +705,33 @@ it('discards client catalogs that finish after a source change', async () => {
   expect(current).not.toHaveProperty('fates.999')
 })
 
+it('finishes activation while the client catalog is still loading and serves it once it has loaded', async () => {
+  const f = fixture()
+  const { emptyCatalog } = await import('./client-data.js')
+  const gate = deferred<ReturnType<typeof emptyCatalog>>()
+  loadClientData.mockImplementationOnce(() => gate.promise)
+  let activated = false
+  const activation = activate(f.context).then((dispose) => {
+    activated = true
+    disposers.push(dispose)
+  })
+  for (let i = 0; i < 20; i++) await flush()
+  expect(loadClientData).toHaveBeenCalledTimes(1)
+  // The host marks the plugin ready when activation resolves; reading the client data takes seconds.
+  expect(activated).toBe(true)
+  expect(f.context.ui.registerFeature).toHaveBeenCalledTimes(1)
+  // Packets are read against the catalog's tables, so none are requested before it has loaded.
+  expect(f.context.packets.subscribe).not.toHaveBeenCalled()
+  const catalog = f.command({ action: 'catalog' })
+  const loaded = emptyCatalog()
+  loaded.fates[7] = { name: { chs: 'loaded' }, level: 1, patch: 2, location: 148 }
+  gate.resolve(loaded)
+  await activation
+  await expect(catalog).resolves.toHaveProperty('fates.7')
+  for (let i = 0; i < 5; i++) await flush()
+  expect(loadClientData).toHaveBeenCalledTimes(1)
+  expect(f.context.packets.subscribe).toHaveBeenCalledTimes(1)
+})
 it('keeps settings available when client data is unavailable and does not return stale tables', async () => {
   const f = fixture()
   loadClientData.mockRejectedValue(new Error('unavailable'))
