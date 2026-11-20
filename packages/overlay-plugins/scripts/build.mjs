@@ -4,6 +4,7 @@ import { copyFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
+import { officialTemplates } from '../../../scripts/overlay-templates/templates.mjs'
 import { verifyTemplate } from '../../../scripts/overlay-templates/verify.mjs'
 
 const directory = fileURLToPath(new URL('../', import.meta.url))
@@ -15,21 +16,7 @@ const result = spawnSync(
   },
 )
 assert.equal(result.status, 0, 'Template build failed')
-for (const name of [
-  'kagerou',
-  'skyline',
-  'mopimopi2',
-  'faceroll',
-  'horizoverlay',
-  'cmskin',
-  'mopimopi1',
-  'ikegami',
-  'ember',
-  'amethyst',
-  'klondike',
-  'glass',
-]) {
-  if (process.argv.length > 2 && !process.argv.slice(2).includes(name)) continue
+for (const name of process.argv.length > 2 ? process.argv.slice(2) : officialTemplates) {
   await build({
     configFile: false,
     root: directory,

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { extractEmberFonts } from './ember-icons.mjs'
 import { copyFont, pruneFonts } from './fonts.mjs'
 import { writeDependencyNotices } from './licenses.mjs'
+import { officialTemplates } from './templates.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const output = path.join(root, 'packages/overlay-plugins/dist')
@@ -116,6 +117,7 @@ const sources = {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ikegami.git',
     revision: '4ac49d4f1d162829f05c762d9ab99d14dbb3f288',
+    licenses: ['lato'],
     output: 'dist',
     lock: 'ikegami-package-lock.json',
     command: ['npx', '--no-install', 'vite', 'build'],
@@ -139,12 +141,14 @@ const sources = {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/FancyDetail.git',
     revision: 'a31e346ccdd2bea9909edf5578daf78777a54b10',
+    licenses: ['aldrich', 'material-icons'],
     output: '.',
   },
   klondike: {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/klondike.git',
     revision: 'eee2fa5b10ef56c88fe54c215c4c41f9df11a686',
+    licenses: ['lato'],
     output: 'dist',
     lock: 'klondike-package-lock.json',
     command: ['npm', 'run', 'build'],
@@ -164,7 +168,7 @@ const sources = {
 }
 const selected = process.argv.slice(2)
 for (const name of selected) if (!sources[name]) throw new Error(`Unknown template: ${name}`)
-const entries = Object.entries(sources).filter(([name]) => !selected.length || selected.includes(name))
+const entries = (selected.length ? selected : officialTemplates).map((name) => [name, sources[name]])
 /**
  * The upstream version recorded in plugin source metadata. The templates keep it in different places: package.json (skyline), the
  * nearest tag (kagerou) or a "ver.20241209" string in the source (mopimopi2).
@@ -252,6 +256,15 @@ for (const [name, source] of entries) {
     for (const file of source.files)
       await cp(path.join(work, source.output, file), path.join(destination, file), { recursive: true })
   } else await cp(path.join(work, source.output), destination, { recursive: true })
+  for (const license of source.licenses ?? []) {
+    await mkdir(path.join(destination, 'licenses'), { recursive: true })
+    await cp(
+      new URL(`./font-licenses/${license}-LICENSE`, import.meta.url),
+      path.join(destination, 'licenses', `${license}-LICENSE`),
+    )
+  }
+  if (source.licenses?.length)
+    await cp(new URL('./font-licenses/README.md', import.meta.url), path.join(destination, 'licenses/FONT-SOURCES.md'))
   await pruneFonts(destination)
   if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(destination, 'ngld.js'))
   if (source.lock) await writeDependencyNotices(work, destination)
@@ -290,8 +303,9 @@ for (const [name, source] of entries) {
     await cp(path.join(root, 'scripts/overlay-templates', file), path.join(recipe, file))
   if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(recipe, 'ngld.js'))
   await cp(fileURLToPath(import.meta.url), path.join(recipe, 'build.mjs'))
-  for (const file of ['ember-icons.mjs', 'fonts.mjs', 'licenses.mjs'])
+  for (const file of ['ember-icons.mjs', 'fonts.mjs', 'licenses.mjs', 'templates.mjs'])
     await cp(new URL(`./${file}`, import.meta.url), path.join(recipe, file))
+  await cp(new URL('./font-licenses', import.meta.url), path.join(recipe, 'font-licenses'), { recursive: true })
   // GNU tar treats a colon before the first slash as a remote host, which rules out `D:\...` for -f.
   run(
     'tar',

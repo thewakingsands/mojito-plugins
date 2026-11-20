@@ -14,3 +14,7 @@ source archives with build inputs are written to the sibling `dist/sources` dire
 Package pages use the existing sandboxed compatibility preload and their owner's
 ResourceProvider. Navigation is restricted to the plugin's declared documents.
 See the [overlay plugin workspace README](../../packages/overlay-plugins/README.md) for packaging and service setup.
+
+The default build and official packaging share `templates.mjs`. MopiMopi2 is excluded pending a redistribution license. Explicit single-template builds remain available for research. Official packaging clears `dist/official` and copies only the source archives named by that list.
+
+Supplemental licenses for bundled Aldrich, Lato and Material Icons fonts are recorded in [font-licenses](font-licenses/README.md); existing Fontsource licenses remain included.

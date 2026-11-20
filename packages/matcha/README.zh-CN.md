@@ -27,6 +27,8 @@ mojito-package verify Matcha-4.0.0-mojito.10.mojito
 
 包格式和 worker 的状态发布使用当前的 Mojito SDK。需要 Plugin API 2.0；能力以 `context.capabilities.get()` 报告的状态为准，运行中修改授权无需重启。通知使用 SDK 的 `context.notifications.send`。
 
+`SOURCE.json` 记录本次产物对应的仓库提交、UI 子模块提交和构建命令。本地构建会标记未提交的源码改动；官方打包要求干净工作区及匹配的已提交来源记录。Geist 与 Geist Mono 的许可证从锁定依赖复制到 `third-party/`。
+
 ## 功能
 
 - FATE 关注列表（按版本和区域批量选择）、预设与通知；副本匹配、地区、咬钩、临界遭遇和寻宝结果通知。

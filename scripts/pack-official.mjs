@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { manifest } from '@ffcafe/mojito-plugin-sdk/schema'
+import { sourceMetadata } from '../packages/matcha/scripts/source.mjs'
+import { officialTemplates } from './overlay-templates/templates.mjs'
 
 const [key, fingerprint, ...extra] = process.argv.slice(2)
 assert(key && fingerprint && !extra.length, 'Usage: pack:official <private.jwk> <expected-fingerprint>')
@@ -17,19 +19,12 @@ const plugins = [
   ['ffcafe.combat-statistics', 'packages/combat-statistics/dist'],
   ['ffcafe.raidboss', 'packages/plugin-raidboss/dist'],
   ['ffcafe.tts-deepseek', 'packages/deepseek-tts/dist'],
-  ['ffcafe.overlay-kagerou', 'packages/overlay-plugins/dist/kagerou'],
-  ['ffcafe.overlay-skyline', 'packages/overlay-plugins/dist/skyline'],
-  ['ffcafe.overlay-mopimopi2', 'packages/overlay-plugins/dist/mopimopi2'],
-  ['ffcafe.overlay-faceroll', 'packages/overlay-plugins/dist/faceroll'],
-  ['ffcafe.overlay-horizoverlay', 'packages/overlay-plugins/dist/horizoverlay'],
-  ['ffcafe.overlay-cmskin', 'packages/overlay-plugins/dist/cmskin'],
-  ['ffcafe.overlay-mopimopi1', 'packages/overlay-plugins/dist/mopimopi1'],
-  ['ffcafe.overlay-ikegami', 'packages/overlay-plugins/dist/ikegami'],
-  ['ffcafe.overlay-ember', 'packages/overlay-plugins/dist/ember'],
-  ['ffcafe.overlay-amethyst', 'packages/overlay-plugins/dist/amethyst'],
-  ['ffcafe.overlay-klondike', 'packages/overlay-plugins/dist/klondike'],
-  ['ffcafe.overlay-glass', 'packages/overlay-plugins/dist/glass'],
+  ...officialTemplates.map((name) => [`ffcafe.overlay-${name}`, `packages/overlay-plugins/dist/${name}`]),
 ]
+const matchaSource = JSON.parse(await readFile(path.join(root, 'packages/matcha/dist/SOURCE.json'), 'utf8'))
+assert(!matchaSource.dirty && !matchaSource.ui.dirty, 'Build Matcha from committed sources before official packaging')
+assert.deepEqual(matchaSource, sourceMetadata(root), 'Rebuild Matcha from the current committed sources')
+await rm(output, { recursive: true, force: true })
 await mkdir(output, { recursive: true })
 const sums = []
 for (const [id, directory] of plugins) {
@@ -49,7 +44,8 @@ for (const [id, directory] of plugins) {
   console.log(filename)
 }
 const sources = path.join(root, 'packages/overlay-plugins/dist/sources')
-for (const name of (await readdir(sources)).filter((name) => name.endsWith('-source.tar.gz')).sort()) {
+for (const template of officialTemplates) {
+  const name = `${template}-source.tar.gz`
   const file = path.join(output, name)
   await copyFile(path.join(sources, name), file)
   sums.push(

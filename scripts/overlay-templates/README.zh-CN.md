@@ -12,3 +12,7 @@ SOURCE 元数据和适用的许可证；打过补丁的源码归档连同构建�
 
 包内页面使用现有的带沙箱兼容 preload 和所属插件的 ResourceProvider。页面只能跳转到插件声明的文档。
 打包和服务配置见 [悬浮窗插件工作区的 README](../../packages/overlay-plugins/README.zh-CN.md)。
+
+默认构建与官方打包共用 `templates.mjs` 清单。MopiMopi2 在取得再分发许可前不参与默认构建和官方打包；显式选择单个模板的构建入口保留供调查。官方打包会清理 `dist/official`，仅复制清单中模板的源码归档。
+
+随包 Aldrich、Lato 和 Material Icons 字体的补充许可记录见 [font-licenses](font-licenses/README.zh-CN.md)，已有 Fontsource 许可证继续随包提供。
