@@ -321,7 +321,7 @@ it.each([true, false])('keeps the highest spoken level with text display set to 
   expect(displayed).toEqual(showText ? ['Alert', 'Alarm', 'Info'] : [])
 })
 
-it('routes direct timeline speech and graded timeline alerts at their scheduled times', async () => {
+it('routes a scheduled timeline alarm to the alarm channel', async () => {
   const timer = clock()
   const set = {
     id: 'timeline-speech',
@@ -329,7 +329,6 @@ it('routes direct timeline speech and graded timeline alerts at their scheduled 
     timeline: [
       '0 "Start" InCombat { inGameCombat: "1" } window 0,1',
       '2 "Mechanic"',
-      'alertall "Mechanic" before 1 speak "voice" "Direct"',
       'alarmtext "Mechanic" before 0 "Alarm"',
     ],
   }
@@ -341,13 +340,8 @@ it('routes direct timeline speech and graded timeline alerts at their scheduled 
   })
   engine.start(1, fixture().data, { audio: 'tts', language: 'en', rules: {} })
   engine.event({ type: 'InCombat', fields: { inGameCombat: '1' } })
-  await timer.advance(1000)
-  expect(speech).toEqual([['Direct', 'info']])
-  await timer.advance(1000)
-  expect(speech).toEqual([
-    ['Direct', 'info'],
-    ['Alarm', 'alarm'],
-  ])
+  await timer.advance(2000)
+  expect(speech).toEqual([['Alarm', 'alarm']])
   engine.reset()
 })
 

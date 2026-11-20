@@ -254,7 +254,7 @@ export class TimelineParser {
     initialId: number,
   ): void {
     let uniqueid = initialId;
-    const texts: { [id: string]: ParsedPopupText[] } = {};
+    const texts: { [id: string]: ParsedText[] } = {};
 
     // Make all regexes case insensitive, and parse any special \y{} groups.
     for (const trigger of triggers ?? []) {
@@ -435,10 +435,13 @@ export class TimelineParser {
 
     for (const e of this.events) {
       for (const matchedTextEvent of texts[e.name] ?? []) {
+        const type = matchedTextEvent.type;
+        if (type !== 'info' && type !== 'alert' && type !== 'alarm')
+          continue;
         this.texts.push({
-          type: matchedTextEvent.type,
+          type: type,
           time: e.time - (matchedTextEvent.secondsBefore || 0),
-          text: matchedTextEvent.text,
+          text: matchedTextEvent.text ?? '',
         });
       }
 

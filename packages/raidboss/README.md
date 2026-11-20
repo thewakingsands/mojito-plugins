@@ -44,7 +44,7 @@ only one Raidboss plugin. Audio is optional; text stays visible without it.
 
 In the host's professional TTS settings, Info uses the plugin's default channel and retains its voice and priority.
 Alert and Alarm have their own channels. Speech uses the level set for the rule, or the highest level that
-produced text on that invocation. Speech-only rules default to Info, as do direct timeline announcements.
+produced text on that invocation. Speech-only rules default to Info.
 
 Community source packages can be built with the [repository tool](../raidboss-tools/README.md). Its synthetic acceptance does not replace real community-file or P1N validation.
 
