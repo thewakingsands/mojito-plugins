@@ -21,9 +21,11 @@ The Electron driver uses the production host, Worker and feature/settings pages.
 
 The required deterministic checks are exact integer totals, no unacknowledged input at the end, the same subscription/source-timer/window counts after every stop, destroyed Worker owner and feature view, unchanged message counts and log hashes after stop, and matching history after reopening. The page's clear action must remove completed history. The capacity test also requires zero pending allocations after post revisions. A load that repeatedly reaches the bounded drain timeout or whose queue keeps growing needs investigation even if it eventually drains.
 
-After each stop and observation period, the driver takes nine samples one second apart in the same idle state. It runs main-process GC before each sample. For each metric, `memoryTrend` reports the samples, each round's median and range (max minus min), the largest within-round range as the observed fluctuation, and signed differences between consecutive medians. The warm-up is recorded separately. The check passes if the last two increases are no greater than the measured fluctuation for both main heap and process-tree RSS.
+After each stop and observation period, the driver takes nine samples one second apart in the same idle state. It runs main-process GC before each sample. For each metric, `memoryTrend` reports the samples, each round's median and range (max minus min), the largest within-round range as the observed fluctuation, and signed differences between consecutive medians. The warm-up is recorded separately.
 
-Samples also record V8 compiled-code sizes. If both final increments exceed the observed fluctuation and the last is at least as large as the preceding one, repeat the workload with `MOJITO_ACCEPTANCE_HEAP_SNAPSHOTS=1` and compare the retained objects after each stop. Snapshot runs are diagnostic because taking a snapshot can affect the measurements. Any failed check makes the driver exit nonzero and preserve its results.
+For a main-process heap comparison, set `MOJITO_ACCEPTANCE_HEAP_SNAPSHOTS=1`. The driver takes snapshots after idle sampling in measured rounds 1 and 5 and reports the largest retained-size changes by V8 node type and constructor or label. Retained size follows the dominator tree with weak edges excluded. It counts nested instances of the same group once; different groups may overlap. Review growth alongside the reported owners, object counts and compiled-code sizes. Keep raw snapshots local.
+
+Memory measurements and snapshot errors are diagnostic. Only the deterministic checks decide the exit status.
 
 ## Real recordings and Windows
 

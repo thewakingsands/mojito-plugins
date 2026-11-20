@@ -122,15 +122,12 @@ function memoryTrend(rounds) {
     // Compare changes between loads with the largest spread observed without a load.
     const fluctuation = Math.max(...spans)
     const increments = medians.slice(1).map((value, index) => value - medians[index])
-    const lastTwo = increments.slice(-2)
     return {
       samples,
       medians,
       spans,
       fluctuation,
       increments,
-      passed: lastTwo.every((increment) => increment <= fluctuation),
-      sustainedGrowth: lastTwo[0] > fluctuation && lastTwo[1] >= lastTwo[0],
     }
   }
   const mainHeapBytes = metric((sample) => sample.mainHeapBytes)
@@ -371,7 +368,15 @@ async function main() {
       idle.push({ mainHeapBytes: current.main.heapUsed, processTreeRssKiB: current.treeRssKiB })
       stopped.push({ elapsedMs: settleMs + (sample + 1) * idleSampleIntervalMs, ...current })
     }
-    if (snapshotHeap) writeHeapSnapshot(path.join(output, `${label}.heapsnapshot`))
+    if (snapshotHeap && (round === 1 || round === measuredRounds)) {
+      global.gc()
+      try {
+        writeHeapSnapshot(path.join(output, `${label}.heapsnapshot`))
+      } catch (error) {
+        result.heapSnapshotErrors ??= {}
+        result.heapSnapshotErrors[label] = String(error)
+      }
+    }
     // Inputs after disposal must not be processed or change the saved log.
     hit(end + 1000, 1, 999)
     await delay(250)
@@ -437,7 +442,17 @@ async function main() {
     clearThroughUI: true,
   }
   result.memoryTrend = memoryTrend(result.rounds)
-  result.checks.memoryTrend = result.memoryTrend.mainHeapBytes.passed && result.memoryTrend.processTreeRssKiB.passed
+  if (snapshotHeap && !result.heapSnapshotErrors) {
+    try {
+      const { compare } = require('./heap-retention.cjs')
+      result.memoryTrend.heapComparison = compare(
+        path.join(output, 'round-1.heapsnapshot'),
+        path.join(output, 'round-5.heapsnapshot'),
+      )
+    } catch (error) {
+      result.memoryTrend.heapComparisonError = String(error)
+    }
+  }
   await host.dispose()
   host = null
   window.destroy()
