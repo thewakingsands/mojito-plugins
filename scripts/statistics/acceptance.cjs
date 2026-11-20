@@ -5,7 +5,7 @@ const path = require('node:path')
 const { createRequire } = require('node:module')
 const { generateKeyPairSync, createHash } = require('node:crypto')
 const { execFileSync } = require('node:child_process')
-const { getHeapCodeStatistics } = require('node:v8')
+const { getHeapCodeStatistics, writeHeapSnapshot } = require('node:v8')
 const root = process.env.MOJITO_HOST_ROOT
 const output = process.env.MOJITO_ACCEPTANCE_OUTPUT
 assert(
@@ -20,6 +20,10 @@ const { PluginRouter } = fromHost('./dist/main/plugins/router.js')
 const { packFiles } = fromHost('@ffcafe/mojito-rust')
 const seconds = Number(process.env.MOJITO_ACCEPTANCE_SECONDS ?? 3600)
 const settleMs = Number(process.env.MOJITO_ACCEPTANCE_SETTLE_MS ?? 60_000)
+const measuredRounds = 5
+const idleSampleCount = 9
+const idleSampleIntervalMs = 1000
+const snapshotHeap = process.env.MOJITO_ACCEPTANCE_HEAP_SNAPSHOTS === '1'
 assert(Number.isSafeInteger(seconds) && seconds >= 1)
 assert(Number.isSafeInteger(settleMs) && settleMs >= 0)
 const id = 'ffcafe.combat-statistics'
@@ -33,6 +37,9 @@ const result = {
   platform: process.platform,
   secondsPerRound: seconds,
   settleMs,
+  idleSampleCount,
+  idleSampleIntervalMs,
+  snapshotHeap,
   rounds: [],
   checks: {},
 }
@@ -106,6 +113,29 @@ function memory() {
     processes,
     treeRssKiB: processes.reduce((sum, item) => sum + item.rssKiB, 0),
   }
+}
+function memoryTrend(rounds) {
+  const metric = (read) => {
+    const samples = rounds.map(({ idle }) => idle.map(read))
+    const medians = samples.map((group) => [...group].sort((a, b) => a - b)[Math.floor(group.length / 2)])
+    const spans = samples.map((group) => Math.max(...group) - Math.min(...group))
+    // Compare changes between loads with the largest spread observed without a load.
+    const fluctuation = Math.max(...spans)
+    const increments = medians.slice(1).map((value, index) => value - medians[index])
+    const lastTwo = increments.slice(-2)
+    return {
+      samples,
+      medians,
+      spans,
+      fluctuation,
+      increments,
+      passed: lastTwo.every((increment) => increment <= fluctuation),
+      sustainedGrowth: lastTwo[0] > fluctuation && lastTwo[1] >= lastTwo[0],
+    }
+  }
+  const mainHeapBytes = metric((sample) => sample.mainHeapBytes)
+  const processTreeRssKiB = metric((sample) => sample.processTreeRssKiB)
+  return { mainHeapBytes, processTreeRssKiB, forcedGc: typeof global.gc === 'function' }
 }
 function queued() {
   return [...host.queues.consumers.values()].reduce((total, consumer) => total + consumer.items, 0)
@@ -244,14 +274,10 @@ async function main() {
     show: true,
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   })
-  // Warm the loader once; measured rounds retain the same host and installed package.
-  startSource(Date.UTC(2026, 0, 1))
-  activation = await host.enable(id)
-  await until(() => resumed, 'initial input')
-  await host.stop(id)
-  await delay(500)
+  assert.equal(typeof global.gc, 'function', 'Run Electron with --js-flags=--expose-gc')
   result.baseline = resources()
-  for (let round = 0; round < 3; round++) {
+  for (let round = 0; round <= measuredRounds; round++) {
+    const label = round === 0 ? 'warmup' : `round-${round}`
     resumed = false
     const at = Date.UTC(2026, 0, 2 + round)
     startSource(at)
@@ -312,10 +338,10 @@ async function main() {
       () => page.contents.executeJavaScript('document.querySelectorAll("table.damage tr.actor").length === 24'),
       'table rows',
     )
-    await fs.writeFile(path.join(output, `statistics-${round + 1}.png`), (await page.contents.capturePage()).toPNG())
+    await fs.writeFile(path.join(output, `statistics-${label}.png`), (await page.contents.capturePage()).toPNG())
     let runtime = [...host.active.values()].find((value) => value.id === id).runtime
     const run = {
-      round: round + 1,
+      round,
       wallMs: performance.now() - started,
       finalDamage: final.encounterDamage.value,
       peak,
@@ -337,6 +363,15 @@ async function main() {
       global.gc?.()
       stopped.push({ elapsedMs: Math.min(elapsed + 1000, settleMs), ...memory() })
     }
+    const idle = []
+    for (let sample = 0; sample < idleSampleCount; sample++) {
+      await delay(idleSampleIntervalMs)
+      global.gc()
+      const current = memory()
+      idle.push({ mainHeapBytes: current.main.heapUsed, processTreeRssKiB: current.treeRssKiB })
+      stopped.push({ elapsedMs: settleMs + (sample + 1) * idleSampleIntervalMs, ...current })
+    }
+    if (snapshotHeap) writeHeapSnapshot(path.join(output, `${label}.heapsnapshot`))
     // Inputs after disposal must not be processed or change the saved log.
     hit(end + 1000, 1, 999)
     await delay(250)
@@ -344,9 +379,9 @@ async function main() {
     assert.deepEqual(await hashes(), saved, 'no late writes after stop')
     assert.deepEqual(resources(), result.baseline, 'subscriptions, source timers and windows return to baseline')
     // Persist the trace before the next activation; keeping prior samples would inflate the measured heap.
-    const trace = `round-${round + 1}.json`
+    const trace = `${label}.json`
     await fs.writeFile(path.join(output, trace), JSON.stringify({ ...run, stopped }, null, 2))
-    result.rounds.push({
+    const summary = {
       round: run.round,
       wallMs: run.wallMs,
       finalDamage: run.finalDamage,
@@ -354,11 +389,13 @@ async function main() {
       rpc: run.rpc,
       maxQueuedAfterDrain: Math.max(...drains.map((sample) => sample.backlogMax)),
       lastQueuedAfterDrain: samples.at(-1).queued,
-      stoppedMemory: stopped.at(-1) ?? memory(),
+      idle,
       released: resources(),
       files: saved,
       trace,
-    })
+    }
+    if (round === 0) result.warmup = summary
+    else result.rounds.push(summary)
     await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2))
   }
   // A new activation must read the logs and show the same final fight through the actual page.
@@ -393,21 +430,14 @@ async function main() {
     integerTotals: true,
     unknownPeriodicConserved: true,
     noBacklogAtEnd: true,
-    threeRoundCleanup: true,
+    cleanupAfterEachRound: true,
     noProcessingAfterStop: true,
     noWritesAfterStop: true,
     historyReload: true,
     clearThroughUI: true,
   }
-  result.stoppedMemory = result.rounds.map((round) => round.stoppedMemory)
-  const increasing = (values) => values.every((value, index) => index === 0 || value > values[index - 1])
-  result.memoryTrend = {
-    mainHeapIncreasesEveryRound: increasing(result.stoppedMemory.map((sample) => sample.main.heapUsed)),
-    processTreeRssIncreasesEveryRound: increasing(result.stoppedMemory.map((sample) => sample.treeRssKiB)),
-    forcedGc: typeof global.gc === 'function',
-  }
-  result.checks.memoryTrend =
-    !result.memoryTrend.mainHeapIncreasesEveryRound && !result.memoryTrend.processTreeRssIncreasesEveryRound
+  result.memoryTrend = memoryTrend(result.rounds)
+  result.checks.memoryTrend = result.memoryTrend.mainHeapBytes.passed && result.memoryTrend.processTreeRssKiB.passed
   await host.dispose()
   host = null
   window.destroy()
