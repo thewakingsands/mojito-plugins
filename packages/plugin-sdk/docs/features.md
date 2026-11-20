@@ -47,12 +47,20 @@ npm install --save-dev vite @ffcafe/mojito-plugin-sdk
 import { copyFile } from 'node:fs/promises'
 import { defineConfig } from 'vite'
 
+const hmr = false
+
 export default defineConfig(({ command }) => ({
   // 构建结果使用相对路径；开发服务器的路径和登记开发来源时填写的挂载路径一致
   base: command === 'serve' ? '/my-plugin/' : './',
   // Mojito 把这个占位符换成页面的 nonce，开发服务器上的脚本才能运行
   html: { cspNonce: '__MOJITO_DEV_NONCE__' },
-  server: { host: '127.0.0.1', port: 5173, strictPort: true, hmr: false, ws: false },
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    hmr,
+    ws: hmr ? { host: '127.0.0.1', protocol: 'ws', clientPort: 5173 } : false,
+  },
   build: {
     rolldownOptions: {
       // 保留后台的 activate 导出
@@ -68,7 +76,7 @@ export default defineConfig(({ command }) => ({
       // 不使用 HMR 时，去掉 Vite 自动加入的 HMR 客户端
       transformIndexHtml: {
         order: 'post',
-        handler: (html) => html.replace(/<script\b[^>]*\/@vite\/client"[^>]*><\/script>/g, ''),
+        handler: (html) => (hmr ? html : html.replace(/<script\b[^>]*\/@vite\/client"[^>]*><\/script>/g, '')),
       },
     },
     {
@@ -80,6 +88,8 @@ export default defineConfig(({ command }) => ({
   ],
 }))
 ```
+
+启用页面热更新时，将 `hmr` 改为 `true`，并在登记来源时勾选“页面热更新（HMR）”，见[开发与调试](development.md#vite-hmr)。`ws` 明确指定浏览器直连的地址和端口，因为页面由 Mojito 的自定义协议加载，不能从页面地址推导 WebSocket 连接。HMR 开启时保留 Vite 注入的客户端脚本。
 
 ## 后台注册页面
 

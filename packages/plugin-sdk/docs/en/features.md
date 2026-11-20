@@ -47,12 +47,20 @@ The entry in `plugin.json` points to the built file name `entry.mjs`:
 import { copyFile } from 'node:fs/promises'
 import { defineConfig } from 'vite'
 
+const hmr = false
+
 export default defineConfig(({ command }) => ({
   // Build output uses relative paths; the development server path matches the mount path entered when registering the development source
   base: command === 'serve' ? '/my-plugin/' : './',
   // Mojito replaces this placeholder with the page's nonce so that scripts from the development server can run
   html: { cspNonce: '__MOJITO_DEV_NONCE__' },
-  server: { host: '127.0.0.1', port: 5173, strictPort: true, hmr: false, ws: false },
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    hmr,
+    ws: hmr ? { host: '127.0.0.1', protocol: 'ws', clientPort: 5173 } : false,
+  },
   build: {
     rolldownOptions: {
       // Keep the background's activate export
@@ -68,7 +76,7 @@ export default defineConfig(({ command }) => ({
       // Without HMR, remove the HMR client that Vite adds automatically
       transformIndexHtml: {
         order: 'post',
-        handler: (html) => html.replace(/<script\b[^>]*\/@vite\/client"[^>]*><\/script>/g, ''),
+        handler: (html) => (hmr ? html : html.replace(/<script\b[^>]*\/@vite\/client"[^>]*><\/script>/g, '')),
       },
     },
     {
@@ -80,6 +88,8 @@ export default defineConfig(({ command }) => ({
   ],
 }))
 ```
+
+To enable page hot updates, set `hmr` to `true` and select 页面热更新（HMR） when registering the source; see [Development](development.md#vite-hmr). `ws` specifies the host and port for the browser’s direct connection because pages load through Mojito’s custom protocol, so their URLs cannot determine the WebSocket connection. With HMR enabled, keep the client script injected by Vite.
 
 ## Register a page in the background
 
