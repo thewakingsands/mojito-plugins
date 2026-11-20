@@ -419,7 +419,7 @@ index 614b729..50488e8 100644
 +            cell.appendChild(image);
 +        } else {
 +            var icon = document.createElement('mojito-job-icon');
-+            var aliases = { Cpt: 'CRP', botanist: 'BTN' };
++            var aliases = { Cpt: 'CRP', Botanist: 'BTN' };
 +            icon.setAttribute('job', aliases[mark] || mark);
 +            icon.style.width = icon.style.height = '25px';
 +            cell.appendChild(icon);
