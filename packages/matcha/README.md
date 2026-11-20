@@ -45,6 +45,8 @@ When loaded inside Mojito it uses the SDK bridge automatically. `?source=mojito`
 
 Mojito mode reads item, map, icon, FATE, duty, world, fishing and submersible data through the host's local data interface. Treasure map coordinates are converted from the game's treasure spot and map sheets; FATEs and critical engagements are tied to areas through client scene resources; presets are read from RelicNote. Data reloads when the client version or data language changes; a failed read shows as unavailable and does not fall back to static game tables or XIVAPI. ACT mode loads its original data separately, and the Mojito build does not include those static tables.
 
+Gear materia slots use the local item-detail atlas, preferring its high-resolution texture. If the atlas is missing, unreadable or has unexpected dimensions, each slot shows its grade or an empty marker, with `+` for overmelds. The ACT overlay uses its bundled slot PNGs.
+
 The exploration unlock prerequisites of submersibles are hand-written rules and still ship with the plugin; names, stats, experience and coordinates all come from the current client. The first read scans the game sheets in batches and keeps only the fields Matcha uses. Community services still go through the host HTTP proxy and follow permissions and CSP.
 
 ## Permissions and networking

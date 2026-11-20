@@ -660,6 +660,42 @@ it('returns client map and icon URLs through the image API without HTTP', async 
   expect(f.context.http.request).not.toHaveBeenCalled()
 })
 
+it('prefers the high-resolution materia atlas and falls back only when it is missing', async () => {
+  const f = fixture()
+  await start(f)
+  const image = vi.mocked(f.context.data.image)
+  const getAtlas = () => f.command({ action: 'gearset.materiaAtlas' })
+  const options = { signal: expect.any(AbortSignal) }
+  image.mockResolvedValueOnce('high')
+  expect(await getAtlas()).toEqual({ url: 'high', scale: 2 })
+  expect(image.mock.calls).toEqual([['ui/uld/ItemDetail_hr1.tex', options]])
+  image.mockClear().mockResolvedValueOnce(null).mockResolvedValueOnce('standard')
+  expect(await getAtlas()).toEqual({ url: 'standard', scale: 1 })
+  expect(image.mock.calls).toEqual([
+    ['ui/uld/ItemDetail_hr1.tex', options],
+    ['ui/uld/ItemDetail.tex', options],
+  ])
+  image.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+  expect(await getAtlas()).toBeNull()
+  image.mockClear()
+  f.setGrants(['session.read', 'packets.read', 'ui.register'])
+  await expect(getAtlas()).rejects.toThrow('permission_denied')
+  expect(image).not.toHaveBeenCalled()
+})
+
+it('discards an in-flight materia atlas lookup after a data generation change', async () => {
+  const f = fixture()
+  await start(f)
+  const gate = deferred<string | null>()
+  const image = vi.mocked(f.context.data.image).mockImplementationOnce(() => gate.promise)
+  const loading = expect(f.command({ action: 'gearset.materiaAtlas' })).rejects.toThrow('stale_session')
+  await flush()
+  await f.session({ ...f.current, dataLanguage: 'en' })
+  gate.resolve(null)
+  await loading
+  expect(image).toHaveBeenCalledTimes(1)
+})
+
 it('requires local data permission for item commands and rejects invalid item IDs', async () => {
   const f = fixture()
   f.setGrants(['session.read', 'packets.read', 'ui.register'])

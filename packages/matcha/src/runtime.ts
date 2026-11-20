@@ -568,6 +568,21 @@ export async function activate(context: PluginContext): Promise<Disposer> {
         if (revision !== mapData.generation || !granted('data.read')) throw new Error('stale_session')
         return asJson(result)
       }
+      case 'gearset.materiaAtlas': {
+        if (!granted('data.read')) throw new Error('permission_denied: data.read')
+        const revision = mapData.generation
+        const signal = cancellation.signal
+        for (const [scale, path] of [
+          [2, 'ui/uld/ItemDetail_hr1.tex'],
+          [1, 'ui/uld/ItemDetail.tex'],
+        ] as const) {
+          const url = await context.data.image(path, { signal })
+          if (signal.aborted || revision !== mapData.generation || !granted('data.read'))
+            throw new Error('stale_session')
+          if (url) return { url, scale }
+        }
+        return null
+      }
       case 'map.image':
         if (typeof input.id !== 'string') throw new Error('无效地图标识')
         return context.data.map(input.id)
