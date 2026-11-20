@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
@@ -30,6 +30,9 @@ for (const name of process.argv.length > 2 ? process.argv.slice(2) : officialTem
       },
     },
   })
-  await verifyTemplate(path.join(directory, `dist/${name}`), name)
-  await copyFile(path.join(directory, `plugins/${name}.json`), path.join(directory, `dist/${name}/plugin.json`))
+  const output = path.join(directory, `dist/${name}`)
+  const { source } = await verifyTemplate(output, name)
+  const manifest = JSON.parse(await readFile(path.join(directory, `plugins/${name}.json`), 'utf8'))
+  manifest.homepage = source
+  await writeFile(path.join(output, 'plugin.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 }

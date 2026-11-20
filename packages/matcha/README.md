@@ -27,7 +27,7 @@ The overlay UI comes from `vendor/matcha-overlay` and is shared with the ACT ver
 
 The package format and the worker's state publishing use the current Mojito SDK. Plugin API 2.0 is required; capabilities follow the state reported by `context.capabilities.get()`, and changing grants while running needs no restart. Notifications use the SDK's `context.notifications.send`.
 
-`SOURCE.json` records the repository revision, UI submodule revision and build commands for this output. Local builds mark uncommitted source changes; official packaging requires a clean checkout and matching committed source records. Geist and Geist Mono licenses are copied from the locked dependencies into `third-party/`.
+The official build points the plugin homepage to the exact Matcha package revision. `SOURCE.txt` records the UI submodule revision. Geist and Geist Mono licenses are copied from the locked dependencies into `third-party/`.
 
 ## Features
 

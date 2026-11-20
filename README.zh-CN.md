@@ -22,7 +22,7 @@ pnpm lint
 
 `build:official` 构建 SDK、Rust CLI、WASM 打包工具和官方插件，不需要签名密钥。
 悬浮窗模板按 `scripts/overlay-templates/build.mjs` 中记录的上游地址和完整提交拉取源码，
-再应用仓库里的补丁和 lockfile。源码归档和许可证放在生成的运行时目录旁边。
+再应用仓库里的补丁和 lockfile。生成的运行时目录保留源码链接和适用的许可证。
 Skyline 的构建日期使用已锁定上游提交的时间。
 
 ## 包
@@ -75,8 +75,8 @@ npm trust github @ffcafe/mojito-plugin-sdk --repo thewakingsands/mojito-plugins 
 pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 ```
 
-该命令打包并校验现有的 `dist` 目录，读取签名后的 manifest，在 `dist/official` 下为每个官方插件
-（列表见 `scripts/pack-official.mjs`）写出一个 `.mojito` 包，以及 `SHA256SUMS` 和模板源码归档。
+先运行 `pnpm build:official`。构建会在插件 manifest 写入指向固定提交的 GitHub 源码链接。
+签名命令会清理 `dist/official`，为各官方插件写入已验证的 `.mojito` 包，并生成 `SHA256SUMS`。
 插件版本取自各自的 manifest。
 
 `official-v*` tag 工作流在没有 secret 的情况下构建，通过 artifact 传递运行时目录和 CLI，

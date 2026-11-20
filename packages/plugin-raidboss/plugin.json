@@ -11,5 +11,6 @@
   "capabilities": ["session.read", "game.read", "events.read", "ui.register", "audio.play", "tts.say", "identity.read"],
   "networkOrigins": [],
   "author": "FFCafe",
-  "description": "根据副本机制提供文字、音效与语音提示，并显示技能时间轴。触发规则来自 cactbot。"
+  "description": "根据副本机制提供文字、音效与语音提示，并显示技能时间轴。触发规则来自 cactbot。",
+  "license": "AGPL-3.0-only"
 }

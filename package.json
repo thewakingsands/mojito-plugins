@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "pnpm build:package && pnpm -r build",
+    "build": "pnpm build:package && pnpm -r build && node scripts/link-official-sources.mjs",
     "build:package": "cargo build --locked --release --package mojito-package",
     "build:package:npm": "pnpm --filter @ffcafe/mojito-package build",
     "build:web": "node scripts/build-package-web.mjs",
