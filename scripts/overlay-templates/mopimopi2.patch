@@ -237,6 +237,15 @@
                      hiddenTable()
                  } else {
                      initOverlay()
+@@ -1173,7 +1174,7 @@
+         img = init.q.overlayBgImg
+     $('html').css({
+         'font-size': init.q.resolution,
+-        'background-image': 'url(' + img + ')',
++        'background-image': img ? 'url(' + img + ')' : 'none',
+         'background-size': init.q.overlayBgSize,
+         'background-repeat': init.q.overlayBgRepeat
+     })
 --- a/css/fonts.css
 +++ b/css/fonts.css
 @@ -27,11 +27,11 @@
