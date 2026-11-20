@@ -7,7 +7,8 @@
 `amethyst`、`klondike` 和 `glass`。构建会把固定的上游提交拉取到自己的临时目录。源码归档和构建补丁
 输出到运行时目录旁边的 `dist/sources`。
 
-每个插件都需要 Mojito Plugin API 2.0.0 和 `ffcafe.combat-statistics/overlay` 服务 v1。先安装并启用战斗统计，
+Ember 需要 Mojito Plugin API 2.1.0，其他插件需要 API 2.0.0。所有插件都需要
+`ffcafe.combat-statistics/overlay` 服务 v1。先安装并启用战斗统计，
 再启用悬浮窗插件。服务提供方停止后，恢复它并重新启用使用方即可重新连接。
 
 Ember 通过兼容页面的 `getGameIcon` 调用读取 Mojito 游戏数据中的技能和状态图标，worker 查询对应数据行后
@@ -25,3 +26,13 @@ mojito-package verify Kagerou.mojito
 普通构建不需要签名密钥。每个运行时目录都包含上游源码链接、版本/修订号和许可证声明。同级的源码归档
 包含打过补丁的源码和构建输入；构建脚本中的工作区路径以记录的 Mojito 检出为准。模板页面直接从已安装
 的 `.mojito` 资源加载。
+
+`src/combatants.ts` 的 `registerCombatants(ctx, channel)` 注册 `${channel}/combatants`，供现代页面的
+`getCombatants` 调用。应在打开悬浮窗前注册，停止时释放；Ember 使用 `combat`。查询按 ID 与名称的并集筛选，
+名称忽略大小写完整匹配，`props` 区分大小写。空筛选返回所有角色，空 `props` 返回全部可用字段。
+
+支持 `ID`、`Name`、`Job`、`Level`、`CurrentHP`、`MaxHP`、`CurrentMP`、`MaxMP`、`PosX`、`PosY`、
+`PosZ`、`Heading`、`OwnerID`、`TargetID`、`WorldID`、`CurrentWorldID`、`WorldName`、`BNpcID`、
+`BNpcNameID` 和 `Type`。缺失值省略，已知无主人或目标时对应 ID 为 0。位置按游戏 x/z/y 输出，`PosZ` 为高度，
+Heading 保留弧度。请求 `WorldName` 且数据可用时读取所属世界的英文 Name。查询沿用 SDK 身份处理，
+完成前来源发生变化时返回 `unavailable`。

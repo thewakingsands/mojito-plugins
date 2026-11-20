@@ -21,3 +21,6 @@ pnpm exec vite build --config examples/overlayplugin-fixture/vite.config.ts
 
 验收脚本可以在控制视图中调用 `fixtureState(state)`，发布一个合成的 `OverlayState`。
 测试插件发布前先用 SDK 校验它；这样可以精确地修订最后一帧，而不改变统计计算。
+
+控制页面提供 `fixtureCombatants("success" | "unavailable" | "missing")`，可切换合成查询结果或移除查询处理器，
+用于生产宿主中 package/remote 页面、回调和 WebSocket `rseq` 的往返验收。真实游戏字段需另外验证。

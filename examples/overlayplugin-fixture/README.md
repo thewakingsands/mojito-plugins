@@ -26,3 +26,7 @@ keep their existing HTTP(S) networking and permission restrictions.
 Acceptance drivers can call `fixtureState(state)` from the control view to publish a
 synthetic `OverlayState`. The fixture validates it with the SDK before publication;
 this permits precise final-frame revisions without changing statistics calculations.
+
+The controller exposes `fixtureCombatants("success" | "unavailable" | "missing")` to select a synthetic
+query result or remove its handler. Use it to verify package/remote pages, callbacks and WebSocket `rseq`
+through the production host. Actual game fields are validated separately.
