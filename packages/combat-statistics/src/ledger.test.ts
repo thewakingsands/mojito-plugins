@@ -711,3 +711,26 @@ it('ends the settlement time with a limit break that lands last', () => {
   ledger.direct(limitBreak(2, 50000), 3000)
   expect(ledger.settlement()).toMatchObject({ first: 1000, last: 3000 })
 })
+
+it('conserves pet totals when its confirmed owner changes before a post revision', () => {
+  const ledger = new Ledger(actors())
+  ledger.direct(effect(1, 100, 3), 1000)
+  const periodic = tick({ unknown: 0, shares: [{ sourceId: 3, statusId: 1, amount: 100, basis: 'estimated' }] })
+  ledger.periodic(periodic)
+  const before = ledger.summary(1000, 2000, true)
+  expect(before[0].actor.id).toBe(1)
+  expect(before[0].totals.damage).toBe(200)
+  const changed = actors()
+  changed.get(3)!.ownerKey = changed.get(2)!.key
+  ledger.refresh(changed)
+  const final = { ...periodic, phase: 'post' as const }
+  expect(ledger.periodic(final, true)).toBe(true)
+  expect(ledger.periodic(final, true)).toBe(false)
+  const separate = ledger.summary(1000, 2000, false)
+  const merged = ledger.summary(1000, 2000, true)
+  expect(separate.map((row) => [row.actor.id, row.totals.damage])).toEqual([[3, 200]])
+  expect(merged.map((row) => [row.actor.id, row.totals.damage])).toEqual([[2, 200]])
+  expect(before[0].actor.id).toBe(1)
+  expect(ledger.pending.size).toBe(0)
+  expect(ledger.diagnostics.observedTargetDamage).toBe(200)
+})
