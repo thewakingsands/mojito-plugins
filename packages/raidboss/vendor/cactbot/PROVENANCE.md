@@ -17,9 +17,11 @@ pinned upstream. This is not a claim of complete cactbot compatibility.
 
 - `ui/raidboss/worker_callbacks.ts` extracts the output proxy, trigger helper,
   callback ordering, response/text selection and TTS transforms from popup-text.ts.
+  It retains the highest text level per invocation for speech channel selection.
   Clock delays, generation/fault cancellation and outputs replace browser facilities.
 - `timeline_parser.ts` retains parsing/windows/labels/jumps/duration/translation;
-  structured sync uses Mojito's field matcher. Legacy log sync fails the timeline.
+  it schedules direct speech alongside the text alerts.
+  Structured sync uses Mojito's field matcher. Legacy log sync fails the timeline.
 - `timeline.ts` retains scheduling/jump/bar algorithms, injects session-clock timers,
   and accepts structured events. Browser/log-line controllers are omitted. Parser
   errors or a required missing sync field stop the timeline through the caller.

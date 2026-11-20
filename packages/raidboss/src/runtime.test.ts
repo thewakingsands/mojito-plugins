@@ -293,6 +293,64 @@ it('loads every official P1N trigger and all timeline syncs including InCombat a
   await timer.advance(100000)
   expect(engine.alerts).toHaveLength(0)
 })
+it.each([true, false])('keeps the highest spoken level with text display set to %s', async (showText) => {
+  const { data, opts } = fixture()
+  const timer = clock()
+  const speech: unknown[] = [],
+    displayed: string[] = []
+  const callbacks = new WorkerCallbacks(
+    data,
+    { ...opts, SpokenAlertsEnabled: true, TextAlertsEnabled: showText },
+    timer.value,
+    {
+      text: (_helper, text) => displayed.push(text),
+      say: (helper, text) => speech.push([text, helper.ttsLevel]),
+      play() {},
+      fault: (_trigger, error) => {
+        throw error
+      },
+    },
+  )
+  callbacks.run({ id: 'late', delaySeconds: 1, alarmText: 'Alarm', infoText: 'Info', tts: 'Custom' }, {}, 100000)
+  callbacks.run({ id: 'now', alarmText: () => '', response: { alertText: 'Alert' } }, {}, 100000)
+  await timer.advance(1000)
+  expect(speech).toEqual([
+    ['Alert', 'alert'],
+    ['Custom', 'alarm'],
+  ])
+  expect(displayed).toEqual(showText ? ['Alert', 'Alarm', 'Info'] : [])
+})
+
+it('routes direct timeline speech and graded timeline alerts at their scheduled times', async () => {
+  const timer = clock()
+  const set = {
+    id: 'timeline-speech',
+    zoneId: 1,
+    timeline: [
+      '0 "Start" InCombat { inGameCombat: "1" } window 0,1',
+      '2 "Mechanic"',
+      'alertall "Mechanic" before 1 speak "voice" "Direct"',
+      'alarmtext "Mechanic" before 0 "Alarm"',
+    ],
+  }
+  const speech: unknown[] = []
+  const engine = new RaidbossEngine([{ path: 'timeline', set }], {}, timer.value, {
+    changed() {},
+    say: (text, _signal, level) => speech.push([text, level]),
+    play() {},
+  })
+  engine.start(1, fixture().data, { audio: 'tts', language: 'en', rules: {} })
+  engine.event({ type: 'InCombat', fields: { inGameCombat: '1' } })
+  await timer.advance(1000)
+  expect(speech).toEqual([['Direct', 'info']])
+  await timer.advance(1000)
+  expect(speech).toEqual([
+    ['Direct', 'info'],
+    ['Alarm', 'alarm'],
+  ])
+  engine.reset()
+})
+
 it('retains upstream timeline windows and loop jumps; rejects a missing mandatory sync', () => {
   const timer = clock(),
     t = new Timeline(

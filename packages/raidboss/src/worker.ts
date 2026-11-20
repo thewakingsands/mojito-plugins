@@ -109,8 +109,11 @@ export async function activateRaidboss(
     changed: () => {
       void publish()
     },
-    say(text, signal) {
-      if (granted('tts.say')) void ctx.tts.say(text, { signal }).catch((error) => audioError(error, signal))
+    say(text, signal, level) {
+      if (granted('tts.say')) {
+        const options = level === 'info' ? { signal } : { signal, channel: level }
+        void ctx.tts.say(text, options).catch((error) => audioError(error, signal))
+      }
     },
     play(path, volume, signal) {
       if (granted('audio.play'))
