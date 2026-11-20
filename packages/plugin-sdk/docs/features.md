@@ -185,7 +185,7 @@ const removeOverlay = await context.ui.registerOverlay({
 
 为 ACT/OverlayPlugin 写的现成悬浮窗也可以作为插件运行：声明 `ui.overlayplugin`，注册时用 `compatibility` 代替 `entry`。定义见 [overlayplugin.ts](https://github.com/thewakingsands/mojito-plugins/blob/main/packages/plugin-sdk/src/overlayplugin.ts)。
 
-Modern 兼容页面可用 `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)` 请求技能图标，`type: 'status'` 请求状态图标。
+Modern 兼容页面可用 `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)` 请求技能图标，`type: 'status'` 请求状态图标。Ember 也支持 `type: 'job'`，此时 id 为 ClassJob 行号。
 宿主把 `{ type, id }` 交给该插件的 `${channel}/icons` view command；worker 用已有的 `data.read` 权限查询游戏数据并返回 `data.image` URL 或 `null`。回调参数为 JSON 字符串，包含该 URL、`null` 或 `{ error }`。
 
 ## 设置搜索

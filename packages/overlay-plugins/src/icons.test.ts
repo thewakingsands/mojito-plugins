@@ -45,9 +45,22 @@ it('rejects invalid icon selections before reading game data', async () => {
   const invalid: Value[] = [
     { type: 'image', id: 1 },
     { type: 'action', id: -1 },
+    { type: 'job', id: 0 },
+    { type: 'job', id: 400 },
     { type: 'status', id: '1' },
     { type: 'status', id: 1, path: 'arbitrary' },
   ]
-  for (const value of invalid) await expect(f.command(value)).rejects.toThrow()
+  for (const value of invalid) expect(await f.command(value)).toEqual({ error: 'invalid_argument' })
+  expect(f.image).not.toHaveBeenCalled()
   expect(f.rows).not.toHaveBeenCalled()
+})
+
+it.each([1, 19, 42, 43])('reads the game job icon for ClassJob %i without looking up a sheet', async (id) => {
+  const f = await fixture()
+  f.image.mockResolvedValueOnce(null)
+  expect(await f.command({ type: 'job', id })).toContain(`/062000/0${62100 + id}.tex`)
+  expect(f.image.mock.calls[0][0]).toBe(`ui/icon/062000/0${62100 + id}_hr1.tex`)
+  expect(f.rows).not.toHaveBeenCalled()
+  f.image.mockResolvedValue(null)
+  expect(await f.command({ type: 'job', id })).toBeNull()
 })

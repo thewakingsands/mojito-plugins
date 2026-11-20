@@ -126,7 +126,13 @@ const sources = {
     output: 'build',
     lock: 'ember-package-lock.json',
     async prepare(work) {
-      for (const relative of ['public/img/buttons', 'public/img/icons/skills', 'public/img/icons/effects'])
+      await cp(path.join(root, 'packages/overlay-plugins/src/job-icons.js'), path.join(work, 'src/mojito-job-icons.js'))
+      for (const relative of [
+        'public/img/buttons',
+        'public/img/icons/skills',
+        'public/img/icons/effects',
+        'public/img/icons/jobs',
+      ])
         await rm(path.join(work, relative), { recursive: true, force: true })
     },
     async build(work) {

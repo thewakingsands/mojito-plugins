@@ -10,8 +10,8 @@
 每个插件都需要 Mojito Plugin API 2.0.0 和 `ffcafe.combat-statistics/overlay` 服务 v1。先安装并启用战斗统计，
 再启用悬浮窗插件。服务提供方停止后，恢复它并重新启用使用方即可重新连接。
 
-Ember 通过兼容页面的 `getGameIcon` 调用读取 Mojito 游戏数据中的技能和状态图标，worker 查询对应数据行后
-返回属于当前激活的图片 URL。模板构建优先保留 WOFF2，并且只复制页面使用的字体字重。
+Ember 通过 `getGameIcon` 从 Mojito 读取职业、技能和状态图标。职业图标按 ClassJob 行号读取，缺图时显示职业缩写。
+模板构建优先保留 WOFF2，并且只复制页面使用的字体字重。
 
 用现有的 Rust CLI 和 Ed25519 私钥 JWK 为每个插件生成包，例如：
 

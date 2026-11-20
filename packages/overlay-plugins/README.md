@@ -11,8 +11,8 @@ Each plugin requires Mojito plugin API 2.0.0 and the `ffcafe.combat-statistics/o
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
 
-Ember loads action and status icons from Mojito's game data through the compatibility page's
-`getGameIcon` call. Its worker resolves the game row and returns an activation-bound image URL.
+Ember reads job, action and status icons from Mojito through `getGameIcon`. Job icons use the
+ClassJob row number and show the abbreviation when an image is unavailable.
 Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.
 
 Use the existing Rust CLI with a private Ed25519 JWK to create each package, for example:
