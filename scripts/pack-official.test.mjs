@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { verifyPackage } from '../packages/package/dist/api.js'
+import { verifyPackage } from '../packages/package/dist/index.js'
 import { gitRevision } from './source-links.mjs'
 
 const templates = [
