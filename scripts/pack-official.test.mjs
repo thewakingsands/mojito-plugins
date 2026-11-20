@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash, generateKeyPairSync } from 'node:crypto'
-import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -110,13 +110,13 @@ test('official packages and checksums contain exactly the approved plugins and s
       }
     }
     const archive = path.join(sources, expectedArchives[0])
-    const saved = path.join(temporary, 'archive')
-    await rename(archive, saved)
+    const saved = await readFile(archive)
+    await rm(archive)
     try {
       assert.throws(pack, /Command failed/, 'missing approved source must fail packaging')
       await assert.rejects(access(path.join(output, 'SHA256SUMS')), { code: 'ENOENT' })
     } finally {
-      await rename(saved, archive)
+      await writeFile(archive, saved)
     }
     const sourceFile = path.join(root, 'packages/matcha/dist/SOURCE.json')
     const cleanSource = await readFile(sourceFile)
