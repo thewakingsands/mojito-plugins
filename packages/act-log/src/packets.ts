@@ -364,8 +364,7 @@ function resultRows(s: State, id: number, v: Result, bytes: Uint8Array): Row[] {
       return digits.length % 2 ? `0${digits}` : digits
     })
   // A status occupies three words. Gaps before the last occupied slot retain their position.
-  const statusWords = (offset: number, count: number) => {
-    const data = words(offset, count * 3)
+  const trimStatuses = (data: number[]) => {
     let end = data.length
     while (end > 3 && !data[end - 1] && !data[end - 2] && !data[end - 3]) end -= 3
     return data.slice(0, end)
@@ -413,7 +412,12 @@ function resultRows(s: State, id: number, v: Result, bytes: Uint8Array): Row[] {
     })
   }
   if (v.type === 'StatusEffectList3')
-    return row(42, hex(id, 4), actor.name ?? '', ...formatWords(statusWords(0, v.body.statusEffects.length)))
+    return row(
+      42,
+      hex(id, 4),
+      actor.name ?? '',
+      ...formatWords(trimStatuses(words(0, v.body.statusEffects.length * 3))),
+    )
   const base = 'data' in v.body ? v.body.data : v.body
   const offset = v.type === 'BossStatusEffectList' ? 360 : 'data' in v.body ? 4 : 0
   const levelWord = view.getUint32(offset, true)
@@ -426,16 +430,13 @@ function resultRows(s: State, id: number, v: Result, bytes: Uint8Array): Row[] {
     mpMax: base.mpMax,
   }
   s.actors.update(id, properties)
-  const values = statusWords(offset + 20, base.statusEffects.length)
-  if (v.type === 'BossStatusEffectList') {
-    const extra = statusWords(0, v.body.statusEffects2.length)
-    if (extra.some((n) => n !== 0)) {
-      while (values.length < base.statusEffects.length * 3) values.push(0)
-      values.push(...extra)
-    }
-  }
+  const foray = v.type === 'StatusEffectListForay3'
+  // The ordinary ACT status list starts with a three-word header. Foray3 starts directly at slot zero.
+  const values = foray ? [] : [view.getUint16(offset + 17, true), view.getUint8(offset + 19), 0]
+  values.push(...words(offset + 20, base.statusEffects.length * 3))
+  if (v.type === 'BossStatusEffectList') values.push(...words(0, v.body.statusEffects2.length * 3))
   return row(
-    v.type === 'StatusEffectListForay3' ? 43 : 38,
+    foray ? 43 : 38,
     hex(id, 4),
     actor.name ?? '',
     hex(levelWord, 8),
@@ -443,9 +444,9 @@ function resultRows(s: State, id: number, v: Result, bytes: Uint8Array): Row[] {
     base.hpMax,
     base.mpCur,
     base.mpMax,
-    base.damageShield,
+    view.getUint8(offset + 16),
     '',
     ...coordinates(actor),
-    ...formatWords(values),
+    ...formatWords(trimStatuses(values)),
   )
 }

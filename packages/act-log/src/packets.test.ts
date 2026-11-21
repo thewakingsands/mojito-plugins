@@ -173,6 +173,22 @@ it('distinguishes the ordinary and Foray3 status lists', async () => {
     expect(r.fields.slice(0, 8)).toEqual(['0009', 'Source', '04030201', 12, 64, 0, 0, 0])
   }
 })
+it.each([
+  ['StatusEffectList', 0, 38],
+  ['StatusEffectList2', 4, 38],
+  ['StatusEffectListForay3', 4, 43],
+] as const)('puts the shield and first occupied status in the 3.0.3.3 columns for %s', async (type, offset, line) => {
+  const b = Buffer.alloc(384 + offset)
+  b.set([23, 55, 7, 1], offset + 16)
+  b.writeUInt32LE(0x1230008, offset + 20)
+  b.writeFloatLE(2.5, offset + 24)
+  b.writeUInt32LE(0x88, offset + 28)
+  const [r] = await packetRows(state(), packet(type, b))
+  expect(r.type).toBe(line)
+  expect(r.fields[7]).toBe(23)
+  const status = ['01230008', '40200000', '88']
+  expect(r.fields.slice(13)).toEqual(line === 43 ? status : ['0737', '01', '0', ...status])
+})
 it('writes the full effect result, including raw signed duration bits and byte-width status words', async () => {
   const b = Buffer.alloc(96)
   b[0] = 1
