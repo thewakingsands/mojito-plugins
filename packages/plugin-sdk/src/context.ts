@@ -5,16 +5,22 @@ import type {
   Capability,
   ClockState,
   Disposer,
+  EventOptions,
   EventsService,
   FeatureDefinition,
   Field,
+  GameEvent,
+  GameEventMap,
   Json,
   OverlayDefinition,
+  Packet,
+  PacketOptions,
   PacketsService,
   PluginIdentity,
   PreferenceItem,
   Sample,
   SessionService,
+  SessionSnapshot,
   Status,
   SubscribeOptions,
   Subscription,
@@ -86,6 +92,46 @@ export interface GameTopics {
   party: { isInParty: Field<boolean>; members: Field<{ slot: number; id: number; name: string; ownParty: boolean }[]> }
   zone: { territoryType: Field<number>; mapId: Field<number> }
 }
+export interface ObservationSelection {
+  packets?: Omit<PacketOptions, 'signal'>
+  events?: {
+    types: (keyof GameEventMap)[]
+    filters?: Omit<EventOptions, 'signal'>
+  }
+  memory?: ('combatant' | 'party' | 'zone' | 'player')[]
+  initial?: boolean
+}
+
+export interface ObservationSubscription extends Subscription {
+  finish(): Promise<void>
+}
+
+export interface ObservationsService {
+  subscribe(
+    selection: ObservationSelection,
+    listener: BatchListener<Sample<Observation>>,
+    options?: SubscribeOptions,
+  ): ObservationSubscription
+}
+
+export type MemoryObservation =
+  | { kind: 'combatant'; combatant: CombatantState }
+  | { kind: 'combatantRemove'; actorId: number }
+  | { kind: 'party'; memberCount: number; memberIds: number[] }
+  | { kind: 'zone'; territoryType: Field<number>; mapId: Field<number> }
+  | { kind: 'player'; player: PlayerState }
+
+export type Observation =
+  | { kind: 'packet'; packet: Packet }
+  | { kind: 'event'; event: GameEvent }
+  | { kind: 'memory'; memory: MemoryObservation }
+  | { kind: 'snapshotStart'; source: SessionSnapshot }
+  | { kind: 'snapshotCombatant'; combatant: CombatantState; presentInMemory: boolean }
+  | { kind: 'snapshotPlayer'; player: PlayerState }
+  | { kind: 'snapshotParty'; party: Field<{ memberCount: number; memberIds: number[] }> }
+  | { kind: 'snapshotZone'; territoryType: Field<number>; mapId: Field<number> }
+  | { kind: 'snapshotEnd' }
+
 export interface GameService {
   getPlayer(selection: { fields: PlayerField[] }, options?: SubscribeOptions): Promise<Sample<PlayerState>>
   getCombatants(
@@ -237,7 +283,14 @@ export interface TtsService {
     options?: SubscribeOptions,
   ): Promise<VoiceProvider>
 }
+export interface FileWriter {
+  readonly name: string
+  write(bytes: Uint8Array, options?: SubscribeOptions): Promise<void>
+  close(): Promise<void>
+}
+
 export interface HostService {
+  openWriteFile(selection: { extensions?: string[] }, options?: SubscribeOptions): Promise<FileWriter | null>
   /** Asks the user, showing the whole address, before opening an http: or https: link in the browser */
   openExternal(url: string, options?: SubscribeOptions): Promise<'opened' | 'cancelled'>
 }
@@ -327,6 +380,7 @@ export interface PluginContext extends CallContext {
   readonly views: ViewsService
   readonly audio: AudioService
   readonly tts: TtsService
+  readonly observations: ObservationsService
   readonly host: HostService
   readonly http: HttpService
   readonly config: ConfigService

@@ -19,7 +19,11 @@ test('packs and verifies every official plugin with one temporary signer', async
     await writeFile(key, JSON.stringify(privateJwk), { mode: 0o600 })
     execFileSync(process.execPath, [path.join(root, 'scripts/pack-official.mjs'), key, fingerprint], { stdio: 'pipe' })
     const packages = (await readdir(output)).filter((file) => file.endsWith('.mojito'))
-    assert.equal(packages.length, 17)
+    assert.equal(packages.length, 18)
+    const actLog = JSON.parse(await readFile(path.join(root, 'packages/act-log/plugin.json'), 'utf8'))
+    assert.equal(actLog.id, 'ffcafe.act-log')
+    const actFile = `${actLog.id}-${actLog.version}.mojito`
+    assert.ok(packages.includes(actFile))
     const matcha = JSON.parse(await readFile(path.join(root, 'packages/matcha/plugin.json'), 'utf8'))
     const expectedDisplay = JSON.parse(
       await readFile(path.join(root, 'packages/plugin-skill-display/plugin.json'), 'utf8'),
@@ -27,14 +31,14 @@ test('packs and verifies every official plugin with one temporary signer', async
     const displayFile = `${expectedDisplay.id}-${expectedDisplay.version}.mojito`
     assert(packages.includes(`${matcha.id}-${matcha.version}.mojito`))
     assert(packages.includes(displayFile))
-    const display = JSON.parse(
-      execFileSync(
-        path.join(root, `target/release/mojito-package${process.platform === 'win32' ? '.exe' : ''}`),
-        ['read', path.join(output, displayFile), 'plugin.json'],
-        { encoding: 'utf8' },
-      ),
-    )
-    assert.deepEqual(display, expectedDisplay)
+    const cli = path.join(root, `target/release/mojito-package${process.platform === 'win32' ? '.exe' : ''}`)
+    for (const [file, expected] of [
+      [displayFile, expectedDisplay],
+      [actFile, actLog],
+    ]) {
+      const packed = execFileSync(cli, ['read', path.join(output, file), 'plugin.json'], { encoding: 'utf8' })
+      assert.deepEqual(JSON.parse(packed), expected)
+    }
     const sums = await readFile(path.join(output, 'SHA256SUMS'), 'utf8')
     for (const file of packages) {
       const digest = createHash('sha256')

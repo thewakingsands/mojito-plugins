@@ -90,3 +90,11 @@ export async function activate(context: PluginContext) {
 ```
 
 Use `request` for methods and `subscribe` for service events. Providers emit events with `publish`. A provider handler receives the consumer ID and abort signal and answers with its own capabilities.
+
+## Ordered observations and user-selected files (API 2.2)
+
+Use `ctx.observations.subscribe(selection, listener)` to consume packet, event and memory observations in source order. Independent subscriptions each preserve their own order. Equal timestamps do not establish an order across subscriptions. Selecting packets, events or memory requires `packets.read`, `events.read` or `game.read`, respectively. An initial snapshot also requires `game.read` and `session.read`. The snapshot distinguishes entities present in memory from entities known only from packets and includes only observed fields.
+
+An idle subscription waits for the next source. Its snapshot can span batches and ends with `snapshotEnd`. A source without a clock supplies no initial items. The SDK acknowledges a batch after its listener resolves. Call `finish()` from outside the listener to stop receiving new observations and wait for all accepted batches to be acknowledged. Normal EOF drains the same way and resolves `closed` with the reason `completed`. Revocation, source changes and queue overflow interrupt recording. Check required sensitive capabilities with `ctx.capabilities.get()` before opening an output file.
+
+Every `ctx.host.openWriteFile({extensions:['log']})` opens a system save dialog. Cancellation returns null. The result contains the file name and a writer scoped to this activation. Await `file.write(bytes)` for each chunk and `file.close()` to finish closing the file. Split large output across requests.

@@ -12,6 +12,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const cli = path.join(root, 'target/release', `mojito-package${process.platform === 'win32' ? '.exe' : ''}`)
 const output = path.join(root, 'dist/official')
 const plugins = [
+  ['ffcafe.act-log', 'packages/act-log/dist'],
   ['ffcafe.matcha', 'packages/matcha/dist'],
   ['ffcafe.skill-display', 'packages/plugin-skill-display/dist'],
   ['ffcafe.combat-statistics', 'packages/combat-statistics/dist'],

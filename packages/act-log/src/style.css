@@ -1,0 +1,40 @@
+:root {
+  color-scheme: light dark;
+  font:
+    15px / 1.5 system-ui,
+    sans-serif;
+  color: CanvasText;
+  background: Canvas;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+}
+h1 {
+  font-size: 1.65rem;
+}
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+button {
+  margin-top: 0.8rem;
+  padding: 0.5rem 1.15rem;
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+[role="alert"] {
+  color: light-dark(#a32121, #ffb3ad);
+}
