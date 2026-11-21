@@ -15,6 +15,7 @@ import { fieldValue, freshField, observedPlayerPosition } from './coordinates.js
 import { EurekaTracker } from './eureka.js'
 import type { FateObservation } from './eureka-types.js'
 import { HuntTracker } from './hunts.js'
+import { locationState } from './location.js'
 import { navigationState } from './navigation.js'
 import type { ExplorationCatalog, ExplorationContext } from './types.js'
 
@@ -36,7 +37,7 @@ export class ExplorationService {
   private readonly hunts = new HuntTracker()
   private readonly eureka = new EurekaTracker()
   private recentFates: { observation: FateObservation; requiredZoneSeq: number }[] = []
-  private target: { itemId: number; spotIndex: number } | null = null
+  private target: { itemId: number; spotIndex: number; since: number } | null = null
   private player: PlayerState | null = null
   private playerSampleTime: number | null = null
   private entities: CombatantState[] | null = null
@@ -290,14 +291,16 @@ export class ExplorationService {
       }
   }
 
-  treasure(itemId: number, spotIndex: number) {
+  /** `timestamp` is the packet time of the report; a repeated report of the current map keeps the first one. */
+  treasure(itemId: number, spotIndex: number, timestamp: number) {
     if (itemId === 0) {
       this.target = null
       this.publishNavigation()
       return
     }
     if (!Number.isSafeInteger(itemId) || itemId <= 0 || !Number.isSafeInteger(spotIndex) || spotIndex < 0) return
-    this.target = { itemId, spotIndex }
+    if (this.target?.itemId !== itemId || this.target.spotIndex !== spotIndex)
+      this.target = { itemId, spotIndex, since: timestamp }
     this.publishNavigation()
   }
 
@@ -330,6 +333,10 @@ export class ExplorationService {
     this.options.publish(type, content)
   }
 
+  private publishLocation() {
+    this.publish('LocationState', locationState(this.playerContext(), this.options.catalog(), this.player))
+  }
+
   private publishNavigation() {
     this.publish(
       'NavigationState',
@@ -356,6 +363,8 @@ export class ExplorationService {
   }
 
   private publishAll() {
+    // Views drop the previous zone's states on the first state of a new one, so the map itself leads.
+    this.publishLocation()
     this.publishNavigation()
     this.publishHunts()
     this.publishEureka()
@@ -397,7 +406,10 @@ export class ExplorationService {
           )
           .finally(() => {
             this.playerBusy = false
-            if (current()) this.publishNavigation()
+            if (current()) {
+              this.publishLocation()
+              this.publishNavigation()
+            }
           })
       }
       if (this.ticks % 2 === 0 && !this.entitiesBusy) {
@@ -423,6 +435,7 @@ export class ExplorationService {
           })
       }
     }
+    this.publishLocation()
     this.publishNavigation()
     if (this.ticks % 2 === 0) this.publishHunts()
     if (this.ticks++ % 4 === 0) this.publishEureka()

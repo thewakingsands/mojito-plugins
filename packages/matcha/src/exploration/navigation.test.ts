@@ -3,7 +3,7 @@ import { guidance, headingDegrees, mapCoordinate } from './coordinates.js'
 import { catalog, context, field, player } from './fixtures.test-helper.js'
 import { navigationState } from './navigation.js'
 
-const target = { itemId: 88, spotIndex: 0 }
+const target = { itemId: 88, spotIndex: 0, since: 5000 }
 it('uses world X/Z distance and Y height while preserving zero and negative values', () => {
   const state = navigationState(context(), catalog(), target, player(), 9000)
   expect(state.target?.z).toBe(-0.02)
@@ -52,7 +52,7 @@ it('retains the static target through stale position, unknown heading and region
     player: null,
   })
   expect(navigationState(context(), catalog(), null, p, null).status).toBe('no-target')
-  expect(navigationState(context(), catalog(), { itemId: 99, spotIndex: 0 }, p, null).status).toBe('unavailable')
+  expect(navigationState(context(), catalog(), { ...target, itemId: 99 }, p, null).status).toBe('unavailable')
 })
 it('rejects old-zone, future and incomparable observations', () => {
   const p = player()
@@ -90,4 +90,46 @@ it('removes own navigation immediately when actor identity disappears despite ca
     player: null,
     guidance: null,
   })
+})
+
+it('reports when the current treasure map was first seen, whatever its status', () => {
+  expect(navigationState(context(), catalog(), target, player(), null).targetSince).toBe(5000)
+  expect(navigationState(context(), null, target, null, null).targetSince).toBe(5000)
+  expect(navigationState(context(), catalog(), { ...target, itemId: 99 }, null, null).targetSince).toBe(5000)
+  expect(navigationState(context(), catalog(), null, player(), null).targetSince).toBeNull()
+})
+
+it('picks the aetheryte nearest in 3D and places it on the map of the treasure', () => {
+  const c = catalog()
+  // The treasure is at (0, -2, -10): the tower top is 3 m away on the map but 100 m above it.
+  c.aetherytes[148] = [
+    { id: 1, name: 'Tower top', world: { x: 0, y: 98, z: -13 } },
+    { id: 2, name: 'Plain', world: { x: 30, y: -2, z: -10 } },
+  ]
+  const aetheryte = {
+    name: 'Plain',
+    distanceM: 30,
+    position: { mapId: 4, x: mapCoordinate(30, 0, 100), y: mapCoordinate(-10, 0, 100) },
+  }
+  expect(navigationState(context(), c, target, player(), null).target?.aetheryte).toEqual(aetheryte)
+  expect(navigationState({ ...context(), territoryId: 999 }, c, target, player(), null)).toMatchObject({
+    status: 'other-territory',
+    target: { aetheryte },
+  })
+  delete c.maps[4]
+  expect(navigationState(context(), c, target, player(), null).target?.aetheryte).toEqual({
+    ...aetheryte,
+    position: null,
+  })
+})
+
+it('names no aetheryte without the treasure height or aetheryte positions of its territory', () => {
+  const c = catalog()
+  expect(navigationState(context(), c, target, player(), null).target?.aetheryte).toBeNull()
+  c.aetherytes[999] = [{ id: 1, name: 'Elsewhere', world: { x: 0, y: -2, z: -10 } }]
+  expect(navigationState(context(), c, target, player(), null).target?.aetheryte).toBeNull()
+  c.aetherytes[148] = c.aetherytes[999]
+  expect(navigationState(context(), c, target, player(), null).target?.aetheryte?.name).toBe('Elsewhere')
+  c.targets[88][0].world.y = null
+  expect(navigationState(context(), c, target, player(), null).target?.aetheryte).toBeNull()
 })

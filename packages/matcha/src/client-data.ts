@@ -79,7 +79,7 @@ export interface GameCatalog {
   >
 }
 export const emptyCatalog = (): GameCatalog => ({
-  exploration: { territories: {}, maps: {}, treasures: {}, fatePositions: {} },
+  exploration: { territories: {}, maps: {}, treasures: {}, fatePositions: {}, aetherytes: {} },
   fates: {},
   patches: {},
   territories: {},
@@ -182,6 +182,7 @@ export class ClientGameData {
     result.exploration.territories = dictionary(territories, (c) => ({
       mapId: optionalNumber(c, 6),
       weatherRateId: optionalNumber(c, 12),
+      use: number(c, 9),
     }))
     result.patches = Object.fromEntries(
       (await read('ExVersion', true)).map((r) => [r.rowId + 2, local(text(cells(r), 0))]),
@@ -211,10 +212,16 @@ export class ClientGameData {
     })
     const fateRows = await read('Fate', true)
     const dynamicRows = await read('DynamicEvent', true)
+    // The sheet has text columns, so the client only has it per language.
+    const aetheryteRows = (await read('Aetheryte', true)).filter((r) => cells(r)[15]?.value === true)
     const wanted = new Set(
-      [...fateRows.map((r) => number(cells(r), 9)), ...dynamicRows.map((r) => number(cells(r), 5))].filter(Boolean),
+      [
+        ...fateRows.map((r) => number(cells(r), 9)),
+        ...dynamicRows.map((r) => number(cells(r), 5)),
+        ...aetheryteRows.map((r) => number(cells(r), 11)),
+      ].filter(Boolean),
     )
-    const locations = new Map<number, { territory: number; map: number; x: number; z: number }>()
+    const locations = new Map<number, { territory: number; map: number; x: number; y: number; z: number }>()
     const seenPaths = new Set<string>()
     for (const row of territories) {
       const c = cells(row),
@@ -229,9 +236,21 @@ export class ClientGameData {
         if (!raw) continue
         for (const point of sceneLocations(raw, wanted)) {
           if (!locations.has(point.id))
-            locations.set(point.id, { territory: row.rowId, map: number(c, 6), x: point.x, z: point.z })
+            locations.set(point.id, { territory: row.rowId, map: number(c, 6), x: point.x, y: point.y, z: point.z })
         }
       }
+    }
+    for (const row of aetheryteRows) {
+      const c = cells(row),
+        point = locations.get(number(c, 11)),
+        territory = number(c, 10)
+      if (!point) continue
+      result.exploration.aetherytes[territory] ??= []
+      result.exploration.aetherytes[territory].push({
+        id: row.rowId,
+        name: places[number(c, 8)] ?? '',
+        world: { x: point.x, y: point.y, z: point.z },
+      })
     }
     result.fates = Object.fromEntries(
       fateRows
@@ -474,12 +493,17 @@ export function sceneLocations(raw: Uint8Array, wanted: Set<number>) {
     if (count < 0 || count > raw.length / 4) throw new Error('Invalid LGB count')
     return Array.from({ length: count }, (_, i) => base + i32(base + i * 4))
   }
-  const result: { id: number; x: number; z: number }[] = []
+  const result: { id: number; x: number; y: number; z: number }[] = []
   for (const layer of offsets(20 + i32(28), i32(32))) {
     for (const point of offsets(layer + i32(layer + 8), i32(layer + 12))) {
       const id = data.getUint32(point + 4, true)
       if (wanted.has(id))
-        result.push({ id, x: data.getFloat32(point + 12, true), z: data.getFloat32(point + 20, true) })
+        result.push({
+          id,
+          x: data.getFloat32(point + 12, true),
+          y: data.getFloat32(point + 16, true),
+          z: data.getFloat32(point + 20, true),
+        })
     }
   }
   return result

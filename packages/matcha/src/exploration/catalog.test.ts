@@ -11,7 +11,7 @@ function fixture() {
   const base = emptyCatalog()
   base.maps[4] = { name: 'Synthetic island', sizeFactor: 100, offset: [0, 0] }
   base.exploration.maps[4] = { resource: 'test/00', territoryId: 732, isEvent: false }
-  base.exploration.territories[732] = { mapId: 4, weatherRateId: 1 }
+  base.exploration.territories[732] = { mapId: 4, weatherRateId: 1, use: 41 }
   base.treasures[88] = [{ map: 4, x: 21.5, y: 21.5 }]
   base.exploration.treasures[88] = [{ mapId: 4, levelId: 123, territoryId: 732, world: { x: 0, y: -100, z: 0 } }]
   base.fates = {
@@ -93,7 +93,7 @@ it('plots Hydatos FATEs on the outdoor map when the static position uses that ma
   f.base.maps[520] = { name: 'Arsenal', sizeFactor: 200, offset: [0, -754] }
   f.base.exploration.maps[515] = { resource: 'z3fd/01', territoryId: 827, isEvent: false }
   f.base.exploration.maps[520] = { resource: 'z3fd/02', territoryId: 827, isEvent: false }
-  f.base.exploration.territories[827] = { mapId: 515, weatherRateId: 1 }
+  f.base.exploration.territories[827] = { mapId: 515, weatherRateId: 1, use: 41 }
   f.base.fates[1412] = { name: { en: 'Island NM' }, location: 827, level: 1, patch: 4 }
   f.base.fates[1413] = { name: { en: 'Mismatched point' }, location: 827, level: 1, patch: 4 }
   f.base.exploration.fatePositions[1412] = { territoryId: 827, mapId: 515, x: -518, z: -288 }
@@ -101,9 +101,55 @@ it('plots Hydatos FATEs on the outdoor map when the static position uses that ma
 
   const c = await f.load()
   expect(c.territoryMaps[827]).toBeNull()
+  expect(c.territoryDefaults[827]).toEqual({ mapId: 515, maps: 2 })
   expect(c.eureka[827].mapId).toBe(515)
   expect(c.eureka[827].fates.find(({ id }) => id === 1412)?.position).toMatchObject({ mapId: 515 })
   expect(c.eureka[827].fates.find(({ id }) => id === 1413)?.position).toBeNull()
+})
+
+it('maps the intended use of each territory to a kind and carries aetherytes through', async () => {
+  const f = fixture()
+  for (const [id, use] of [
+    [1, 1],
+    [2, 0],
+    [3, 13],
+    [4, 41],
+    [5, 2],
+  ])
+    f.base.exploration.territories[id] = { mapId: null, weatherRateId: null, use }
+  f.base.exploration.aetherytes[732] = [{ id: 8, name: 'Synthetic aetheryte', world: { x: 1, y: 2, z: 3 } }]
+  const c = await f.load()
+  expect(c.territoryKinds).toEqual({ 1: 'field', 2: 'town', 3: 'town', 4: 'eureka', 5: 'other', 732: 'eureka' })
+  expect(c.aetherytes).toEqual(f.base.exploration.aetherytes)
+})
+
+it('offers the territory map as the default only when it is a usable map of that territory', async () => {
+  const f = fixture()
+  expect((await f.load()).territoryDefaults[732]).toEqual({ mapId: 4, maps: 1 })
+  // Map 4 belongs to 732; map 6 belongs to 901 but is an event map; map 7 has no image; map 8 has no projection.
+  f.base.maps[6] = { ...f.base.maps[4] }
+  f.base.maps[7] = { ...f.base.maps[4] }
+  f.base.maps[8] = { ...f.base.maps[4], sizeFactor: 0 }
+  f.base.exploration.maps[6] = { resource: 'test/06', territoryId: 901, isEvent: true }
+  f.base.exploration.maps[7] = { resource: 'default/00', territoryId: 902, isEvent: false }
+  f.base.exploration.maps[8] = { resource: 'test/08', territoryId: 903, isEvent: false }
+  f.base.exploration.territories[900] = { mapId: 4, weatherRateId: null, use: 1 }
+  f.base.exploration.territories[901] = { mapId: 6, weatherRateId: null, use: 1 }
+  f.base.exploration.territories[902] = { mapId: 7, weatherRateId: null, use: 1 }
+  f.base.exploration.territories[903] = { mapId: 8, weatherRateId: null, use: 1 }
+  const c = await f.load()
+  for (const id of [900, 901, 902, 903]) expect(c.territoryDefaults[id]).toEqual({ mapId: null, maps: 0 })
+  expect(c.territoryDefaults[732]).toEqual({ mapId: 4, maps: 1 })
+})
+
+it('counts map rows with the same image and projection as one map', async () => {
+  // Garlemald (958) in the client: maps 697 and 750 are both m5f2/00 with the same projection.
+  const f = fixture()
+  f.base.maps[9] = { ...f.base.maps[4] }
+  f.base.exploration.maps[9] = { ...f.base.exploration.maps[4] }
+  expect((await f.load()).territoryDefaults[732]).toEqual({ mapId: 4, maps: 1 })
+  f.base.exploration.maps[9] = { ...f.base.exploration.maps[4], resource: 'test/09' }
+  expect((await f.load()).territoryDefaults[732]).toEqual({ mapId: 4, maps: 2 })
 })
 
 it('does not cache results across client languages and discards canceled reads', async () => {
