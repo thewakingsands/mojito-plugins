@@ -125,7 +125,7 @@ const sources = {
   },
   ember: {
     repository: 'https://github.com/ffcafe-overlays/ffxiv-ember-overlay.git',
-    revision: '8aee360b7589c9d90924db3b86f6c5e0813a4aec',
+    revision: '1db08c1f740fcb860152d397b268552f59872de1',
     output: 'build',
     lock: 'ember-package-lock.json',
     async prepare(work) {
