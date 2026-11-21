@@ -90,7 +90,11 @@ export async function loadExplorationCatalog(
     result.territoryMaps[+id] = usable ? mapId : null
     if (!usable) result.mapIssues[+id] = '区域地图关联尚未确认'
     const maps = candidates.flatMap(([id]) => (result.maps[+id] ? [+id] : []))
-    result.territoryDefaults[+id] = { mapId: mapId !== null && maps.includes(mapId) ? mapId : null, maps: maps.length }
+    // Rows with the same image and projection are one map: Garlemald has two such rows.
+    result.territoryDefaults[+id] = {
+      mapId: mapId !== null && maps.includes(mapId) ? mapId : null,
+      maps: projections.size,
+    }
     result.territoryKinds[+id] = territoryKind(territory.use)
   }
   const heights = await optional(

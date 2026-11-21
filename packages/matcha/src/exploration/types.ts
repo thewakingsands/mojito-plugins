@@ -59,7 +59,7 @@ export interface TreasureTarget {
 export interface ExplorationCatalog {
   maps: Record<number, MapProjection>
   territoryMaps: Record<number, number | null>
-  /** The territory's own map and how many usable maps it has; unlike territoryMaps, projections may differ. */
+  /** The territory's own map and how many different usable maps it has; unlike territoryMaps, they may be several. */
   territoryDefaults: Record<number, { mapId: number | null; maps: number }>
   territoryKinds: Record<number, TerritoryKind>
   aetherytes: ExplorationSource['aetherytes']

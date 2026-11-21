@@ -142,6 +142,16 @@ it('offers the territory map as the default only when it is a usable map of that
   expect(c.territoryDefaults[732]).toEqual({ mapId: 4, maps: 1 })
 })
 
+it('counts map rows with the same image and projection as one map', async () => {
+  // Garlemald (958) in the client: maps 697 and 750 are both m5f2/00 with the same projection.
+  const f = fixture()
+  f.base.maps[9] = { ...f.base.maps[4] }
+  f.base.exploration.maps[9] = { ...f.base.exploration.maps[4] }
+  expect((await f.load()).territoryDefaults[732]).toEqual({ mapId: 4, maps: 1 })
+  f.base.exploration.maps[9] = { ...f.base.exploration.maps[4], resource: 'test/09' }
+  expect((await f.load()).territoryDefaults[732]).toEqual({ mapId: 4, maps: 2 })
+})
+
 it('does not cache results across client languages and discards canceled reads', async () => {
   const f = fixture()
   await f.load(undefined, 'ja')

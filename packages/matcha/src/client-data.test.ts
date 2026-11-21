@@ -193,6 +193,8 @@ it('reads the intended use of a territory and groups located aetherytes by terri
   expect(c.exploration.aetherytes).toEqual({
     148: [{ id: 8, name: '客户端区域', world: { x: 100, y: 50, z: 200 } }],
   })
+  // The client has no language-neutral Aetheryte sheet: the host fails a read without a language.
+  expect(f.data.rowIds.mock.calls.find(([name]) => name === 'Aetheryte')?.[1]).toBe('chs')
 })
 
 it('requests Map fields by EXDSchema name', async () => {

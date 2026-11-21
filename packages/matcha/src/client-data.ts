@@ -212,7 +212,8 @@ export class ClientGameData {
     })
     const fateRows = await read('Fate', true)
     const dynamicRows = await read('DynamicEvent', true)
-    const aetheryteRows = (await read('Aetheryte')).filter((r) => cells(r)[15]?.value === true)
+    // The sheet has text columns, so the client only has it per language.
+    const aetheryteRows = (await read('Aetheryte', true)).filter((r) => cells(r)[15]?.value === true)
     const wanted = new Set(
       [
         ...fateRows.map((r) => number(cells(r), 9)),
