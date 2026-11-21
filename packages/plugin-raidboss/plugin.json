@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ffcafe.raidboss",
   "name": "Raidboss",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",
@@ -10,6 +10,13 @@
   },
   "capabilities": ["session.read", "game.read", "events.read", "ui.register", "audio.play", "tts.say", "identity.read"],
   "networkOrigins": [],
+  "tts": {
+    "channels": [
+      { "id": "default", "name": "信息" },
+      { "id": "alert", "name": "注意" },
+      { "id": "alarm", "name": "警报" }
+    ]
+  },
   "author": "FFCafe",
   "description": "根据副本机制提供文字、音效与语音提示，并显示技能时间轴。触发规则来自 cactbot。"
 }

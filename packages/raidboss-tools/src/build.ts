@@ -26,6 +26,7 @@ export interface BuildInput {
 
 /** Compile input without importing it in Node, or loading its npm scripts, plugins or tsconfig. */
 export async function buildCommunity(input: BuildInput): Promise<Buffer> {
+  const official = manifest(JSON.parse(await readFile(join(packageRoot, 'plugin-raidboss/plugin.json'), 'utf8')))
   const metadata = manifest({
     schemaVersion: 1,
     id: input.id,
@@ -35,6 +36,7 @@ export async function buildCommunity(input: BuildInput): Promise<Buffer> {
     entry: { kind: 'worker', path: 'entry.mjs' },
     capabilities: ['session.read', 'game.read', 'events.read', 'ui.register', 'audio.play', 'tts.say', 'identity.read'],
     networkOrigins: [],
+    tts: official.tts,
   })
   check(metadata.id !== 'ffcafe.raidboss', 'Community packages must use their own stable plugin ID')
   check(input.entries.length > 0, 'At least one local JS/TS entry is required')

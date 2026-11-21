@@ -23,6 +23,9 @@ names fail. Keep an explicit stable `set.id` and `trigger.id` when updating rule
 For a set without an ID, its entry path relative to the common entry directory is the
 fallback identity. Use a community plugin ID, distinct from `ffcafe.raidboss`.
 
+Rebuild and reinstall an existing community package to enable the Info, Alert and Alarm TTS channels.
+Keep the plugin ID so Info can use the voice and priority already saved for the default channel.
+
 Entries may default-export a trigger set or use `Options.Triggers.push(...)` /
 `Options.Triggers = [...]`. Normal dynamic construction and callback closures are
 preserved. Registration closes after module loading; runtime additions are unsupported.

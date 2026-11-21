@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { ttsChannels } from '@ffcafe/mojito-plugin-sdk'
 import { afterEach, expect, it } from 'vitest'
 import { buildCommunity } from './build.js'
 
@@ -63,6 +64,16 @@ it('compiles default and Options registrations without executing input or npm sc
   expect(pkg.signer.fingerprint).toMatch(/^[a-f0-9]{64}$/)
   expect(pkg.manifest.id).toBe('community.synthetic')
   expect(pkg.manifest.apiVersion).toBe('^2.0.0')
+  const official = JSON.parse(
+    await readFile(new URL('../../plugin-raidboss/dist/plugin.json', import.meta.url), 'utf8'),
+  )
+  const channels = [
+    { id: 'default', name: '信息' },
+    { id: 'alert', name: '注意' },
+    { id: 'alarm', name: '警报' },
+  ]
+  expect(ttsChannels(official)).toEqual(channels)
+  expect(ttsChannels(pkg.manifest)).toEqual(channels)
   expect(pkg.manifest.capabilities).toEqual([
     'session.read',
     'game.read',
@@ -104,7 +115,7 @@ it('rejects duplicate inputs and timeline names instead of silently replacing re
 it('loads generated registrations and closures into the runtime while keeping unsupported rules visible', async () => {
   const f = await input(`
     let calls = 0;
-    Options.Triggers = [{ id: 'registered', zoneId: 1, triggers: [{ id: 'counter', type: 'HeadMarker', netRegex: { id: '003E' }, infoText: () => String(++calls) }] }];
+    Options.Triggers = [{ id: 'registered', zoneId: 1, triggers: [{ id: 'counter', type: 'HeadMarker', netRegex: { id: '003E' }, alertText: () => String(++calls) }] }];
     export default { id: 'default', zoneId: 1, triggers: [{ id: 'unsupported', type: 'UnavailableEvent', netRegex: { flags: '1' }, infoText: 'not supported' }] };
   `)
   const pkg = await readPackage(await buildCommunity(f.options))
@@ -114,6 +125,7 @@ it('loads generated registrations and closures into the runtime while keeping un
   const module = await import(pathToFileURL(bundle).href)
   const subscription = () => ({ ready: Promise.resolve(), closed: new Promise(() => {}), dispose() {} })
   let receive!: (batch: unknown) => void, latest: any, catalog: any
+  const spoken: { text: string; channel?: string }[] = []
   const meta = {
     sessionId: 'synthetic',
     characterGeneration: 1,
@@ -145,7 +157,7 @@ it('loads generated registrations and closures into the runtime while keeping un
   }
   const ctx = {
     config: { get: async () => null, set: async () => {} },
-    capabilities: { get: () => ({}) },
+    capabilities: { get: () => ({ 'tts.say': { state: 'available' } }) },
     clock: {
       now: () => 1000,
       state: () => ({ now: 1000, generation: 1, source: 'replay', base: 'packet-unix', paused: false }),
@@ -182,7 +194,11 @@ it('loads generated registrations and closures into the runtime while keeping un
       },
     },
     audio: { play: async () => {} },
-    tts: { say: async () => {} },
+    tts: {
+      say: async (text: string, options: { channel?: string }) => {
+        spoken.push({ text, channel: options.channel })
+      },
+    },
     log: { error() {} },
   }
   const dispose = await module.activate(ctx)
@@ -207,6 +223,10 @@ it('loads generated registrations and closures into the runtime while keeping un
     await flush()
     expect(latest.alerts.at(-1).text).toBe(String(seq))
   }
+  expect(spoken).toEqual([
+    { text: '1', channel: 'alert' },
+    { text: '2', channel: 'alert' },
+  ])
   await dispose()
 })
 it('rejects runtime module paths that cannot be resolved into the package', async () => {

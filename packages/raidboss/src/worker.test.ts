@@ -1,5 +1,5 @@
 import type { Batch, PluginContext, Sample, SourceMeta, Value } from '@ffcafe/mojito-plugin-sdk'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { activateRaidboss } from './worker'
 
 const meta: SourceMeta = {
@@ -50,7 +50,10 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   const callbacks: Record<string, (value: any) => void> = {}
   let closeEvents!: (value: any) => void
   const timers = new Set<() => void>()
-  const audio: AbortSignal[] = []
+  const say = vi
+    .fn<(text: string, options: { signal: AbortSignal; channel?: string }) => Promise<void>>()
+    .mockResolvedValue(undefined)
+  const play = vi.fn().mockResolvedValue(undefined)
   const subscription = () => ({
     ready: Promise.resolve(),
     closed: new Promise<{ reason: string }>(() => {}),
@@ -123,12 +126,8 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
         }
       },
     },
-    tts: {
-      say: async (_text: string, options: { signal: AbortSignal }) => {
-        audio.push(options.signal)
-      },
-    },
-    audio: { play: async () => {} },
+    tts: { say },
+    audio: { play },
     log: { error: () => {} },
   }
   const dispose = await activateRaidboss(
@@ -139,7 +138,10 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
         set: {
           id: 'one',
           zoneId: 1,
-          triggers: [{ id: 'call', type: 'HeadMarker', netRegex: { id: '003E' }, infoText: 'One call' }],
+          triggers: [
+            { id: 'call', type: 'HeadMarker', netRegex: { id: '003E' }, infoText: 'One call' },
+            { id: 'speech', type: 'HeadMarker', netRegex: { id: '003F' }, tts: 'Speech only' },
+          ],
         },
       },
     ],
@@ -150,25 +152,32 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   expect(latest.moduleFault).toBeNull()
   expect(latest.sourceError).toBeNull()
   expect(latest.definitions).toBeUndefined()
-  expect(catalogs.at(-1)).toMatchObject({ revision: latest.catalogRevision, definitions: [{ triggerId: 'call' }] })
+  expect(catalogs.at(-1)).toMatchObject({
+    revision: latest.catalogRevision,
+    definitions: [{ triggerId: 'call' }, { triggerId: 'speech' }],
+  })
   // Periodic state updates do not resend the rule catalog.
   const published = catalogs.length
   for (const tick of [...timers]) tick()
   await flush()
   expect(catalogs).toHaveLength(published)
-  event(
-    batch({
-      meta,
-      value: {
-        type: 'actorControl',
-        data: { actorId: 1, category: 34, params: [0x3e, 0, 0, 0], self: false },
-        packet: { seq: 1, timestamp: 100000, sourceActorId: 1, targetActorId: 1 },
-      },
-    }),
-  )
-  await flush()
+  let seq = 0
+  const marker = async (id: number) => {
+    event(
+      batch({
+        meta,
+        value: {
+          type: 'actorControl',
+          data: { actorId: 1, category: 34, params: [id, 0, 0, 0], self: false },
+          packet: { seq: ++seq, timestamp: 100000, sourceActorId: 1, targetActorId: 1 },
+        },
+      }),
+    )
+    await flush()
+  }
+  await marker(0x3e)
   expect(latest.alerts).toHaveLength(1)
-  expect(audio).toHaveLength(1)
+  expect(say).toHaveBeenCalledExactlyOnceWith('One call', { signal: expect.any(AbortSignal) })
   // A later entity sample (observed after the queued events) must not reset the running engine.
   const later = meta.observedAt + 500
   callbacks.entities!(
@@ -182,28 +191,29 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
       },
     }),
   )
-  event(
-    batch({
-      meta,
-      value: {
-        type: 'actorControl',
-        data: { actorId: 1, category: 34, params: [0x3e, 0, 0, 0], self: false },
-        packet: { seq: 2, timestamp: 100000, sourceActorId: 1, targetActorId: 1 },
-      },
-    }),
-  )
-  await flush()
+  await marker(0x3e)
   expect(latest.alerts).toHaveLength(2)
   expect(latest.sourceError).toBeNull()
   const settings = latest.settings
-  await commands({ expectedRevision: 0, settings })
+  await marker(0x3f)
+  expect(say).toHaveBeenLastCalledWith('Speech only', { signal: expect.any(AbortSignal) })
+  await commands({ expectedRevision: 0, settings: { ...settings, rules: { one: { speech: { level: 'alarm' } } } } })
+  await marker(0x3f)
+  expect(say).toHaveBeenLastCalledWith('Speech only', { signal: expect.any(AbortSignal), channel: 'alarm' })
   await expect(commands({ expectedRevision: 0, settings })).rejects.toThrow('配置已变更')
+  await commands({ expectedRevision: 1, settings: { ...settings, audio: 'sound' } })
+  await marker(0x3e)
+  expect(play).toHaveBeenCalledTimes(1)
+  await commands({ expectedRevision: 2, settings: { ...settings, audio: 'none' } })
+  await marker(0x3e)
+  expect(say).toHaveBeenCalledTimes(4)
+  expect(play).toHaveBeenCalledTimes(1)
   closeEvents({ reason: 'source_incomplete' })
   await flush()
   callbacks.player!(batch({ meta, value: game.player }))
   await flush()
   expect(latest.sourceError).toContain('source_incomplete')
   await dispose()
-  expect(audio[0]!.aborted).toBe(true)
+  expect(say.mock.calls[0]![1].signal.aborted).toBe(true)
   expect(timers.size).toBe(0)
 })

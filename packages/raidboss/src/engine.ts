@@ -42,7 +42,7 @@ export type Alert = {
 }
 export interface EngineOutput {
   changed(): void
-  say(text: string, signal: AbortSignal): void
+  say(text: string, signal: AbortSignal, level: Alert['level']): void
   play(path: string, volume: number | undefined, signal: AbortSignal): void
 }
 type Rule = { original: ProcessedTrigger; matcher?: Matcher; diagnostic: Diagnostic; config: RuleConfig }
@@ -278,7 +278,6 @@ export class RaidbossEngine {
         callbacks: undefined!,
       }
       const ruleFor = (trigger: ProcessedTrigger) => group.rules.find((rule) => rule.original === trigger)
-      const audio = (trigger: ProcessedTrigger) => ruleFor(trigger)?.config.audio ?? settings.audio
       group.callbacks = new WorkerCallbacks(groupData, opts, this.clock, {
         text: (helper, text, level, duration) => {
           const alert = {
@@ -300,10 +299,14 @@ export class RaidbossEngine {
           this.timers.add(cancel)
         },
         say: (helper, text) => {
-          if (audio(helper.trigger) === 'tts') this.output.say(text, group.callbacks.controller(helper.trigger).signal)
+          const config = ruleFor(helper.trigger)?.config
+          if ((config?.audio ?? settings.audio) === 'tts') {
+            const level = config?.level ?? helper.ttsLevel ?? 'info'
+            this.output.say(text, group.callbacks.controller(helper.trigger).signal, level)
+          }
         },
         play: (helper, path, volume) => {
-          if (audio(helper.trigger) === 'sound')
+          if ((ruleFor(helper.trigger)?.config.audio ?? settings.audio) === 'sound')
             this.output.play(path, volume, group.callbacks.controller(helper.trigger).signal)
         },
         fault: (trigger, error) => {
@@ -444,7 +447,7 @@ export class RaidbossEngine {
           group.callbacks.run({ alarmText: text }, {}, time)
         }
         override OnSpeakTTS(text: string): void {
-          if (settings.audio === 'tts') engine.output.say(text, group.callbacks.controller({}).signal)
+          if (settings.audio === 'tts') engine.output.say(text, group.callbacks.controller({}).signal, 'info')
         }
       }
       new View().SetTimeline(timeline)

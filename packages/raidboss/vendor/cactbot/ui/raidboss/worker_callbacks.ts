@@ -330,6 +330,7 @@ export interface TriggerHelper {
   soundVol?: number;
   triggerSoundVol?: number;
   defaultTTSText?: string;
+  ttsLevel?: Text;
   textAlertsEnabled: boolean;
   soundAlertsEnabled: boolean;
   spokenAlertsEnabled: boolean;
@@ -850,6 +851,8 @@ export class WorkerCallbacks {
 
     text = this.options.TransformText(text) ?? text;
     triggerHelper.defaultTTSText = triggerHelper.defaultTTSText ?? text;
+    if (text)
+      triggerHelper.ttsLevel ??= textType;
     if (text && typeof text === 'string' && triggerHelper.textAlertsEnabled) {
       // per-trigger option > trigger field > option duration by text type
       let duration = triggerHelper.duration?.fromConfig ?? triggerHelper.duration?.fromTrigger;

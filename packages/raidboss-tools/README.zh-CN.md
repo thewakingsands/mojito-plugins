@@ -22,6 +22,9 @@ node packages/raidboss-tools/dist/cli.js \
 没有 ID 的 set 以其入口相对于公共入口目录的路径作为备用标识。使用社区自己的插件 ID，不能与
 `ffcafe.raidboss` 相同。
 
+重新构建并安装已有社区规则包，即可使用「信息」「注意」「警报」语音频道。沿用原插件 ID 后，
+「信息」会继续使用原默认频道的音色和优先级。
+
 入口可以默认导出一个触发器集合，也可以使用 `Options.Triggers.push(...)` /
 `Options.Triggers = [...]`。普通的动态构造和回调闭包会保留。模块加载完成后注册即关闭，不支持运行时追加。
 本地辅助模块的 import 会被打包。`@cactbot/resources/outputs` 这类固定的辅助 import 指向固定版本的
