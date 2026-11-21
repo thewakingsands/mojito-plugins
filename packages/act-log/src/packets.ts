@@ -222,7 +222,8 @@ export async function packetRows(s: State, packet: Packet): Promise<Row[]> {
     case 'PlayerStats': {
       const p = v.body,
         job = s.actors.get(s.player ?? id).classJob
-      if (job === undefined || s.contentId === undefined) throw new Error('Missing player identity for attributes')
+      // During login the first stats packet can arrive before PlayerSetup establishes the job.
+      if (job === undefined || !s.contentId) return []
       const fields = [
         job,
         p.strength,

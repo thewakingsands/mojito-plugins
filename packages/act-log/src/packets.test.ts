@@ -292,9 +292,12 @@ it('writes changed player attributes with the observed identity and keeps duplic
 it('uses the stat packet source for old recordings that only identified the player by content ID', async () => {
   const s = state()
   s.contentId = 0x10n
+  const p = packet('PlayerStats', Buffer.alloc(224))
+  expect(await packetRows(s, p)).toEqual([])
   s.actors.update(9, { classJob: 8 })
-  const [stats] = await packetRows(s, packet('PlayerStats', Buffer.alloc(224)))
+  const [stats] = await packetRows(s, p)
   expect(stats.type).toBe(12)
   expect(stats.fields[0]).toBe(8)
   expect(stats.fields.at(-1)).toBe('00000010')
+  expect(await packetRows(s, p)).toEqual([])
 })
