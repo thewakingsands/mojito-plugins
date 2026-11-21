@@ -1,12 +1,12 @@
 // Copyright (c) FFCafe. Licensed under AGPL-3.0-only.
 import type { PlayerState } from '@ffcafe/mojito-plugin-sdk'
 import { freshField, guidance, headingDegrees, observedPlayerPosition, project } from './coordinates.js'
-import type { ExplorationCatalog, ExplorationContext, NavigationState } from './types.js'
+import type { ExplorationCatalog, ExplorationContext, NavigationState, TreasureTarget } from './types.js'
 
 export function navigationState(
   context: ExplorationContext,
   catalog: ExplorationCatalog | null,
-  identity: { itemId: number; spotIndex: number } | null,
+  identity: { itemId: number; spotIndex: number; since: number } | null,
   player: PlayerState | null,
   boundaryAt: number | null,
 ): NavigationState {
@@ -15,6 +15,7 @@ export function navigationState(
     status: 'waiting',
     reason: '等待客户端资料',
     target: null,
+    targetSince: identity?.since ?? null,
     player: null,
     guidance: null,
   }
@@ -23,7 +24,7 @@ export function navigationState(
   const target = catalog.targets[identity.itemId]?.[identity.spotIndex]
   if (!target) return { ...state, status: 'unavailable', reason: '藏宝点资料不可用' }
   const { world, ...display } = target
-  state.target = display
+  state.target = { ...display, aetheryte: nearestAetheryte(catalog, target) }
   if (target.territoryId === null) return { ...state, status: 'unavailable', reason: '藏宝点区域未知' }
   if (context.territoryId === null) return { ...state, reason: '等待当前区域' }
   if (target.territoryId !== context.territoryId)
@@ -42,6 +43,17 @@ export function navigationState(
   state.status = 'ready'
   state.reason = null
   return state
+}
+/** Nearest by 3D world distance; its position is drawn on the treasure's own map. */
+function nearestAetheryte(catalog: ExplorationCatalog, target: TreasureTarget) {
+  const { x, y, z } = target.world
+  const aetherytes = target.territoryId === null ? undefined : catalog.aetherytes[target.territoryId]
+  if (y === null || !aetherytes?.length) return null
+  const { name, world, distanceM } = aetherytes
+    .map((a) => ({ ...a, distanceM: Math.hypot(a.world.x - x, a.world.y - y, a.world.z - z) }))
+    .reduce((nearest, next) => (next.distanceM < nearest.distanceM ? next : nearest))
+  const map = catalog.maps[target.mapId]
+  return { name, distanceM, position: map ? project(world, map) : null }
 }
 function equivalentProjection(
   a: ExplorationCatalog['maps'][number],

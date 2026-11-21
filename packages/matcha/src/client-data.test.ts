@@ -23,6 +23,7 @@ function scene(id: number) {
   ])
     view.setInt32(offset, value, true)
   view.setFloat32(116, 100, true)
+  view.setFloat32(120, 50, true)
   view.setFloat32(124, 200, true)
   return raw
 }
@@ -144,7 +145,7 @@ it('rejects invalid layouts and canceled loads instead of returning embedded dat
   await expect(f.client.load('chs', new AbortController().signal)).rejects.toThrow('numeric column')
 })
 it('reads matching LGB instance positions and rejects truncated resource offsets', () => {
-  expect(sceneLocations(scene(7), new Set([7]))).toEqual([{ id: 7, x: 100, z: 200 }])
+  expect(sceneLocations(scene(7), new Set([7]))).toEqual([{ id: 7, x: 100, y: 50, z: 200 }])
   expect(sceneLocations(scene(7), new Set([8]))).toEqual([])
   expect(() => sceneLocations(scene(7).subarray(0, 120), new Set([7]))).toThrow()
 })
@@ -176,6 +177,22 @@ it('retains raw treasure height separately without changing the legacy 2D catalo
   const withoutHeight = await f.client.load('en', new AbortController().signal)
   expect(withoutHeight.treasures).toEqual(c.treasures)
   expect(withoutHeight.exploration.treasures[2001087][0].world.y).toBeNull()
+})
+
+it('reads the intended use of a territory and groups located aetherytes by territory', async () => {
+  const f = fixture()
+  f.sheets.TerritoryType[0].subrows[0].cells[9] = cell(41)
+  f.sheets.Aetheryte = [
+    row(8, 16, { 8: 54, 10: 148, 11: 8373717, 15: true }),
+    // An aethernet shard at a known instance, and an aetheryte whose instance is in no scene.
+    row(9, 16, { 8: 54, 10: 148, 11: 8373717, 15: false }),
+    row(10, 16, { 8: 54, 10: 148, 11: 999, 15: true }),
+  ]
+  const c = await f.client.load('chs', new AbortController().signal)
+  expect(c.exploration.territories[148]).toEqual({ mapId: 4, weatherRateId: 0, use: 41 })
+  expect(c.exploration.aetherytes).toEqual({
+    148: [{ id: 8, name: '客户端区域', world: { x: 100, y: 50, z: 200 } }],
+  })
 })
 
 it('requests Map fields by EXDSchema name', async () => {

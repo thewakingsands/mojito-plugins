@@ -18,7 +18,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EurekaState } from './exploration/eureka-types.js'
 import { ExplorationService } from './exploration/service.js'
-import type { HuntState } from './exploration/types.js'
+import type { HuntState, LocationState } from './exploration/types.js'
 import { activate } from './runtime.js'
 import { defaultSettings } from './settings.js'
 
@@ -815,7 +815,7 @@ it('publishes exploration state without imported webhook or notification effects
   await start(f)
   await f.advance(1000)
   expect(latest(f).events.map((event) => event.type)).toEqual(
-    expect.arrayContaining(['NavigationState', 'HuntState', 'EurekaState']),
+    expect.arrayContaining(['LocationState', 'NavigationState', 'HuntState', 'EurekaState']),
   )
   expect(f.context.http.request).not.toHaveBeenCalled()
   expect(f.context.tts.say).not.toHaveBeenCalled()
@@ -833,7 +833,7 @@ async function explorationFixture() {
     const catalog = emptyCatalog()
     catalog.maps[1] = { name: 'Synthetic island', offset: [0, 0], sizeFactor: 100 }
     catalog.exploration.maps[1] = { resource: 'synthetic/00', territoryId: 732, isEvent: false }
-    catalog.exploration.territories[732] = { mapId: 1, weatherRateId: null }
+    catalog.exploration.territories[732] = { mapId: 1, weatherRateId: null, use: 41 }
     catalog.fates[1332] = { name: { chs: 'Synthetic NM' }, level: 1, patch: 4, location: 732 }
     return catalog
   })
@@ -961,6 +961,55 @@ describe('Matcha exploration integration boundaries', () => {
     await f.advance(500)
     expect(huntState(f)).toMatchObject({ status: 'waiting', entries: [] })
     expect(eurekaState(f)).toMatchObject({ status: 'waiting', entries: [] })
+  })
+
+  it('restores the location with the snapshot and starts a treasure map at its packet time', async () => {
+    const f = await explorationFixture()
+    await f.advance(500)
+    const bytes = new Uint8Array(40),
+      data = new DataView(bytes.buffer)
+    data.setUint16(0, 84, true)
+    data.setUint32(4, 9, true)
+    await explorationPacket(f, 'ActorControlSelf', 70, bytes)
+    const content = (type: string) => latest(f).events.find((e) => e.type === type)?.content
+    expect(content('NavigationState')).toMatchObject({ targetSince: f.now + 5000 })
+    expect(content('LocationState')).toMatchObject({
+      status: 'ready',
+      territoryId: 732,
+      mapId: 1,
+      floorConfirmed: true,
+      kind: 'eureka',
+      player: { x: 21.5, y: 21.5 },
+    })
+  })
+
+  it('sends the location of a new zone first even when older states are still queued', async () => {
+    const f = await explorationFixture()
+    // Once the player stands still, only the states that carry a clock are published on a tick.
+    await f.advance(500)
+    const gate = deferred<void>()
+    vi.mocked(f.context.views.flush).mockImplementationOnce(() => gate.promise)
+    // The first tick starts a view flush that stays open; the second queues its states behind it.
+    await f.advance(250)
+    await f.advance(250)
+    const sent = f.publications.length
+    await f.zoneChanged(80)
+    gate.resolve()
+    await flush()
+    const events = f.publications.slice(sent).flatMap(({ channel, value }) => {
+      const { type, content } = value as unknown as { type: string; content: LocationState }
+      return channel === 'matcha.events' && type.endsWith('State')
+        ? [{ type, zoneEpoch: content.context.zoneEpoch }]
+        : []
+    })
+    const zoneEpoch = Math.max(...events.map((event) => event.zoneEpoch))
+    expect(events.filter((event) => event.zoneEpoch === zoneEpoch).map((event) => event.type)).toEqual([
+      'LocationState',
+      'NavigationState',
+      'HuntState',
+      'EurekaState',
+    ])
+    expect(events.some((event) => event.zoneEpoch < zoneEpoch)).toBe(true)
   })
 
   it('passes source observation time and the measured server offset only to the new FATE state', async () => {

@@ -215,7 +215,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     if (stopped || quiet) return
     if (type === 'TreasureSpot' && content && typeof content === 'object' && !Array.isArray(content)) {
       if (typeof content.item === 'number' && typeof content.location === 'number')
-        exploration?.treasure(content.item, content.location)
+        exploration?.treasure(content.item, content.location, timestamp)
     }
     const event: MatchaEvent = { sequence: ++sequence, type, content, timestamp }
     state.add(event)
@@ -299,6 +299,8 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     },
     publish: (type, content) => {
       if (stopped || quiet) return
+      // Keep the order of the latest publications: a zone change publishes the location before the other states.
+      pendingExploration.delete(type)
       pendingExploration.set(type, content)
       dirty = true
       queueMicrotask(() => {

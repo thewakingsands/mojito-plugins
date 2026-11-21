@@ -3,7 +3,7 @@ import type { Cell, DataRow, DataService } from '@ffcafe/mojito-plugin-sdk'
 import type { GameCatalog } from '../client-data.js'
 import { project } from './coordinates.js'
 import { EUREKA_TERRITORIES } from './rules.js'
-import type { ExplorationCatalog, HuntRank } from './types.js'
+import type { ExplorationCatalog, HuntRank, TerritoryKind } from './types.js'
 
 const cells = (row: DataRow) => row.subrows[0]?.cells ?? []
 const numeric = (row: Cell[], index: number) => {
@@ -20,6 +20,9 @@ const text = (row: Cell[], index: number) => {
 const ssBases = new Set([10422, 13775, 10755, 13938])
 const rank = (base: number, value: number): HuntRank | null =>
   ssBases.has(base) ? 'SS' : (({ 1: 'B', 2: 'A', 3: 'S' } as const)[value as 1 | 2 | 3] ?? null)
+// TerritoryIntendedUse: 1 overworld, 0 city, 13 residential area, 41 Eureka.
+const territoryKind = (use: number): TerritoryKind =>
+  use === 1 ? 'field' : use === 0 || use === 13 ? 'town' : use === 41 ? 'eureka' : 'other'
 
 export async function loadExplorationCatalog(
   data: DataService,
@@ -50,6 +53,9 @@ export async function loadExplorationCatalog(
   const result: ExplorationCatalog = {
     maps: {},
     territoryMaps: {},
+    territoryDefaults: {},
+    territoryKinds: {},
+    aetherytes: base.exploration.aetherytes,
     targets: {},
     hunts: [],
     huntsAvailable: false,
@@ -83,6 +89,9 @@ export async function loadExplorationCatalog(
       projections.size === 1
     result.territoryMaps[+id] = usable ? mapId : null
     if (!usable) result.mapIssues[+id] = '区域地图关联尚未确认'
+    const maps = candidates.flatMap(([id]) => (result.maps[+id] ? [+id] : []))
+    result.territoryDefaults[+id] = { mapId: mapId !== null && maps.includes(mapId) ? mapId : null, maps: maps.length }
+    result.territoryKinds[+id] = territoryKind(territory.use)
   }
   const heights = await optional(
     async () => new Map((await read('TerritoryTypeTransient')).map((r) => [r.rowId, numeric(cells(r), 0)])),

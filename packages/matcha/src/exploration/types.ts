@@ -29,6 +29,7 @@ export interface MapPosition {
   y: number
 }
 export type HuntRank = 'B' | 'A' | 'S' | 'SS'
+export type TerritoryKind = 'field' | 'town' | 'eureka' | 'other'
 export interface HuntDefinition {
   bNpcBase: number
   bNpcName: number
@@ -36,10 +37,11 @@ export interface HuntDefinition {
   rank: HuntRank | null
 }
 export interface ExplorationSource {
-  territories: Record<number, { mapId: number | null; weatherRateId: number | null }>
+  territories: Record<number, { mapId: number | null; weatherRateId: number | null; use: number }>
   maps: Record<number, { resource: string; territoryId: number | null; isEvent: boolean | null }>
   treasures: Record<number, { levelId: number; territoryId: number | null; world: WorldPosition; mapId: number }[]>
   fatePositions: Record<number, { territoryId: number; mapId: number; x: number; z: number }>
+  aetherytes: Record<number, { id: number; name: string; world: { x: number; y: number; z: number } }[]>
 }
 export interface TreasureTarget {
   itemId: number
@@ -57,6 +59,10 @@ export interface TreasureTarget {
 export interface ExplorationCatalog {
   maps: Record<number, MapProjection>
   territoryMaps: Record<number, number | null>
+  /** The territory's own map and how many usable maps it has; unlike territoryMaps, projections may differ. */
+  territoryDefaults: Record<number, { mapId: number | null; maps: number }>
+  territoryKinds: Record<number, TerritoryKind>
+  aetherytes: ExplorationSource['aetherytes']
   targets: Record<number, TreasureTarget[]>
   hunts: HuntDefinition[]
   huntsAvailable: boolean
@@ -68,7 +74,13 @@ export interface NavigationState {
   context: ExplorationContext
   status: 'ready' | 'no-target' | 'waiting' | 'other-territory' | 'unavailable'
   reason: string | null
-  target: Omit<TreasureTarget, 'world'> | null
+  target:
+    | (Omit<TreasureTarget, 'world'> & {
+        aetheryte: { name: string; distanceM: number; position: MapPosition | null } | null
+      })
+    | null
+  /** Packet time of the first report of the current treasure map. */
+  targetSince: number | null
   player: { x: number; y: number; observedAt: number; headingDegrees: number | null } | null
   guidance: {
     distanceM: number
@@ -77,6 +89,17 @@ export interface NavigationState {
     relativeDegrees: number | null
     near: boolean
   } | null
+}
+export interface LocationState {
+  /** Deduplicated by content, so it carries neither a clock nor a sample time. */
+  context: Omit<ExplorationContext, 'clock'>
+  status: 'ready' | 'waiting' | 'unavailable'
+  reason: string | null
+  territoryId: number | null
+  mapId: number | null
+  floorConfirmed: boolean
+  kind: TerritoryKind | null
+  player: { x: number; y: number; headingDegrees: number | null } | null
 }
 export interface HuntEntry {
   actorId: number

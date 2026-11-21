@@ -14,7 +14,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EurekaState } from './eureka-types.js'
 import { ExplorationService } from './service.js'
-import type { ExplorationCatalog, HuntState, NavigationState } from './types.js'
+import type { ExplorationCatalog, HuntState, LocationState, NavigationState } from './types.js'
 
 const cleanup: (() => void)[] = []
 beforeEach(() => vi.useFakeTimers())
@@ -133,6 +133,9 @@ function fixture() {
   const catalog: ExplorationCatalog = {
     maps: { 1: { mapId: 1, name: 'Test zone', offset: [0, 0], sizeFactor: 100 } },
     territoryMaps: { 100: 1 },
+    territoryDefaults: { 100: { mapId: 1, maps: 1 } },
+    territoryKinds: { 100: 'field' },
+    aetherytes: {},
     targets: {
       9: [
         {
@@ -225,7 +228,7 @@ describe('shared exploration collection', () => {
     const query = vi.mocked(f.context.game.getPlayer)
     query.mockResolvedValueOnce(sample).mockRejectedValue(new Error('transient sampling failure'))
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(250)
     expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { observedAt: seen } })
     await f.advance(500)
@@ -237,10 +240,10 @@ describe('shared exploration collection', () => {
   it('clears the navigation target when the game reports an empty treasure slot', async () => {
     const f = fixture()
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(500)
     expect((f.values.get('NavigationState') as unknown as NavigationState).target).not.toBeNull()
-    f.service.treasure(0, 0)
+    f.service.treasure(0, 0, 2000)
     expect(f.values.get('NavigationState')).toMatchObject({ status: 'no-target', target: null, player: null })
   })
 
@@ -266,7 +269,7 @@ describe('shared exploration collection', () => {
       pending = deferred<Sample<PlayerState>>()
     vi.mocked(f.context.game.getPlayer).mockReturnValueOnce(pending.promise)
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(1000)
     expect(f.context.game.getPlayer).toHaveBeenCalledTimes(1)
     const old = f.sample({
@@ -316,7 +319,7 @@ describe('shared exploration collection', () => {
   it('uses source observation time rather than a shifted packet timestamp for reentry', async () => {
     const f = fixture()
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(500)
     await f.changed(100, 2, 9000000)
     await f.zone()
@@ -329,7 +332,7 @@ describe('shared exploration collection', () => {
       pending = deferred<Sample<PlayerState>>()
     vi.mocked(f.context.game.getPlayer).mockReturnValueOnce(pending.promise)
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(250)
     const old = f.sample({
       position: {
@@ -354,7 +357,7 @@ describe('shared exploration collection', () => {
   it('pauses on a conflicting zone snapshot until the structured boundary arrives', async () => {
     const f = fixture()
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(500)
     const epoch = (f.values.get('NavigationState') as unknown as NavigationState).context.zoneEpoch
     await f.zone(101)
@@ -412,12 +415,106 @@ describe('shared exploration collection', () => {
   it('clears dynamic state when the structured event stream closes', async () => {
     const f = fixture()
     await f.zone()
-    f.service.treasure(9, 0)
+    f.service.treasure(9, 0, 1000)
     await f.advance(500)
     expect((f.values.get('NavigationState') as unknown as NavigationState).player).not.toBeNull()
     f.streams[0]!.close({ reason: 'source_incomplete' })
     await flush()
     expect((f.values.get('NavigationState') as unknown as NavigationState).player).toBeNull()
     expect((f.values.get('HuntState') as unknown as HuntState).entries).toHaveLength(0)
+  })
+})
+
+describe('current location', () => {
+  const location = (f: ReturnType<typeof fixture>) => f.values.get('LocationState') as unknown as LocationState
+  const locations = (f: ReturnType<typeof fixture>) =>
+    f.publish.mock.calls.filter(([type]) => type === 'LocationState').length
+
+  it('is published without a treasure map and survives one failed read', async () => {
+    const f = fixture()
+    await f.zone()
+    await f.advance(250)
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'no-target', target: null })
+    const ready = location(f)
+    expect(ready).toMatchObject({
+      status: 'ready',
+      territoryId: 100,
+      mapId: 1,
+      floorConfirmed: true,
+      kind: 'field',
+      player: { x: 21.5, y: 21.5, headingDegrees: 180 },
+    })
+    vi.mocked(f.context.game.getPlayer).mockRejectedValueOnce(new Error('transient sampling failure'))
+    await f.advance(250)
+    expect(f.context.game.getPlayer).toHaveBeenCalledTimes(2)
+    expect(location(f)).toBe(ready)
+  })
+
+  it('is cleared first on a zone change and then shows the position in the new zone', async () => {
+    const f = fixture()
+    f.catalog.maps[2] = { mapId: 2, name: 'Next zone', offset: [100, 0], sizeFactor: 100 }
+    f.catalog.territoryDefaults[101] = { mapId: 2, maps: 1 }
+    f.catalog.territoryKinds[101] = 'town'
+    await f.zone()
+    f.service.treasure(9, 0, 1000)
+    await f.advance(500)
+    expect(location(f).player).not.toBeNull()
+    f.publish.mockClear()
+    await f.changed(101)
+    expect(f.publish.mock.calls.map(([type]) => type)).toEqual([
+      'LocationState',
+      'NavigationState',
+      'HuntState',
+      'EurekaState',
+    ])
+    expect(location(f)).toMatchObject({ context: { zoneEpoch: 1 }, territoryId: null, mapId: null, player: null })
+    f.publish.mockClear()
+    await f.zone(101)
+    expect(f.publish.mock.calls[0]?.[0]).toBe('LocationState')
+    expect(location(f)).toMatchObject({ territoryId: 101, mapId: 2, kind: 'town', player: null })
+    await f.advance(250)
+    expect(location(f)).toMatchObject({ status: 'ready', mapId: 2, player: { x: 23.501953125, y: 21.5 } })
+  })
+
+  it('is not republished for unchanged samples and expires once when sampling stops', async () => {
+    const f = fixture()
+    await f.zone()
+    await f.advance(250)
+    const published = locations(f)
+    await f.advance(1000)
+    expect(f.context.game.getPlayer).toHaveBeenCalledTimes(5)
+    expect(locations(f)).toBe(published)
+    vi.mocked(f.context.game.getPlayer).mockRejectedValue(new Error('sampling stopped'))
+    await f.advance(1750)
+    expect(location(f).player).not.toBeNull()
+    await f.advance(1500)
+    expect(locations(f)).toBe(published + 1)
+    expect(location(f)).toMatchObject({ status: 'unavailable', mapId: 1, floorConfirmed: true, player: null })
+  })
+})
+
+describe('treasure map start time', () => {
+  const since = (f: ReturnType<typeof fixture>) =>
+    (f.values.get('NavigationState') as unknown as NavigationState).targetSince
+
+  it('survives repeated reports and restarts after the map is cleared or the character changes', async () => {
+    const f = fixture()
+    await f.zone()
+    expect(since(f)).toBeNull()
+    f.service.treasure(9, 0, 1000)
+    expect(since(f)).toBe(1000)
+    f.service.treasure(9, 0, 2000)
+    expect(since(f)).toBe(1000)
+    f.service.treasure(0, 0, 3000)
+    expect(since(f)).toBeNull()
+    f.service.treasure(9, 0, 4000)
+    expect(since(f)).toBe(4000)
+    f.session.characterGeneration++
+    await f.advance(250)
+    expect(since(f)).toBeNull()
+    f.service.treasure(9, 0, 5000)
+    expect(since(f)).toBe(5000)
+    f.service.treasure(9, 1, 6000)
+    expect(since(f)).toBe(6000)
   })
 })

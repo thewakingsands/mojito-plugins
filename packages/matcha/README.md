@@ -31,6 +31,7 @@ The package format and the worker's state publishing use the current Mojito SDK.
 
 - FATE watch list (bulk selection by expansion and area), presets and notifications; notifications for duty matches, zones, bites, critical engagements and treasure hunt results.
 - Market board prices compared with Universalis, gear comparison, Mini Cactpot calculation, treasure map locations and treasure hunt results.
+- Map: shows the current map and the player, with what is valid in the current zone listed on the right. In the field that is the treasure map and the hunt targets seen, in cities and residential areas the treasure map, in Eureka the progress, cooldown and spawn conditions of the notorious monsters. A treasure map comes with direction, distance and the nearest aetheryte; when it is on another map, that map can be looked at for a moment. A zone with several maps shows only its default one, without the player.
 - Submersible parts, voyage status and planning.
 - Fishing status, catch archive, community bite-time distribution from 鱼漂, optional anonymous data upload, and export of the fishing log from login data.
 - Webhooks, settings backup, and import/export.
@@ -43,7 +44,7 @@ One worker collects data and maintains shared state. Opening the settings page o
 
 When loaded inside Mojito it uses the SDK bridge automatically. `?source=mojito` selects it explicitly; this mode requires a real Mojito bridge. ACT and Mojito modes use separate settings storage, so personal data is never shared between the two hosts.
 
-Mojito mode reads item, map, icon, FATE, duty, world, fishing and submersible data through the host's local data interface. Treasure map coordinates are converted from the game's treasure spot and map sheets; FATEs and critical engagements are tied to areas through client scene resources; presets are read from RelicNote. Data reloads when the client version or data language changes; a failed read shows as unavailable and does not fall back to static game tables or XIVAPI. ACT mode loads its original data separately, and the Mojito build does not include those static tables.
+Mojito mode reads item, map, icon, FATE, duty, world, fishing and submersible data through the host's local data interface. Treasure map coordinates are converted from the game's treasure spot and map sheets; FATEs and critical engagements are tied to areas through client scene resources, which also provide aetheryte positions; presets are read from RelicNote. Data reloads when the client version or data language changes; a failed read shows as unavailable and does not fall back to static game tables or XIVAPI. ACT mode loads its original data separately, and the Mojito build does not include those static tables.
 
 Gear materia slots use the local item-detail atlas, preferring its high-resolution texture. If the atlas is missing, unreadable or has unexpected dimensions, each slot shows its grade or an empty marker, with `+` for overmelds. The ACT overlay uses its bundled slot PNGs.
 

@@ -33,6 +33,9 @@ export const monster = (id = 7): CombatantState => ({
 export const catalog = (): ExplorationCatalog => ({
   maps: { 4: { mapId: 4, name: 'Synthetic plain', resource: 'test/00', sizeFactor: 100, offset: [0, 0] } },
   territoryMaps: { 148: 4 },
+  territoryDefaults: { 148: { mapId: 4, maps: 1 } },
+  territoryKinds: { 148: 'field' },
+  aetherytes: {},
   targets: {
     88: [
       {
