@@ -69,17 +69,36 @@ jobs:
       - name: Remove temporary signing file
         if: always()
         run: rm -f "$RUNNER_TEMP/official.jwk"
+      - name: Select release files
+        id: release
+        shell: bash
+        run: |
+          directory=dist/official
+          if [[ "$GITHUB_REF_NAME" == *-ember ]]; then
+            shopt -s nullglob
+            packages=(dist/official/ffcafe.overlay-ember-*.mojito)
+            if (( ${#packages[@]} != 1 )); then
+              echo 'Expected one signed Ember package' >&2
+              exit 1
+            fi
+            directory=dist/official-ember
+            mkdir -p "$directory"
+            cp -- "${packages[0]}" "$directory/"
+            (cd "$directory" && sha256sum -- *.mojito > SHA256SUMS)
+          fi
+          echo "directory=$directory" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: official-packages
           if-no-files-found: error
           path: |
-            dist/official/*.mojito
-            dist/official/SHA256SUMS
+            ${{ steps.release.outputs.directory }}/*.mojito
+            ${{ steps.release.outputs.directory }}/SHA256SUMS
       - name: Upload release attachments
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/official/*.mojito dist/official/SHA256SUMS --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; CI uploads drafts to Mojito server for publication through its administration interface.'
+          RELEASE_DIR: ${{ steps.release.outputs.directory }}
+        run: gh release create "$GITHUB_REF_NAME" "$RELEASE_DIR"/*.mojito "$RELEASE_DIR/SHA256SUMS" --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; CI uploads drafts to Mojito server for publication through its administration interface.'
   upload:
     needs: sign
     runs-on: ubuntu-24.04

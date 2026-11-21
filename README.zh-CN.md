@@ -86,6 +86,7 @@ pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 上传 job 使用 GitHub Actions 签发的短期 OIDC 令牌，将签名后的 `.mojito` 包发送至
 `POST /api/admin/drafts`。将仓库变量 `MOJITO_SERVER_URL` 设为服务端的 HTTPS `public_url`。
 上传地址同时用作令牌的 audience。`official-v*` tag 的写权限只授予受信任的发布维护者。
+只发布 Ember 时使用 `official-vX.Y.Z-ember` tag，GitHub Release 和后台草稿都仅包含 Ember。
 上传后仍需在后台确认签名者并发布到 TEST、PROD。失败时使用 Actions 的“重新运行失败的作业”，
 继续使用原来的签名产物。已发布过的版本若包内容相同则返回成功；内容变化时须提高对应插件的 manifest 版本号。
 发布 SDK 版本、推送 tag 和发布官方包都需要相应的发布授权。Cargo 使用的源码 tag `v0.1.0`

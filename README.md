@@ -93,6 +93,7 @@ The upload job sends the signed `.mojito` packages to `POST /api/admin/drafts`
 using short-lived GitHub Actions OIDC tokens. Set the repository variable
 `MOJITO_SERVER_URL` to the server's HTTPS `public_url`. The upload URL is also
 the token audience. Restrict `official-v*` tag writes to trusted release maintainers.
+Use an `official-vX.Y.Z-ember` tag to publish an Ember-only release and upload only its draft.
 Confirm the signer and publish to TEST and PROD in the administration interface.
 Use Actions' **Re-run failed jobs** after an upload failure to reuse the original signed
 artifact. Re-uploading an identical published package succeeds; changed bytes require
