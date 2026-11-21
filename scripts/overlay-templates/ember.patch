@@ -231,23 +231,20 @@ index a056789..38a346c 100644
  
  			if (state.internal.mode === "stats") {
 diff --git a/src/services/PluginService.js b/src/services/PluginService.js
-index cebe5b2..aafd40f 100644
 --- a/src/services/PluginService.js
 +++ b/src/services/PluginService.js
-@@ -2,8 +2,8 @@ import store from "../redux/store";
+@@ -2,8 +2,6 @@
  
  import PluginServiceAbstract from "./PluginService/PluginServiceAbstract";
  import OverlayPluginService from "./PluginService/OverlayPluginService";
 -import OverlayProcService from "./PluginService/OverlayProcService";
 -import SocketService from "./PluginService/SocketService";
-+
-+
  import UsageService from "./UsageService";
  import MessageProcessor from "../processors/MessageProcessor";
  
-@@ -11,24 +11,10 @@ class PluginService extends PluginServiceAbstract {
- 	constructor() {
- 		super();
+@@ -11,15 +9,7 @@
+    constructor() {
+        super();
  
 -		const socket_service        = new SocketService();
 -		const overlayplugin_service = new OverlayPluginService();
@@ -258,8 +255,14 @@ index cebe5b2..aafd40f 100644
 -			socket_service,
 -		};
 -
--		Object.assign(this, settings);
--
++		const settings = { is_websocket : false, is_overlayplugin : true, is_ngld : true };
+        Object.assign(this, settings);
+ 
+        this.structured_activity = Boolean(window.__mojitoOverlayTransport);
+@@ -27,13 +17,8 @@
+            document.addEventListener("mojitoOverlayCustomData", MessageProcessor.processActivity);
+        }
+ 
 -		this.events         = [];
 -		this.plugin_service = (this.is_websocket && !this.is_overlayplugin)
 -			? socket_service
@@ -267,10 +270,8 @@ index cebe5b2..aafd40f 100644
 -				? new OverlayPluginService(settings)
 -				: new OverlayProcService(settings)
 -			);
-+        const settings = { is_websocket: false, is_overlayplugin: true, is_ngld: true };
-+        Object.assign(this, settings);
-+        this.events = [];
-+        this.plugin_service = new OverlayPluginService(settings);
- 	}
++		this.events = [];
++		this.plugin_service = new OverlayPluginService(settings);
+    }
  
- 	isConnected() {
+    isConnected() {
