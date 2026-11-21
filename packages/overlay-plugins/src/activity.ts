@@ -32,9 +32,10 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     active = true,
     party: Party | null = null
   let subscriptions: Subscription[] = [],
-    entities: Subscription | undefined,
-    timer: Disposer | undefined
+    entities: Subscription | undefined
   let actions: Action[] = []
+  let lastSnapshot: string | undefined
+  let statusDeadlines = new Map<number, number>()
   const actors = new Map<number, Record<string, Json>>()
   const statuses = new Map<number, ActiveStatus[]>()
   const tracked = new Set<number>()
@@ -51,47 +52,55 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
       meta.timeBase === clock.base
     )
   }
+  function snapshot() {
+    return {
+      epoch,
+      party,
+      actors: [...actors.values()].sort((a, b) => Number(a.id) - Number(b.id)),
+      actions,
+      statuses: [...new Set([...tracked, ...statuses.keys()])]
+        .sort((a, b) => a - b)
+        .map((actorId) => ({ actorId, items: statuses.get(actorId) ?? null })),
+    }
+  }
   function send(immediate = false) {
-    if (!active || ctx.signal.aborted) return
+    if (!active || ctx.signal.aborted || JSON.stringify(snapshot()) === lastSnapshot) return
+    const publishedAt = Date.now()
     const now = ctx.clock.now()
     actions = now === null ? [] : actions.filter(({ at }) => now - at < windowMs)
+    const deadlines = new Map<number, number>()
     for (const [id, items] of statuses) {
-      if (tracked.has(id)) continue
-      const visible = items.filter(
-        (item) => isTrackedSource(item) && now !== null && item.expiresAt !== null && item.expiresAt > now,
-      )
-      if (visible.length) statuses.set(id, visible)
-      else statuses.delete(id)
+      const visible = items.filter(({ expiresAt }) => {
+        if (expiresAt === null || now === null) return true
+        if (expiresAt <= now) return false
+        // Reuse the same wall deadline when other observations trigger a new snapshot.
+        const deadline = statusDeadlines.get(expiresAt) ?? publishedAt + (expiresAt - now)
+        if (deadline <= publishedAt) return false
+        deadlines.set(expiresAt, deadline)
+        return true
+      })
+      saveStatuses(id, visible)
     }
+    statusDeadlines = deadlines
+    const value = snapshot()
+    lastSnapshot = JSON.stringify(value)
     publish(
       {
-        epoch,
-        party,
-        actors: [...actors.values()],
-        actions: now === null ? [] : actions.map(({ at, ...action }) => ({ ...action, ageMs: Math.max(0, now - at) })),
-        statuses: [...new Set([...tracked, ...statuses.keys()])].map((actorId) => ({
+        ...value,
+        publishedAt,
+        actions:
+          now === null ? [] : value.actions.map(({ at, ...action }) => ({ ...action, ageMs: Math.max(0, now - at) })),
+        statuses: value.statuses.map(({ actorId, items }) => ({
           actorId,
           items:
-            statuses.get(actorId)?.map(({ expiresAt, ...status }) => ({
-              ...status,
-              remainingMs: expiresAt === null || now === null ? null : Math.max(0, expiresAt - now),
-            })) ?? null,
+            items?.map(({ expiresAt, ...status }) => {
+              const deadline = expiresAt === null ? undefined : deadlines.get(expiresAt)
+              return { ...status, remainingMs: deadline === undefined ? null : deadline - publishedAt }
+            }) ?? null,
         })),
       },
       immediate,
     )
-    if (
-      !timer &&
-      (actions.length ||
-        [...statuses.values()].some((items) =>
-          items.some((item) => item.expiresAt !== null && now !== null && item.expiresAt > now),
-        ))
-    ) {
-      timer = ctx.clock.setTimeout(() => {
-        timer = undefined
-        send()
-      }, 200)
-    }
   }
   function reset() {
     epoch++
@@ -99,9 +108,8 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     subscriptions = []
     entities = undefined
     for (const sub of stale) sub?.dispose()
-    void timer?.()
-    timer = undefined
     actions = []
+    statusDeadlines.clear()
     party = null
     actors.clear()
     statuses.clear()
@@ -247,7 +255,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
             : meta.observedAt
       previous.push(buildStatus(details, at, slot))
     }
-    statuses.set(
+    saveStatuses(
       actorId,
       previous.sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0)),
     )

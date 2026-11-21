@@ -1,5 +1,5 @@
 import type { Field, PluginContext } from '@ffcafe/mojito-plugin-sdk'
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { observeActivity } from './activity.js'
 
 const clock = { source: 'replay', base: 'packet-unix', generation: 0 }
@@ -30,6 +30,8 @@ const action = (sourceActorId: number, sequence: number, actionId = 75) => ({
   type: 'actionEffect',
   data: { sourceActorId, actionType: 1, sequence, actionId },
 })
+afterEach(() => vi.useRealTimers())
+
 function batch(...items: unknown[]) {
   return { complete: true, items }
 }
@@ -38,11 +40,12 @@ function samples(...values: unknown[]) {
 }
 function fixture() {
   let now = 1000
+  vi.useFakeTimers({ now: 101000 })
   const subscriptions = new Map<
     string,
     { receive: (value: ReturnType<typeof batch>) => void; dispose: ReturnType<typeof vi.fn> }
   >()
-  const timers = new Set<() => void>()
+  const setTimeout = vi.fn()
   const subscribe = (name: string, receive: (value: ReturnType<typeof batch>) => void) => {
     const dispose = vi.fn()
     subscriptions.set(name, { receive, dispose })
@@ -53,10 +56,7 @@ function fixture() {
     clock: {
       state: () => clock,
       now: () => now,
-      setTimeout: (callback: () => void) => {
-        timers.add(callback)
-        return () => timers.delete(callback)
-      },
+      setTimeout,
     },
     session: { subscribe: (receive: Parameters<typeof subscribe>[1]) => subscribe('session', receive) },
     events: { subscribe: (_: string[], receive: Parameters<typeof subscribe>[1]) => subscribe('events', receive) },
@@ -68,15 +68,14 @@ function fixture() {
   send('session', batch(session))
   return {
     advance: (next: number) => {
+      vi.advanceTimersByTime(next - now)
       now = next
-      const due = [...timers]
-      timers.clear()
-      for (const run of due) run()
     },
     send,
     stop,
     publish,
     subscriptions,
+    setTimeout,
     last: () => publish.mock.lastCall?.[0],
   }
 }
@@ -91,17 +90,25 @@ it('retains separate actions from coalesced batches, deduplicates AOE, and prune
   )
   f.send('events', samples(action(16, 0), action(16, 0), action(17, 0, 76)))
   f.send('events', samples(action(16, 1, 77)))
+  expect(f.last().publishedAt).toBe(101000)
   expect(f.last().actions).toEqual([
     { key: '16:0', actorId: 16, actionId: 75, ageMs: 0 },
     { key: '17:0', actorId: 17, actionId: 76, ageMs: 0 },
     { key: '16:1', actorId: 16, actionId: 77, ageMs: 0 },
   ])
+  const publications = f.publish.mock.calls.length
   f.advance(1100)
+  f.send('events', samples(action(16, 0)))
+  expect(f.publish).toHaveBeenCalledTimes(publications)
+  f.send('entities', samples({ entities: [{ id: 16, hpCur: ok(5) }], missingIds: [] }))
+  expect(f.last().publishedAt).toBe(101100)
   expect(f.last().actions.map((action: { ageMs: number }) => action.ageMs)).toEqual([100, 100, 100])
   f.send('events', samples(...Array.from({ length: 130 }, (_, index) => action(16, index + 2))))
   expect(f.last().actions).toHaveLength(128)
   expect(f.last().actions[0].key).toBe('16:4')
   f.advance(11000)
+  expect(f.last().actions).toHaveLength(128)
+  f.send('entities', samples({ entities: [{ id: 16, hpCur: ok(4) }], missingIds: [] }))
   expect(f.last().actions).toEqual([])
 })
 it('updates only changed slots, preserves zero resources, and treats unknown party as unavailable', () => {
@@ -160,6 +167,10 @@ it('updates only changed slots, preserves zero resources, and treats unknown par
     }),
   )
   f.advance(1200)
+  f.send(
+    'entities',
+    samples({ entities: [{ id: 16, hpCur: ok(0), mpMax: ok(10000), level: ok(100) }], missingIds: [] }),
+  )
   expect(f.last()).toMatchObject({
     actors: [
       { id: 16, hpCur: 0, mpMax: 10000 },
@@ -189,6 +200,39 @@ it('updates only changed slots, preserves zero resources, and treats unknown par
   expect(f.last()).toMatchObject({ party: null, actors: [{ id: 16 }, { id: 17 }] })
   f.send('party', samples({ isInParty: ok(false) }))
   expect(f.last()).toMatchObject({ party: { isInParty: false, members: [] }, actors: [{ id: 16 }] })
+})
+it('keeps the retained frame during identical observations and prunes expired statuses on the next change', () => {
+  const f = fixture()
+  const entity = { id: 16, hpCur: ok(100) }
+  const entities = (value = entity) => samples({ entities: [value], missingIds: [] })
+  f.send('entities', entities())
+  f.send(
+    'events',
+    samples({
+      type: 'statusesReplaced',
+      data: {
+        actorId: 16,
+        statuses: [{ statusId: 1177, sourceActorId: 16, param: 3, durationMs: 1500, observedAt: 1000, slot: 0 }],
+      },
+    }),
+  )
+  f.send('events', samples(action(16, 0)))
+  vi.advanceTimersByTime(500)
+  f.send('entities', entities({ ...entity, hpCur: ok(99) }))
+  expect(f.last()).toMatchObject({
+    publishedAt: 101500,
+    statuses: [{ actorId: 16, items: [{ remainingMs: 1000 }] }],
+  })
+  const retained = f.last()
+  const publications = f.publish.mock.calls.length
+  f.advance(3000)
+  f.send('entities', entities({ ...entity, hpCur: ok(99) }))
+  f.send('events', samples(action(16, 0)))
+  expect(f.setTimeout).not.toHaveBeenCalled()
+  expect(f.publish).toHaveBeenCalledTimes(publications)
+  expect(f.last()).toBe(retained)
+  f.send('entities', entities({ ...entity, hpCur: ok(98) }))
+  expect(f.last()).toMatchObject({ publishedAt: 103500, statuses: [{ actorId: 16, items: [] }] })
 })
 it('invalidates the old sample callbacks on a character change, gap, and stop', () => {
   const f = fixture()
