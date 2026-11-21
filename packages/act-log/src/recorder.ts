@@ -139,7 +139,11 @@ export class Recorder {
         run.problem = message(closeError)
       }
       this.run = undefined
-      this.update({ status: 'incomplete', error: run.problem ?? message(e) })
+      this.update({
+        status: writer ? 'incomplete' : 'idle',
+        name: writer?.name ?? '',
+        error: run.problem ?? message(e),
+      })
     }
   }
   async stop() {

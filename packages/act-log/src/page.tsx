@@ -56,36 +56,45 @@ function Page() {
   }
   return (
     <main>
-      <header>
-        <div>
-          <h1>ACT 日志</h1>
-          <p role="status">{state ? labels[state.status] : '正在连接'}</p>
-        </div>
-        <button
-          type="button"
-          data-variant={running ? undefined : 'primary'}
-          data-size="large"
-          aria-busy={pending || state?.status === 'stopping'}
-          disabled={!state || pending || state.status === 'choosing' || state.status === 'stopping'}
-          onClick={() => void command()}
-        >
-          {running ? '停止记录' : '开始记录'}
-        </button>
-      </header>
-      {state?.name && (
-        <dl>
-          <dt>文件</dt>
-          <dd>{state.name}</dd>
-          <dt>已写入</dt>
-          <dd>{state.lines.toLocaleString()} 行</dd>
-        </dl>
-      )}
-      <small>当前版本尚未记录玩家标记和启动信息。遇到未支持的聊天格式时，会停止记录并保留已写内容。</small>
+      <section className="mojito-panel recorder-panel" aria-label="记录控制">
+        <header>
+          <span
+            className="mojito-chip"
+            role="status"
+            data-tone={state?.status === 'recording' ? 'ok' : state?.status === 'incomplete' ? 'warn' : undefined}
+          >
+            {state ? labels[state.status] : '正在连接'}
+          </span>
+          <button
+            type="button"
+            data-variant={running ? undefined : 'primary'}
+            data-size="large"
+            aria-busy={pending || state?.status === 'stopping'}
+            disabled={!state || pending || state.status === 'choosing' || state.status === 'stopping'}
+            onClick={() => void command()}
+          >
+            {running ? '停止记录' : '开始记录'}
+          </button>
+        </header>
+        {state?.name && (
+          <dl className="mojito-facts recorder-details">
+            <div>
+              <dt>文件</dt>
+              <dd>{state.name}</dd>
+            </div>
+            <div>
+              <dt>已写入</dt>
+              <dd>{state.lines.toLocaleString()} 行</dd>
+            </div>
+          </dl>
+        )}
+      </section>
       {(error || state?.error) && (
-        <p className="mojito-callout" data-tone="danger" role="alert">
+        <p className="mojito-callout" data-tone="warn" role="alert">
           {error || state?.error}
         </p>
       )}
+      <small>当前版本尚未记录玩家标记和启动信息。遇到未支持的聊天格式时，会停止记录并保留已写内容。</small>
     </main>
   )
 }

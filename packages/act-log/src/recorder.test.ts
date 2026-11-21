@@ -21,9 +21,10 @@ function fixture() {
     'packets.read': { state: 'available' },
     'identity.read': { state: 'available' },
   }
+  const openWriteFile = vi.fn(async () => ({ name: 'synthetic.log', write, close }))
   const ctx = {
     capabilities: { get: () => grants },
-    host: { openWriteFile: async () => ({ name: 'synthetic.log', write, close }) },
+    host: { openWriteFile },
     observations: {
       subscribe: (_selection: unknown, listener: typeof consume) => {
         consume = listener
@@ -62,8 +63,40 @@ function fixture() {
         },
       })),
     })
-  return { recorder, write, close, done, push, finish, chunks, grants }
+  return { recorder, openWriteFile, write, close, done, push, finish, chunks, grants }
 }
+it('returns to idle and reports denied permissions without opening a writer', async () => {
+  const { recorder, openWriteFile, grants } = fixture()
+  grants['packets.read'].state = 'denied'
+  await recorder.start()
+  expect(recorder.state).toEqual({ status: 'idle', name: '', lines: 0, error: '请在插件权限中允许读取数据包' })
+  expect(openWriteFile).not.toHaveBeenCalled()
+})
+it('returns to idle after a failure to open a file and allows another attempt', async () => {
+  const { recorder, openWriteFile, close } = fixture()
+  openWriteFile.mockRejectedValueOnce(new Error('Cannot open save dialog'))
+  await recorder.start()
+  expect(recorder.state).toEqual({ status: 'idle', name: '', lines: 0, error: 'Cannot open save dialog' })
+  expect(close).not.toHaveBeenCalled()
+  await recorder.start()
+  expect(recorder.state).toEqual({ status: 'waiting', name: 'synthetic.log', lines: 0, error: '' })
+  await recorder.stop()
+})
+it('keeps the selected file visible when permissions are lost after it is opened', async () => {
+  const { recorder, openWriteFile, write, close, grants } = fixture()
+  openWriteFile.mockImplementationOnce(async () => {
+    grants['identity.read'].state = 'denied'
+    return { name: 'synthetic.log', write, close }
+  })
+  await recorder.start()
+  expect(recorder.state).toEqual({
+    status: 'incomplete',
+    name: 'synthetic.log',
+    lines: 0,
+    error: '请在插件权限中允许读取角色身份',
+  })
+  expect(close).toHaveBeenCalledTimes(1)
+})
 it('preserves a complete prefix and writes a genuine error record when a chat field cannot be rendered', async () => {
   const { recorder, push, done, close, chunks } = fixture()
   await recorder.start()

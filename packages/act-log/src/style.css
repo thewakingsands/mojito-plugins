@@ -3,16 +3,13 @@ main {
   max-width: 42rem;
   gap: var(--mojito-space-section);
 }
-main > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--mojito-space-group);
-  flex-wrap: wrap;
+.recorder-panel > header:only-child {
+  border-bottom: 0;
 }
-header p {
-  margin: 0;
+.recorder-details {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  padding: 14px 20px;
 }
-dd {
+.recorder-details dd {
   overflow-wrap: anywhere;
 }
