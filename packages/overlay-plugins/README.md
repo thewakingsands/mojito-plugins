@@ -37,6 +37,6 @@ Empty filters select all actors; empty `props` selects all available fields.
 Supported fields are `ID`, `Name`, `Job`, `Level`, `CurrentHP`, `MaxHP`, `CurrentMP`, `MaxMP`,
 `PosX`, `PosY`, `PosZ`, `Heading`, `OwnerID`, `TargetID`, `WorldID`, `CurrentWorldID`, `WorldName`,
 `BNpcID`, `BNpcNameID` and `Type`. Missing values are omitted; known absent owner/target IDs are zero.
-Position uses game x/z/y, with height in `PosZ`; Heading preserves radians. `WorldName` reads the home
-world's English `Name` only when requested and data is available. Queries preserve SDK identity handling
-and return `unavailable` if their source changes before completion.
+Position uses game x/z/y, with height in `PosZ`. Heading preserves radians. When requested and data is
+available, `WorldName` reads the home world's display name from the client's `World` table. Queries
+preserve SDK identity handling and return `unavailable` if their source changes before completion.

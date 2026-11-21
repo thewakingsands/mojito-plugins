@@ -34,5 +34,5 @@ mojito-package verify Kagerou.mojito
 支持 `ID`、`Name`、`Job`、`Level`、`CurrentHP`、`MaxHP`、`CurrentMP`、`MaxMP`、`PosX`、`PosY`、
 `PosZ`、`Heading`、`OwnerID`、`TargetID`、`WorldID`、`CurrentWorldID`、`WorldName`、`BNpcID`、
 `BNpcNameID` 和 `Type`。缺失值省略，已知无主人或目标时对应 ID 为 0。位置按游戏 x/z/y 输出，`PosZ` 为高度，
-Heading 保留弧度。请求 `WorldName` 且数据可用时读取所属世界的英文 Name。查询沿用 SDK 身份处理，
+Heading 保留弧度。请求 `WorldName` 且数据可用时，从客户端的 `World` 表读取所属世界的显示名称。查询沿用 SDK 身份处理，
 完成前来源发生变化时返回 `unavailable`。
