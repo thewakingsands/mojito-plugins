@@ -1,6 +1,9 @@
 import { parseSeString, Type } from '@ffcafe/elpis-sestring'
 import { Buffer } from 'buffer'
 
+// The visible label is stored as text between the link's opening and closing payloads.
+const linkPayload = 0x27
+
 export function chatText(bytes: Uint8Array): string {
   let result = ''
   for (const part of parseSeString(Buffer.from(bytes))) {
@@ -8,7 +11,9 @@ export function chatText(bytes: Uint8Array): string {
       result += part
       continue
     }
-    switch (part.type) {
+    switch (part.type as number) {
+      case linkPayload:
+      case Type.Gui:
       case Type.Color:
       case Type.UIForeground:
       case Type.UIGlow:

@@ -4,7 +4,8 @@
   "name": "ACT 日志",
   "description": "将实时采集或录制回放写入 ACT 格式的日志文件。",
   "author": "FFCafe",
-  "version": "0.1.3",
+  "license": "GPL-3.0-only",
+  "version": "0.1.4",
   "apiVersion": "^2.2.0",
   "entry": {
     "kind": "worker",

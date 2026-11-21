@@ -47,7 +47,7 @@ test('official packages and checksums contain only the approved plugins', async 
     const manifests = await Promise.all([
       ...native.map(async (name) => {
         const m = JSON.parse(await readFile(path.join(root, `packages/${name}/plugin.json`), 'utf8'))
-        assert.equal(m.license, 'AGPL-3.0-only')
+        assert.equal(m.license, name === 'act-log' ? 'GPL-3.0-only' : 'AGPL-3.0-only')
         return { ...m, homepage: `${repository}/tree/${revision}/packages/${name}` }
       }),
       ...templates.map(async (name) => {

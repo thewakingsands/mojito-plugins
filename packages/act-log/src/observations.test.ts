@@ -102,3 +102,26 @@ it('uses chat time for chat rows and the triggering packet time for status rows'
   fields[2] = '0.00'
   expect(await consume(event('lost', 2, 4000))).toEqual([{ type: 30, timestamp: 4000, fields }])
 })
+
+it('keeps visible chat text between link tags and ignores display icons', async () => {
+  const { consume } = await setup()
+  const text = new TextEncoder()
+  const linkStart = [0x02, 0x27, 0x05, 0x03, 0x02, 0x01, 0x01, 0x03]
+  const linkEnd = [0x02, 0x27, 0x05, 0xcf, 0x01, 0x01, 0x01, 0x03]
+  const icon = [0x02, 0x12, 0x02, 0x02, 0x03]
+  const sender = Uint8Array.from([...linkStart, ...text.encode('测试玩家'), ...linkEnd])
+  const message = Uint8Array.from([
+    ...text.encode('获得：'),
+    ...icon,
+    ...linkStart,
+    ...text.encode('恢复药'),
+    ...linkEnd,
+    ...text.encode('。'),
+  ])
+
+  const rows = await consume({
+    kind: 'event',
+    event: { type: 'gameLog', data: { time: 5, code: 10, sender, message } },
+  })
+  expect(rows).toEqual([{ type: 0, timestamp: 5000, fields: ['000A', '测试玩家', '获得：恢复药。'] }])
+})
