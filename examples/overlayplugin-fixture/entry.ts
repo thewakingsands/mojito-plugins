@@ -1,4 +1,4 @@
-import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
+import type { Disposer, PluginContext } from '@ffcafe/mojito-plugin-sdk'
 import {
   type OverlayCompatibility,
   type OverlayState,
@@ -241,6 +241,18 @@ export async function activate(context: PluginContext) {
   }
   await enqueue(publish)
   await context.views.flush()
+  let removeCombatants: Disposer | undefined
+  await context.views.onCommand('fixture/combatants', async (input) => {
+    await removeCombatants?.()
+    removeCombatants = undefined
+    if (input === 'missing') return null
+    removeCombatants = await context.views.onCommand('combat/combatants', () =>
+      input === 'unavailable'
+        ? { error: 'unavailable' }
+        : { combatants: [{ ID: 16, Name: 'Example Player', Job: 21, Level: 100 }] },
+    )
+    return null
+  })
   await context.views.onCommand('fixture', (input) =>
     enqueue(async () => {
       const command = input as { scenario: string; encounterId?: string; active?: boolean; state?: unknown }

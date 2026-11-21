@@ -9,9 +9,9 @@ const plugins = readdirSync(directory)
     name,
     source: JSON.parse(readFileSync(new URL(name, directory), 'utf8')),
   }))
-it.each(plugins)('$name declares a valid API 2.0 consumer of the statistics service', ({ source }) => {
+it.each(plugins)('$name declares a valid consumer of the statistics service', ({ source }) => {
   const plugin = manifest(source)
-  expect(plugin.apiVersion).toBe('^2.0.0')
+  expect(plugin.apiVersion).toBe(plugin.id === 'ffcafe.overlay-ember' ? '^2.1.0' : '^2.0.0')
   expect(plugin.capabilities).toContain('identity.read')
   expect(plugin.services?.consumes).toEqual([
     { name: 'ffcafe.combat-statistics/overlay', versionRange: '^1.0.0', optional: false },
