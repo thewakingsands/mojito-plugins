@@ -1,6 +1,11 @@
-import type { Disposer, PluginContext, Subscription, Value } from '@ffcafe/mojito-plugin-sdk'
+import type { Disposer, Json, PluginContext, Subscription, Value } from '@ffcafe/mojito-plugin-sdk'
 import { pluginError } from '@ffcafe/mojito-plugin-sdk/errors'
-import { type OverlayCompatibility, overlayProducer, overlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
+import {
+  type OverlayCompatibility,
+  type OverlayState,
+  overlayProducer,
+  overlayState,
+} from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { fields, object } from '@ffcafe/mojito-plugin-sdk/schema'
 
 const service = 'ffcafe.combat-statistics/overlay'
@@ -13,11 +18,13 @@ export async function activateOverlay(
     entry: string
     documents: string[]
   },
+  activity?: (publish: (custom: Json, immediate?: boolean) => void) => Disposer,
 ) {
   let live = true,
     revision = 0,
     queue = Promise.resolve()
   let subscription: Subscription | undefined
+  let current: OverlayState | undefined, custom: Json | undefined
   const disposers: Disposer[] = []
   const producer = overlayProducer(ctx.views, 'combat')
   let stopping: Promise<void> | undefined
@@ -41,9 +48,10 @@ export async function activateOverlay(
       const value = object(input)
       fields(value, ['revision', 'state'])
       if (!Number.isSafeInteger(value.revision) || Number(value.revision) <= 0) throw pluginError('invalid_argument')
-      const state = overlayState(value.state)
+      const { custom: _providerCustom, ...state } = overlayState(value.state)
       if (Number(value.revision) <= revision) return
-      await producer.publish(state)
+      current = state
+      await producer.publish(custom === undefined ? state : { ...state, custom })
       revision = Number(value.revision)
     })
     queue = next.catch(() => {})
@@ -65,6 +73,19 @@ export async function activateOverlay(
     await subscription.ready
     await receive(await ctx.services.request(service, 'getState', null))
     if (!live || ctx.signal.aborted) throw pluginError('cancelled')
+    if (activity)
+      disposers.push(
+        activity((value, immediate) => {
+          queue = queue
+            .then(async () => {
+              if (!live || ctx.signal.aborted || !current) return
+              custom = value
+              await producer.publish({ ...current, custom })
+              if (immediate) await ctx.views.flush()
+            })
+            .catch((error) => ctx.log.warn('悬浮窗活动更新失败', { error: String(error) }))
+        }),
+      )
     disposers.push(
       await producer.onEnd(async (encounterId) => {
         if (!live) throw pluginError('unavailable')

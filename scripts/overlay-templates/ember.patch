@@ -1,5 +1,5 @@
 diff --git a/.env-cmdrc b/.env-cmdrc
-index 1fdc651..90b004b 100644
+index 66c4b0f..90b004b 100644
 --- a/.env-cmdrc
 +++ b/.env-cmdrc
 @@ -1,37 +1,37 @@
@@ -7,7 +7,7 @@ index 1fdc651..90b004b 100644
 -	"default": {
 -		"REACT_APP_ROUTER_BASE": "/ember",
 -		"REACT_APP_HTTP_BASE": "/ember",
--		"REACT_APP_REDIRECT_URL": "https://overlays.ffcafe.cn/ember",
+-		"REACT_APP_REDIRECT_URL": "http://overlays.ffcafe.cn",
 -		"REACT_APP_VERSION": "0.1.0",
 -		"REACT_APP_GITHUB_URL": "https://github.com/ffcafe-overlays/ffxiv-ember-overlay",
 -		"REACT_APP_DISCORD_URL": "https://discord.gg/invite",
@@ -147,7 +147,7 @@ index 0b7cb2e..94e857a 100644
  		const attributes = {
  			key       : "spell-container-" + this.props.base_key,
 diff --git a/src/processors/GameDataProcessor.js b/src/processors/GameDataProcessor.js
-index 98d941a..a20a686 100644
+index f99a23c..81cecc1 100644
 --- a/src/processors/GameDataProcessor.js
 +++ b/src/processors/GameDataProcessor.js
 @@ -40,10 +40,6 @@ class GameDataProcessor {
@@ -201,7 +201,7 @@ index b3d06a5..8b159d6 100644
  
  		const players_copy = JSON.parse(JSON.stringify(sorted_players));
 diff --git a/src/redux/reducers/index.js b/src/redux/reducers/index.js
-index a056789..38a346c 100644
+index a809173..217ad24 100644
 --- a/src/redux/reducers/index.js
 +++ b/src/redux/reducers/index.js
 @@ -136,23 +136,13 @@ function rootReducer(state, action) {
@@ -231,21 +231,19 @@ index a056789..38a346c 100644
  
  			if (state.internal.mode === "stats") {
 diff --git a/src/services/PluginService.js b/src/services/PluginService.js
-index cebe5b2..aafd40f 100644
+index 0739ee7..f2ef24a 100644
 --- a/src/services/PluginService.js
 +++ b/src/services/PluginService.js
-@@ -2,8 +2,8 @@ import store from "../redux/store";
+@@ -2,8 +2,6 @@ import store from "../redux/store";
  
  import PluginServiceAbstract from "./PluginService/PluginServiceAbstract";
  import OverlayPluginService from "./PluginService/OverlayPluginService";
 -import OverlayProcService from "./PluginService/OverlayProcService";
 -import SocketService from "./PluginService/SocketService";
-+
-+
  import UsageService from "./UsageService";
  import MessageProcessor from "../processors/MessageProcessor";
  
-@@ -11,24 +11,10 @@ class PluginService extends PluginServiceAbstract {
+@@ -11,26 +9,18 @@ class PluginService extends PluginServiceAbstract {
  	constructor() {
  		super();
  
@@ -258,8 +256,16 @@ index cebe5b2..aafd40f 100644
 -			socket_service,
 -		};
 -
--		Object.assign(this, settings);
--
++		const settings = { is_websocket : false, is_overlayplugin : true, is_ngld : true };
+ 		Object.assign(this, settings);
+ 
+ 		this.structured_activity = false;
++		if (window.__mojitoOverlayTransport) {
++			this.setActivitySource(receive => {
++				document.addEventListener("mojitoOverlayCustomData", ({ detail }) => receive(detail));
++			});
++		}
+ 
 -		this.events         = [];
 -		this.plugin_service = (this.is_websocket && !this.is_overlayplugin)
 -			? socket_service
@@ -267,10 +273,37 @@ index cebe5b2..aafd40f 100644
 -				? new OverlayPluginService(settings)
 -				: new OverlayProcService(settings)
 -			);
-+        const settings = { is_websocket: false, is_overlayplugin: true, is_ngld: true };
-+        Object.assign(this, settings);
-+        this.events = [];
-+        this.plugin_service = new OverlayPluginService(settings);
++		this.events = [];
++		this.plugin_service = new OverlayPluginService(settings);
  	}
  
- 	isConnected() {
+ 	setActivitySource(subscribe) {
+diff --git a/src/services/PluginService.test.js b/src/services/PluginService.test.js
+index 6c08d23..dcba152 100644
+--- a/src/services/PluginService.test.js
++++ b/src/services/PluginService.test.js
+@@ -41,3 +41,24 @@ test("an explicitly supplied activity source takes over the party and log inputs
+ 	expect(events).not.toContain("LogLine");
+ 	expect(events).not.toContain("PartyChanged");
+ });
++
++test("the packaged overlay supplies the snapshot from the host event", () => {
++	const event_name = "mojitoOverlayCustomData";
++	const add_event  = jest.spyOn(document, "addEventListener");
++	window.__mojitoOverlayTransport = {};
++	try {
++		const service  = new PluginService();
++		const snapshot = { epoch : 1, actors : [], actions : [], statuses : [] };
++		document.dispatchEvent(new CustomEvent(event_name, { detail : snapshot }));
++		expect(MessageProcessor.processActivity).toHaveBeenCalledWith(snapshot);
++		expect(service.getSubscriptions({}, { mode : "stats" })).not.toContain("LogLine");
++	} finally {
++		const registration = add_event.mock.calls.find(([name]) => name === event_name);
++		if (registration) {
++			document.removeEventListener(...registration);
++		}
++
++		add_event.mockRestore();
++		delete window.__mojitoOverlayTransport;
++	}
++});

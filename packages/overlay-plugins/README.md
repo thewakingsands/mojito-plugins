@@ -6,11 +6,12 @@ Build the SDK and this workspace to produce one runtime tree per OverlayPlugin t
 `kagerou`, `skyline`, `faceroll`, `horizoverlay`, `cmskin`, `mopimopi1`, `ikegami`, `ember`,
 `amethyst`, `klondike` and `glass`. The build fetches the fixed upstream commits into its own temporary directory.
 
-Ember requires Mojito plugin API 2.1.0. The other plugins require API 2.0.0.
+Ember requires Mojito plugin API 2.3.0. The other plugins require API 2.0.0.
 All require the `ffcafe.combat-statistics/overlay` service v1. Install
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
 
+Ember uses structured game observations for the party list, skill and status timers, and HP/MP warnings.
 Ember loads action and status icons from Mojito's game data through the compatibility page's
 `getGameIcon` call. Its worker resolves the game row and returns an activation-bound image URL.
 Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.

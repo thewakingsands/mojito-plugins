@@ -1,4 +1,4 @@
-import type { Disposer, PluginContext, Value } from '@ffcafe/mojito-plugin-sdk'
+import type { Disposer, Json, PluginContext, Value } from '@ffcafe/mojito-plugin-sdk'
 import {
   type OverlayCompatibility,
   type OverlayState,
@@ -257,11 +257,18 @@ export async function activate(context: PluginContext) {
   })
   await context.views.onCommand('fixture', (input) =>
     enqueue(async () => {
-      const command = input as { scenario: string; encounterId?: string; active?: boolean; state?: unknown }
+      const command = input as {
+        scenario: string
+        encounterId?: string
+        active?: boolean
+        state?: unknown
+        custom?: Json
+      }
       current =
         command.state === undefined
           ? scenario(command.scenario, command.encounterId, command.active)
           : overlayState(command.state)
+      if (command.custom !== undefined) current.custom = command.custom
       await publish()
       await context.views.flush()
       return { encounterId: current.encounterId }

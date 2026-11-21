@@ -23,6 +23,8 @@ export interface OverlayState {
   zone: { id: number; name: string | null } | null
   language: string | null
   inCombat: boolean | null
+  /** Optional JSON delivered only to bound documents in this plugin's own package. @since Plugin API 2.3.0 */
+  custom?: Json
   availability: Record<'combatData' | 'primaryPlayer' | 'zone' | 'language' | 'inCombat', Availability>
 }
 export type EndEncounterResult = 'ended' | 'alreadyEnded' | 'staleEncounter' | 'notFound'
@@ -61,7 +63,7 @@ function strings(input: unknown) {
 }
 export function overlayState(input: unknown): OverlayState {
   const value = object(input)
-  fields(value, [
+  const required = [
     'apiVersion',
     'encounterId',
     'combatData',
@@ -70,7 +72,8 @@ export function overlayState(input: unknown): OverlayState {
     'language',
     'inCombat',
     'availability',
-  ])
+  ]
+  fields(value, [...required, 'custom'], required)
   check(value.apiVersion === 1, 'Unsupported overlay state')
   if (value.encounterId !== null) text(value.encounterId)
   if (value.combatData !== null) {
