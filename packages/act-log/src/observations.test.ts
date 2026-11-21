@@ -65,7 +65,7 @@ it('emits the frozen snapshot once, in zone, map, player, present combatants and
   expect(removed[0]).toEqual({ ...rows[3], type: 4 })
   expect(await consume({ kind: 'memory', memory: { kind: 'combatantRemove', actorId: 9 } })).toEqual([])
 })
-it('uses source-specific chat and buff times and keeps the removed actor for the paired lost-status event', async () => {
+it('uses chat time for chat rows and the triggering packet time for status rows', async () => {
   const { consume } = await setup()
   const text = new TextEncoder()
   expect(
@@ -86,20 +86,19 @@ it('uses source-specific chat and buff times and keeps the removed actor for the
     param: 3,
     sourceActorId: 9,
     durationMs: 1250,
-    observedAt: 5,
+    observedAt: 3000,
     timeBase: 'packet-unix' as const,
   }
-  const event = (kind: 'gained' | 'lost'): Observation => ({
+  const event = (kind: 'gained' | 'lost', seq: number, timestamp: number): Observation => ({
     kind: 'event',
     event: {
       type: 'statusSlotsChanged',
-      packet: { seq: 1, timestamp: 3000, sourceActorId: 9, targetActorId: 8 },
+      packet: { seq, timestamp, sourceActorId: 9, targetActorId: 8 },
       data: { actorId: 9, slots: [], changes: [{ kind, slot: 0, statusId: 11, sourceActorId: 9, status }] },
     },
   })
   const fields = ['0B', 'status-11', '1.25', '0009', 'Synthetic', '0009', 'Synthetic', '03', 111, 111]
-  expect(await consume(event('gained'))).toEqual([{ type: 26, timestamp: 3000, fields }])
-  await consume({ kind: 'memory', memory: { kind: 'combatantRemove', actorId: 9 } })
+  expect(await consume(event('gained', 1, 3000))).toEqual([{ type: 26, timestamp: 3000, fields }])
   fields[2] = '0.00'
-  expect(await consume(event('lost'))).toEqual([{ type: 30, timestamp: 3000, fields }])
+  expect(await consume(event('lost', 2, 4000))).toEqual([{ type: 30, timestamp: 4000, fields }])
 })

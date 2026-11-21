@@ -1,5 +1,5 @@
 import type { DataService, MemoryObservation, Observation, Sample } from '@ffcafe/mojito-plugin-sdk'
-import { type Actor, Actors, Names, value } from './actors.js'
+import { Actors, Names, value } from './actors.js'
 import { chatText } from './chat.js'
 import { hex, type LogRow } from './format.js'
 import { packetRows, type Row, type State } from './packets.js'
@@ -16,7 +16,6 @@ export class LogObservations implements State {
   private territory?: number
   private mapId?: number
   private partyKey?: string
-  private removed?: { id: number; actor: Actor }
   private initialParty?: Extract<MemoryObservation, { kind: 'party' }>
   private initialZone?: Extract<MemoryObservation, { kind: 'zone' }>
   constructor(private data: DataService) {}
@@ -61,7 +60,6 @@ export class LogObservations implements State {
         const id = m.actorId,
           wasPresent = this.actors.present.has(id),
           actor = this.actors.get(id)
-        this.removed = { id, actor }
         this.actors.forget(id)
         return wasPresent ? [{ type: 4, fields: await this.names.combatant(id, actor) }] : []
       }
@@ -92,7 +90,6 @@ export class LogObservations implements State {
   async consume({ value: item, meta }: Sample<Observation>): Promise<LogRow[]> {
     let timestamp = meta.observedAt
     let rows: Row[] = []
-    if (item.kind === 'packet' || item.kind === 'memory') this.removed = undefined
     switch (item.kind) {
       case 'snapshotStart':
         this.lookup = new Names(this.data, item.source.dataLanguage ?? item.source.uiLanguage)
@@ -146,14 +143,12 @@ export class LogObservations implements State {
         } else if (e.type === 'statusSlotsChanged') {
           timestamp = e.packet?.timestamp ?? meta.observedAt
           const id = e.data.actorId
-          const get = (id: number | null) =>
-            this.removed && this.removed.id === id ? this.removed.actor : this.actors.get(id)
-          const actor = get(id)
+          const actor = this.actors.get(id)
           for (const change of e.data.changes) {
             const buff = change.status
             if (!buff) throw new Error('Missing status details from host')
             const lost = change.kind === 'lost',
-              source = get(buff.sourceActorId)
+              source = this.actors.get(buff.sourceActorId)
             rows.push({
               type: lost ? 30 : 26,
               fields: [
