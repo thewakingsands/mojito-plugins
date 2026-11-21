@@ -18,10 +18,16 @@ export function createTestContext(
   let hostCallId = 0
   const subscriptions = new Map<
     string,
-    { topic: string; params: Value; next: number; batch: number; awaiting: boolean }
+    { topic: string; params: Value; next: number; batch: number; awaiting: boolean; finishing?: boolean }
   >()
   const send = (kind: Envelope['kind'], fields: Record<string, Value>) =>
     receive({ protocol: 1, activationId: hello.identity.activationId, kind, ...structuredClone(fields) })
+  function complete(id: string) {
+    const sub = subscriptions.get(id)
+    if (!sub) return
+    subscriptions.delete(id)
+    send('subscriptionClosed', { subscriptionId: id, reason: 'completed', lastDeliveredSeq: sub.next - 1 })
+  }
   const client = new RpcClient(
     {
       listen: (handler) => {
@@ -75,8 +81,17 @@ export function createTestContext(
           queueMicrotask(() => send('subscribed', { id: message.id, subscriptionId: id }))
         } else if (message.kind === 'ack') {
           const subscription = subscriptions.get(String(message.subscriptionId))
-          if (subscription && message.batchId === subscription.batch - 1) subscription.awaiting = false
-        } else if (message.kind === 'unsubscribe') subscriptions.delete(String(message.subscriptionId))
+          if (subscription && message.batchId === subscription.batch - 1) {
+            subscription.awaiting = false
+            if (subscription.finishing) complete(String(message.subscriptionId))
+          }
+        } else if (message.kind === 'unsubscribe') {
+          const id = String(message.subscriptionId)
+          const sub = subscriptions.get(id)
+          if (message.drain && sub?.awaiting) sub.finishing = true
+          else if (message.drain) complete(id)
+          else subscriptions.delete(id)
+        }
       },
     },
     hello.identity.activationId,
@@ -87,7 +102,7 @@ export function createTestContext(
     requests,
     publish(topic: string, items: Value[], options: { initial?: boolean; match?: (params: Value) => boolean } = {}) {
       for (const [id, sub] of subscriptions) {
-        if (sub.topic !== topic || (options.match && !options.match(sub.params))) continue
+        if (sub.finishing || sub.topic !== topic || (options.match && !options.match(sub.params))) continue
         if (sub.awaiting) throw new Error('Test consumer has not acknowledged its prior batch')
         const firstSeq = sub.next
         sub.next += Math.max(1, items.length)

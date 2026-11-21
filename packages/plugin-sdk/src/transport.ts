@@ -1,3 +1,4 @@
+import type { ObservationSubscription } from './context.js'
 import { apiError, PluginError, pluginError } from './errors.js'
 import type { Limits } from './limits.js'
 import { type Envelope, validateEnvelope } from './messages.js'
@@ -166,7 +167,19 @@ export class RpcClient {
     return result.promise
   }
 
-  subscribe<T>(topic: string, params: Value, listener: BatchListener<T>, options: SubscribeOptions = {}): Subscription {
+  subscribe<T>(
+    topic: 'observations',
+    params: Value,
+    listener: BatchListener<T>,
+    options?: SubscribeOptions,
+  ): ObservationSubscription
+  subscribe<T>(topic: string, params: Value, listener: BatchListener<T>, options?: SubscribeOptions): Subscription
+  subscribe<T>(
+    topic: string,
+    params: Value,
+    listener: BatchListener<T>,
+    options: SubscribeOptions = {},
+  ): Subscription | ObservationSubscription {
     const state: ClientSubscription = {
       requestId: -1,
       ready: deferred<void>(),
@@ -199,7 +212,19 @@ export class RpcClient {
       const reason = error instanceof PluginError ? error : pluginError('invalid_argument')
       this.end(state, reason.code, reason.toJSON())
     }
-    return { ready: state.ready.promise, closed: state.closed.promise, dispose }
+    const subscription = { ready: state.ready.promise, closed: state.closed.promise, dispose }
+    if (topic !== 'observations') return subscription
+    let finishing: Promise<void> | undefined
+    return {
+      ...subscription,
+      finish: () =>
+        (finishing ??= subscription.ready.then(async () => {
+          if (!state.ended) this.send('unsubscribe', { subscriptionId: state.id!, drain: true })
+          const result = await subscription.closed
+          if (result.error) throw new PluginError(result.error)
+          if (result.reason !== 'completed') throw pluginError('cancelled')
+        })),
+    }
   }
 
   private end(state: ClientSubscription, reason: string, error?: ApiError, notify = false): void {

@@ -214,7 +214,13 @@ export interface GameEventMap {
   statusSlotsChanged: {
     actorId: number | null
     slots: { slot: number; status: { statusId: number; param: number; sourceActorId: number | null } | null }[]
-    changes: { kind: 'gained' | 'lost'; slot: number; statusId: number; sourceActorId: number | null }[]
+    changes: {
+      kind: 'gained' | 'lost'
+      slot: number
+      statusId: number
+      sourceActorId: number | null
+      status?: Status & { timeBase: TimeBase }
+    }[]
   }
   /** The class or job, the level or the owner of an actor changed; an actor the host forgets has them all 0 */
   actorProfileChanged: { actorId: number; classJob: number; level: number; ownerId: number | null }

@@ -1,0 +1,18 @@
+main {
+  display: grid;
+  max-width: 42rem;
+  gap: var(--mojito-space-section);
+}
+main > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mojito-space-group);
+  flex-wrap: wrap;
+}
+header p {
+  margin: 0;
+}
+dd {
+  overflow-wrap: anywhere;
+}
