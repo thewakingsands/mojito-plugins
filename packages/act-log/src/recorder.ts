@@ -77,7 +77,6 @@ export class Recorder {
           length = 0
         }
         try {
-          await input.beginBatch()
           for (const sample of batch.items) {
             check()
             observedAt = sample.meta.observedAt

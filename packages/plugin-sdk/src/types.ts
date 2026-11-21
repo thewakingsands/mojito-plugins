@@ -219,6 +219,7 @@ export interface GameEventMap {
       slot: number
       statusId: number
       sourceActorId: number | null
+      /** durationMs is the original signed packet duration in milliseconds. A lost status retains its original observation time. */
       status?: Status & { timeBase: TimeBase }
     }[]
   }

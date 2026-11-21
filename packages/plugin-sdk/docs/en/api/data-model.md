@@ -45,6 +45,8 @@ Player `inCombat` comes from self-directed ToggleAggro packets through `game.rea
 
 Combat calculations use inputs including `actionEffect`, `statusSlotsChanged`, `actorProfileChanged`, `overTimeTick`, `jobGaugeChanged` and `playerStatsChanged`. Stop affected calculations when `SessionSnapshot.opcodeVersion` differs from the plugin's state data. The public [combat-model](https://github.com/thewakingsands/mojito-plugins/tree/main/packages/combat-model) provides derived combat results.
 
+`statusSlotsChanged.data.changes[].status.durationMs` preserves the original signed packet duration in milliseconds. When a memory removal triggers a `lost` change, the status retains the original packet’s `observedAt` and `timeBase`. The event itself uses the removal observation’s time.
+
 ## Time and errors
 
 Live mode uses the host clock; replay uses recording time. `context.clock.now/state/sleep/setTimeout` follow pause and playback rate. `now()` returns `null` when unavailable. Backward replay resets change generations and invalidate work; handle `clock_reset` on pending waits.

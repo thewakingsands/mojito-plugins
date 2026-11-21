@@ -34,18 +34,15 @@ const field = <T>(value: T): Field<T> => ({
   observedAt: meta.observedAt,
   timeBase: meta.timeBase,
 })
-const unknown = { state: 'unknown', reason: 'Not observed' } as const
 async function setup() {
-  const version = vi.fn(async () => 'synthetic')
   const name = vi.fn(async (kind: string, id: number) => `${kind}-${id}`)
   const input = new LogObservations({
-    version,
     name,
     rows: async () => [{ subrows: [{ cells: [1, 2, 3].map((value) => ({ type: 'number', value })) }] }],
   } as unknown as DataService)
   const consume = (value: Observation) => input.consume({ meta, value })
   await consume({ kind: 'snapshotStart', source })
-  return { consume, version, name, input }
+  return { consume }
 }
 it('emits the frozen snapshot once, in zone, map, player, present combatants and ordered party order', async () => {
   const { consume } = await setup()
@@ -105,15 +102,4 @@ it('uses source-specific chat and buff times and keeps the removed actor for the
   await consume({ kind: 'memory', memory: { kind: 'combatantRemove', actorId: 9 } })
   fields[2] = '0.00'
   expect(await consume(event('lost'))).toEqual([{ type: 30, timestamp: 3000, fields }])
-})
-it('defers game-data access until a lookup is needed and detects a change between batches', async () => {
-  const { input, consume, version, name } = await setup()
-  await consume({ kind: 'snapshotZone', territoryType: unknown, mapId: unknown })
-  await input.beginBatch()
-  expect(version).not.toHaveBeenCalled()
-  await input.names.name('status', 3)
-  await input.names.name('status', 3)
-  expect(name).toHaveBeenCalledTimes(1)
-  version.mockResolvedValue('changed')
-  await expect(input.beginBatch()).rejects.toThrow('版本')
 })

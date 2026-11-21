@@ -56,9 +56,22 @@ function Page() {
   }
   return (
     <main>
-      <h1>ACT 日志</h1>
-      <p>当前版本尚未输出玩家标记和启动信息。含未支持聊天格式的记录会显示为不完整。</p>
-      <p role="status">{state ? labels[state.status] : '正在连接'}</p>
+      <header>
+        <div>
+          <h1>ACT 日志</h1>
+          <p role="status">{state ? labels[state.status] : '正在连接'}</p>
+        </div>
+        <button
+          type="button"
+          data-variant={running ? undefined : 'primary'}
+          data-size="large"
+          aria-busy={pending || state?.status === 'stopping'}
+          disabled={!state || pending || state.status === 'choosing' || state.status === 'stopping'}
+          onClick={() => void command()}
+        >
+          {running ? '停止记录' : '开始记录'}
+        </button>
+      </header>
       {state?.name && (
         <dl>
           <dt>文件</dt>
@@ -67,14 +80,12 @@ function Page() {
           <dd>{state.lines.toLocaleString()} 行</dd>
         </dl>
       )}
-      <button
-        type="button"
-        disabled={!state || pending || state.status === 'choosing' || state.status === 'stopping'}
-        onClick={() => void command()}
-      >
-        {running ? '停止记录' : '开始记录'}
-      </button>
-      {(error || state?.error) && <p role="alert">{error || state?.error}</p>}
+      <small>当前版本尚未记录玩家标记和启动信息。遇到未支持的聊天格式时，会停止记录并保留已写内容。</small>
+      {(error || state?.error) && (
+        <p className="mojito-callout" data-tone="danger" role="alert">
+          {error || state?.error}
+        </p>
+      )}
     </main>
   )
 }

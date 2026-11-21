@@ -9,10 +9,7 @@ function state(): State {
   actors.update(9, { name: 'Source', hpCur: 123, hpMax: 321 })
   return {
     actors,
-    names: new Names(
-      { version: async () => 'synthetic', name: vi.fn(async () => 'Skill') } as unknown as DataService,
-      'en',
-    ),
+    names: new Names({ name: vi.fn(async () => 'Skill') } as unknown as DataService, 'en'),
     player: null,
     marks: new Set(),
     primary: () => [],
@@ -290,4 +287,14 @@ it('writes changed player attributes with the observed identity and keeps duplic
     { type: 12, fields: [3, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, '123456789'] },
   ])
   expect(await packetRows(s, p)).toEqual([])
+})
+
+it('uses the stat packet source for old recordings that only identified the player by content ID', async () => {
+  const s = state()
+  s.contentId = 0x10n
+  s.actors.update(9, { classJob: 8 })
+  const [stats] = await packetRows(s, packet('PlayerStats', Buffer.alloc(224)))
+  expect(stats.type).toBe(12)
+  expect(stats.fields[0]).toBe(8)
+  expect(stats.fields.at(-1)).toBe('00000010')
 })

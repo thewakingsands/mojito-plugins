@@ -20,9 +20,6 @@ export class LogObservations implements State {
   private initialParty?: Extract<MemoryObservation, { kind: 'party' }>
   private initialZone?: Extract<MemoryObservation, { kind: 'zone' }>
   constructor(private data: DataService) {}
-  async beginBatch() {
-    if (this.lookup) await this.lookup.beginBatch()
-  }
   get names() {
     if (!this.lookup) throw new Error('Missing initial session')
     return this.lookup

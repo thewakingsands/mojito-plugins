@@ -221,7 +221,7 @@ export async function packetRows(s: State, packet: Packet): Promise<Row[]> {
     }
     case 'PlayerStats': {
       const p = v.body,
-        job = s.actors.get(s.player).classJob
+        job = s.actors.get(s.player ?? id).classJob
       if (job === undefined || s.contentId === undefined) throw new Error('Missing player identity for attributes')
       const fields = [
         job,

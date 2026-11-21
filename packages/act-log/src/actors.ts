@@ -70,24 +70,14 @@ export class Actors {
   }
 }
 
-/** Names belong to the open data version and language of this recording. */
+/** Each recording resolves names in its own language. */
 export class Names {
   private names = new Map<string, string>()
-  private version?: string | null
-  async beginBatch() {
-    if (this.version !== undefined) await this.checkVersion()
-  }
-  private async checkVersion() {
-    const next = await this.data.version()
-    if (this.version !== undefined && this.version !== next) throw new Error('记录期间游戏数据版本发生变化')
-    this.version = next
-  }
   constructor(
     private data: DataService,
     readonly language: string,
   ) {}
   private async read(key: string, lookup: () => Promise<string>) {
-    if (this.version === undefined) await this.checkVersion()
     let text = this.names.get(key)
     if (text === undefined) {
       text = await lookup()

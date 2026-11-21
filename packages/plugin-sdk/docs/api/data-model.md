@@ -45,6 +45,8 @@ if (revision === before) player = initial.value
 
 战斗计算使用 `actionEffect`、`statusSlotsChanged`、`actorProfileChanged`、`overTimeTick`、`jobGaugeChanged` 和 `playerStatsChanged` 等输入。`SessionSnapshot.opcodeVersion` 与插件状态数据不匹配时停止相应计算。需要派生战斗结果时使用公开的 [combat-model](https://github.com/thewakingsands/mojito-plugins/tree/main/packages/combat-model)。
 
+`statusSlotsChanged.data.changes[].status.durationMs` 保留包内时长的符号，单位为毫秒。内存移除触发 `lost` 时，状态的 `observedAt` 与 `timeBase` 仍对应最初的包；事件自身使用移除观测的时间。
+
 ## 时间与错误
 
 live 使用宿主时钟，replay 使用记录时钟。用 `context.clock.now/state/sleep/setTimeout` 跟随暂停和倍速；`now()` 尚不可用时返回 `null`。回放倒退引起代数变化和失效，按 `clock_reset` 处理等待失败。
