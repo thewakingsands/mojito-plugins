@@ -312,10 +312,15 @@ export async function activate(ctx: PluginContext) {
     }
     for (const id of ids) if (!jobNames.has(id)) jobNames.set(id, null)
   }
-  /** Writes the combat log right after a fight or visit ends; the ten-second timer covers the rest. */
-  async function flushLog() {
+  /**
+   * Writes the combat log right after a fight or visit ends; the ten-second timer covers the rest. Encoding the log
+   * keeps the worker busy for tens of milliseconds: `afterMessages` starts a new task first, so that an acknowledgement
+   * the SDK is about to send leaves before that.
+   */
+  async function flushLog(afterMessages = false) {
     if (!logPending) return
     logPending = false
+    if (afterMessages) await new Promise((resolve) => setTimeout(resolve))
     await log.flush()
     checkLogError()
   }
@@ -824,7 +829,11 @@ export async function activate(ctx: PluginContext) {
     events: Sample<GameEvent>[]
     samples: TelemetrySample[]
   }
-  async function receive(items: Sample<GameEvent>[], units?: InputUnit[]) {
+  /**
+   * Counts the events. `acknowledge` tells the host that the batch has been taken, once the actors of its events are
+   * known: writing the log and publishing the views go on in the queue, ahead of the next batch.
+   */
+  async function receive(items: Sample<GameEvent>[], units?: InputUnit[], acknowledge?: () => void) {
     if (stopped || paused) return
     try {
       await actorInputs(items)
@@ -834,6 +843,7 @@ export async function activate(ctx: PluginContext) {
       await updatePause()
       return
     }
+    acknowledge?.()
     // A replay hands out events ahead of their acknowledgement, so the clock may already be past events still to come.
     const replay = ctx.clock.state().source === 'replay'
     for (const unit of units ?? items.map((input) => ({ input, events: [input], samples: [] }))) {
@@ -859,7 +869,7 @@ export async function activate(ctx: PluginContext) {
         log.recorder.event(item)
         inCombat = encounters.inCombat
         if (terminalFrames.length) {
-          await flushLog()
+          await flushLog(!!acknowledge)
           for (const terminal of terminalFrames.splice(0)) await publishFrame(true, terminal)
         }
       }
@@ -873,7 +883,7 @@ export async function activate(ctx: PluginContext) {
       telemetry.flush()
     }
     log.recorder.flushBoundaries()
-    await flushLog()
+    await flushLog(!!acknowledge)
     // Until templates prove post updates do not repeat history, revise authoritative history only.
     schedulePublish(
       items.some((item) => item.value.type !== 'periodicRevision' && item.value.type !== 'attributionRevision'),
@@ -884,7 +894,7 @@ export async function activate(ctx: PluginContext) {
    * Hands the events to the combat model, also while the statistics are paused so that it keeps the state of the game,
    * and the events and the results that follow each of them to receive
    */
-  async function receiveInputs(items: Sample<GameEvent>[]) {
+  async function receiveInputs(items: Sample<GameEvent>[], acknowledge: () => void) {
     const current = runner
     const events: Sample<GameEvent>[] = []
     const units: InputUnit[] = []
@@ -914,7 +924,7 @@ export async function activate(ctx: PluginContext) {
       }
     }
     if (!runner && current) await updatePause()
-    await receive(events, units)
+    await receive(events, units, acknowledge)
   }
   /** Starts a combat model for the subscription; it is unavailable when the data is for another opcode version */
   async function startModel(generation: number) {
@@ -953,21 +963,28 @@ export async function activate(ctx: PluginContext) {
     if (!session || session.state === 'idle' || subscription || stopped) return
     const generation = ++eventGeneration
     if (!(await startModel(generation))) return
-    const receiveCurrent = (items: Sample<GameEvent>[]) =>
-      generation === eventGeneration ? receiveInputs(items) : undefined
+    const receiveCurrent = (items: Sample<GameEvent>[], acknowledge: () => void) =>
+      generation === eventGeneration ? receiveInputs(items, acknowledge) : undefined
     // HP shares the subscription of actionEffect to keep their order, and so do the inputs of the combat model: a host
     // without them gives unavailable, which pauses the statistics. Of actorControl only the completion of the duty is
     // kept, in order with leaving combat.
-    const sub = ctx.events.subscribe(['hpChanged', 'playerCombatChanged', 'actorControl', ...MODEL_INPUTS], (batch) =>
-      enqueue(() => {
-        if (!batch.complete) {
-          telemetry.invalidate()
-          runner?.clearTelemetryState()
-        }
-        return receiveCurrent(
-          batch.items.filter((item) => item.value.type !== 'actorControl' || isDutyComplete(item.value)),
-        )
-      }),
+    const sub = ctx.events.subscribe(
+      ['hpChanged', 'playerCombatChanged', 'actorControl', ...MODEL_INPUTS],
+      (batch) =>
+        // Resolved by receive as soon as the batch is taken, or else when its task ends. An error after that is
+        // recorded by enqueue and does not close the subscription.
+        new Promise<void>((acknowledge, reject) => {
+          enqueue(() => {
+            if (!batch.complete) {
+              telemetry.invalidate()
+              runner?.clearTelemetryState()
+            }
+            return receiveCurrent(
+              batch.items.filter((item) => item.value.type !== 'actorControl' || isDutyComplete(item.value)),
+              acknowledge,
+            )
+          }).then(acknowledge, reject)
+        }),
     )
     try {
       await sub.ready

@@ -79,6 +79,8 @@ async function setup(
   let noticeRejection: string | null = null
   // While set, every storage write fails with this message.
   let writeError: string | null = null
+  // While set, every storage write waits for this before it is done.
+  let writeGate: Promise<void> | null = null
   const timers: (() => Promise<void>)[] = []
   let paused = false
   // The source clock reports no source unless a test sets one, as live captures did before replay had its own rule.
@@ -158,6 +160,7 @@ async function setup(
       },
       write: async (path: string, bytes: Uint8Array) => {
         if (writeError !== null) throw new Error(writeError)
+        await writeGate
         files.set(path, bytes.slice())
       },
       delete: async (path: string) => {
@@ -385,6 +388,17 @@ async function setup(
     },
     setWriteError: (message: string | null) => {
       writeError = message
+    },
+    /** Holds every storage write until the returned function is called */
+    holdWrites: () => {
+      let release!: () => void
+      writeGate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      return () => {
+        writeGate = null
+        release()
+      }
     },
     commands,
     frames,
@@ -741,6 +755,38 @@ it('notifies a log write failure once until a write succeeds again', async () =>
   await h.events([sample(effect(4), 1300)])
   await vi.advanceTimersByTimeAsync(10_000)
   expect(logNotices()).toHaveLength(2)
+  await h.dispose()
+})
+it('acknowledges a batch before the log of the fight it ends is encoded and written, and the next batch after it', async () => {
+  const h = await setup()
+  await h.zone([
+    { meta: meta(1000), value: { territoryType: h.field(339), mapId: h.field(1) } } as unknown as Sample<
+      GameTopics['zone']
+    >,
+  ])
+  await h.player(false)
+  const release = h.holdWrites()
+  const flush = vi.spyOn(LogStore.prototype, 'flush')
+  // The SDK sends the acknowledgement of a batch at the end of this chain.
+  const first = vi.fn(),
+    second = vi.fn()
+  void Promise.resolve()
+    .then(() => h.send([sample(effect(1), 1000), sample(combat(2, false), 1000)]))
+    .then(first)
+  void Promise.resolve()
+    .then(() => h.send([sample(effect(3, 200), 1100)]))
+    .then(second)
+  await vi.advanceTimersByTimeAsync(0)
+  expect(flush).toHaveBeenCalled()
+  expect(first.mock.invocationCallOrder[0]).toBeLessThan(flush.mock.invocationCallOrder[0])
+  // The fight is neither written nor published yet, and the second batch waits behind it.
+  expect(second).not.toHaveBeenCalled()
+  expect(endedFights(h.frames)).toHaveLength(0)
+  release()
+  await settle()
+  expect(second).toHaveBeenCalled()
+  expect(endedFights(h.frames).map((summary) => summary.encounterDamage.value)).toEqual([100])
+  flush.mockRestore()
   await h.dispose()
 })
 it('publishes the overheal of a heal measured against the target HP', async () => {
