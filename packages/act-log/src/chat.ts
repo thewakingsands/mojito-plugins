@@ -23,6 +23,6 @@ export function chatText(bytes: Uint8Array): string {
         throw new Error(`尚无法按 ACT 格式还原聊天标记 ${part.type}`)
     }
   }
-  if (/[\r\n|]/u.test(result)) throw new Error('尚无法按 ACT 格式还原聊天分隔符')
-  return result
+  // Keep chat on one pipe-delimited log row while preserving the original characters.
+  return result.replaceAll('\\', '\\\\').replaceAll('|', '\\u007c').replaceAll('\r', '\\r').replaceAll('\n', '\\n')
 }

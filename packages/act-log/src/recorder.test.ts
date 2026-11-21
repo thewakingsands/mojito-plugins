@@ -66,8 +66,9 @@ function fixture() {
 }
 it('preserves a complete prefix and writes a genuine error record when a chat field cannot be rendered', async () => {
   const { recorder, push, done, close, chunks } = fixture()
+  const unsupportedFixedMacro = '\u0002\u002e\u0001\u0003'
   await recorder.start()
-  await expect(push('first', 'bad|field')).rejects.toThrow('聊天')
+  await expect(push('first', unsupportedFixedMacro)).rejects.toThrow('聊天')
   done.resolve({ reason: 'consumer_failed' })
   await vi.waitFor(() => expect(recorder.state.status).toBe('incomplete'))
   expect(chunks.map((line) => line.split('|')[0])).toEqual(['00', '254'])
