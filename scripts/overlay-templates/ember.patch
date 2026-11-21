@@ -1,5 +1,5 @@
 diff --git a/.env-cmdrc b/.env-cmdrc
-index 66c4b0f..90b004b 100644
+index 66c4b0f4..90b004b2 100644
 --- a/.env-cmdrc
 +++ b/.env-cmdrc
 @@ -1,37 +1,37 @@
@@ -76,7 +76,7 @@ index 66c4b0f..90b004b 100644
 +  }
  }
 diff --git a/src/components/Parser/PlayerTable.js b/src/components/Parser/PlayerTable.js
-index 07e2e2f..c0d1cc8 100644
+index 07e2e2f5..c0d1cc87 100644
 --- a/src/components/Parser/PlayerTable.js
 +++ b/src/components/Parser/PlayerTable.js
 @@ -55,7 +55,7 @@ class PlayerTable extends React.Component {
@@ -99,7 +99,7 @@ index 07e2e2f..c0d1cc8 100644
  				pet_rows.push(player_obj);
 diff --git a/src/components/Parser/SpellGrid/GameIcon.js b/src/components/Parser/SpellGrid/GameIcon.js
 new file mode 100644
-index 0000000..ff58621
+index 00000000..ff586215
 --- /dev/null
 +++ b/src/components/Parser/SpellGrid/GameIcon.js
 @@ -0,0 +1,24 @@
@@ -128,7 +128,7 @@ index 0000000..ff58621
 +    return <img src={image || undefined} alt={type + "-" + id} style={{ visibility: image ? "visible" : "hidden" }}/>;
 +}
 diff --git a/src/components/Parser/SpellGrid/Spell.js b/src/components/Parser/SpellGrid/Spell.js
-index 0b7cb2e..94e857a 100644
+index 0b7cb2ea..94e857a3 100644
 --- a/src/components/Parser/SpellGrid/Spell.js
 +++ b/src/components/Parser/SpellGrid/Spell.js
 @@ -1,4 +1,5 @@
@@ -147,7 +147,7 @@ index 0b7cb2e..94e857a 100644
  		const attributes = {
  			key       : "spell-container-" + this.props.base_key,
 diff --git a/src/processors/GameDataProcessor.js b/src/processors/GameDataProcessor.js
-index f99a23c..81cecc1 100644
+index f99a23cc..81cecc19 100644
 --- a/src/processors/GameDataProcessor.js
 +++ b/src/processors/GameDataProcessor.js
 @@ -40,10 +40,6 @@ class GameDataProcessor {
@@ -170,7 +170,7 @@ index f99a23c..81cecc1 100644
  
  		const accuracy          = state.settings.interface.decimal_accuracy;
 diff --git a/src/processors/PlayerProcessor.js b/src/processors/PlayerProcessor.js
-index b3d06a5..8b159d6 100644
+index b3d06a57..8b159d64 100644
 --- a/src/processors/PlayerProcessor.js
 +++ b/src/processors/PlayerProcessor.js
 @@ -71,7 +71,7 @@ class PlayerProcessor {
@@ -201,7 +201,7 @@ index b3d06a5..8b159d6 100644
  
  		const players_copy = JSON.parse(JSON.stringify(sorted_players));
 diff --git a/src/redux/reducers/index.js b/src/redux/reducers/index.js
-index a809173..217ad24 100644
+index a8091732..217ad249 100644
 --- a/src/redux/reducers/index.js
 +++ b/src/redux/reducers/index.js
 @@ -136,23 +136,13 @@ function rootReducer(state, action) {
@@ -231,7 +231,7 @@ index a809173..217ad24 100644
  
  			if (state.internal.mode === "stats") {
 diff --git a/src/services/PluginService.js b/src/services/PluginService.js
-index 0739ee7..f2ef24a 100644
+index 0739ee76..f2ef24a6 100644
 --- a/src/services/PluginService.js
 +++ b/src/services/PluginService.js
 @@ -2,8 +2,6 @@ import store from "../redux/store";
@@ -279,7 +279,7 @@ index 0739ee7..f2ef24a 100644
  
  	setActivitySource(subscribe) {
 diff --git a/src/services/PluginService.test.js b/src/services/PluginService.test.js
-index 6c08d23..dcba152 100644
+index 6c08d238..2f8ff698 100644
 --- a/src/services/PluginService.test.js
 +++ b/src/services/PluginService.test.js
 @@ -41,3 +41,24 @@ test("an explicitly supplied activity source takes over the party and log inputs
@@ -288,8 +288,8 @@ index 6c08d23..dcba152 100644
  });
 +
 +test("the packaged overlay supplies the snapshot from the host event", () => {
-+	const event_name = "mojitoOverlayCustomData";
-+	const add_event  = jest.spyOn(document, "addEventListener");
++	const event_name                = "mojitoOverlayCustomData";
++	const add_event                 = jest.spyOn(document, "addEventListener");
 +	window.__mojitoOverlayTransport = {};
 +	try {
 +		const service  = new PluginService();
