@@ -158,7 +158,7 @@ const sources = {
   glass: {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ffxiv-glass-overlay.git',
-    revision: 'ae2114f94a0c7a9385fcc494d425a577a9d99bdb',
+    revision: '6e81118931322358283a403071cfea58e17a3781',
     output: 'build',
     async build(work) {
       await cp(path.join(work, 'node_modules/@fontsource/inter/LICENSE'), path.join(work, 'build/Inter-LICENSE'))
