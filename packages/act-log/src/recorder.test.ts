@@ -1,4 +1,10 @@
-import type { BatchListener, Observation, PluginContext, Sample } from '@ffcafe/mojito-plugin-sdk'
+import type {
+  BatchListener,
+  Observation,
+  ObservationSubscription,
+  PluginContext,
+  Sample,
+} from '@ffcafe/mojito-plugin-sdk'
 import { expect, it, vi } from 'vitest'
 import { Recorder } from './recorder.js'
 
@@ -8,8 +14,9 @@ function fixture() {
     chunks.push(new TextDecoder().decode(bytes))
   })
   const close = vi.fn(async () => {})
-  let resolve!: (result: { reason: string }) => void
-  const promise = new Promise<{ reason: string }>((handler) => {
+  type CloseResult = Awaited<ObservationSubscription['closed']>
+  let resolve!: (result: CloseResult) => void
+  const promise = new Promise<CloseResult>((handler) => {
     resolve = handler
   })
   const done = { promise, resolve }
@@ -21,9 +28,10 @@ function fixture() {
     'packets.read': { state: 'available' },
     'identity.read': { state: 'available' },
   }
+  const openWriteFile = vi.fn(async () => ({ name: 'synthetic.log', write, close }))
   const ctx = {
     capabilities: { get: () => grants },
-    host: { openWriteFile: async () => ({ name: 'synthetic.log', write, close }) },
+    host: { openWriteFile },
     observations: {
       subscribe: (_selection: unknown, listener: typeof consume) => {
         consume = listener
@@ -62,8 +70,57 @@ function fixture() {
         },
       })),
     })
-  return { recorder, write, close, done, push, finish, chunks, grants }
+  return { recorder, openWriteFile, write, close, done, push, finish, chunks, grants }
 }
+it('returns to idle and reports denied permissions without opening a writer', async () => {
+  const { recorder, openWriteFile, grants } = fixture()
+  grants['packets.read'].state = 'denied'
+  await recorder.start()
+  expect(recorder.state).toEqual({ status: 'idle', name: '', lines: 0, error: '请在插件权限中允许读取数据包' })
+  expect(openWriteFile).not.toHaveBeenCalled()
+})
+it('returns to idle after a failure to open a file and allows another attempt', async () => {
+  const { recorder, openWriteFile, close } = fixture()
+  openWriteFile.mockRejectedValueOnce(new Error('Cannot open save dialog'))
+  await recorder.start()
+  expect(recorder.state).toEqual({ status: 'idle', name: '', lines: 0, error: 'Cannot open save dialog' })
+  expect(close).not.toHaveBeenCalled()
+  await recorder.start()
+  expect(recorder.state).toEqual({ status: 'waiting', name: 'synthetic.log', lines: 0, error: '' })
+  await recorder.stop()
+})
+it('keeps the selected file visible when permissions are lost after it is opened', async () => {
+  const { recorder, openWriteFile, write, close, grants } = fixture()
+  openWriteFile.mockImplementationOnce(async () => {
+    grants['identity.read'].state = 'denied'
+    return { name: 'synthetic.log', write, close }
+  })
+  await recorder.start()
+  expect(recorder.state).toEqual({
+    status: 'incomplete',
+    name: 'synthetic.log',
+    lines: 0,
+    error: '请在插件权限中允许读取角色身份',
+  })
+  expect(close).toHaveBeenCalledTimes(1)
+})
+it.each([
+  ['source_incomplete', '数据来源中断，记录已停止。'],
+  ['stale_session', '数据来源或登录角色已更换，记录已停止。'],
+  ['clock_reset', '回放时间已重置，记录已停止。'],
+  ['overflow', '数据处理速度不足，记录已停止。'],
+  ['unavailable', '所需的数据或权限不可用，记录已停止。'],
+  ['timeout', '记录意外停止（timeout）。'],
+] as const)('explains subscription closure %s while preserving the output details', async (reason, error) => {
+  const { recorder, push, done, close } = fixture()
+  await recorder.start()
+  await push('first')
+  done.resolve({ reason, error: { code: reason, message: reason, retryable: false } })
+  await vi.waitFor(() =>
+    expect(recorder.state).toEqual({ status: 'incomplete', name: 'synthetic.log', lines: 1, error }),
+  )
+  expect(close).toHaveBeenCalledTimes(1)
+})
 it('preserves a complete prefix and writes a genuine error record when a chat field cannot be rendered', async () => {
   const { recorder, push, done, close, chunks } = fixture()
   const unsupportedFixedMacro = '\u0002\u002e\u0001\u0003'
@@ -71,6 +128,7 @@ it('preserves a complete prefix and writes a genuine error record when a chat fi
   await expect(push('first', unsupportedFixedMacro)).rejects.toThrow('聊天')
   done.resolve({ reason: 'consumer_failed' })
   await vi.waitFor(() => expect(recorder.state.status).toBe('incomplete'))
+  expect(recorder.state.error).toContain('聊天')
   expect(chunks.map((line) => line.split('|')[0])).toEqual(['00', '254'])
   expect(recorder.state.lines).toBe(2)
   expect(close).toHaveBeenCalledTimes(1)

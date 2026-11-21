@@ -116,7 +116,7 @@ export class Recorder {
       run.sub = sub
       run.done = sub.closed.then(async (result) => {
         if (result.reason !== 'completed') {
-          run.problem ??= result.error?.message ?? result.reason
+          run.problem ??= interruptionMessage(result.reason)
           run.abort.abort()
         }
         try {
@@ -139,7 +139,11 @@ export class Recorder {
         run.problem = message(closeError)
       }
       this.run = undefined
-      this.update({ status: 'incomplete', error: run.problem ?? message(e) })
+      this.update({
+        status: writer ? 'incomplete' : 'idle',
+        name: writer?.name ?? '',
+        error: run.problem ?? message(e),
+      })
     }
   }
   async stop() {
@@ -159,6 +163,22 @@ export class Recorder {
     run.abort.abort()
     run.sub?.dispose()
     await run.done
+  }
+}
+function interruptionMessage(reason: string) {
+  switch (reason) {
+    case 'source_incomplete':
+      return '数据来源中断，记录已停止。'
+    case 'stale_session':
+      return '数据来源或登录角色已更换，记录已停止。'
+    case 'clock_reset':
+      return '回放时间已重置，记录已停止。'
+    case 'overflow':
+      return '数据处理速度不足，记录已停止。'
+    case 'unavailable':
+      return '所需的数据或权限不可用，记录已停止。'
+    default:
+      return `记录意外停止（${reason}）。`
   }
 }
 function message(e: unknown) {
