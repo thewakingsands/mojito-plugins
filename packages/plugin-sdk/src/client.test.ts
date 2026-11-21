@@ -29,6 +29,7 @@ it('accepts both 2.0 and 2.1 host handshakes and retains the advertised version'
   } as const
   expect(decodeHello(message).apiVersion).toBe('2.0.0')
   expect(decodeHello({ ...message, apiVersion: '2.1.0' }).apiVersion).toBe('2.1.0')
+  expect(decodeHello({ ...message, apiVersion: '2.7.1' }).apiVersion).toBe('2.7.1')
   expect(() => decodeHello({ ...message, apiVersion: '3.0.0' })).toThrow('incompatible_version')
 })
 it.each(['views', 'services'] as const)(
@@ -254,5 +255,63 @@ it('cancels a synthesis when the host cancels its request', async () => {
   controller.abort()
   await vi.waitFor(() => expect(aborted).toBe(true))
   void pending.catch(() => {})
+  fixture.close()
+})
+
+it('keeps the observation listener alive through its final write and acknowledgement', async () => {
+  const fixture = createTestContext(hello, limits)
+  let release!: () => void
+  let entered!: () => void
+  const started = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const subscription = fixture.context.observations.subscribe({ memory: ['party'] }, async () => {
+    entered()
+    await waiting
+  })
+  await subscription.ready
+  fixture.publish('observations', [{ kind: 'memory' }])
+  await started
+  const finished = subscription.finish()
+  expect(subscription.finish()).toBe(finished)
+  let ended = false
+  void finished.then(() => {
+    ended = true
+  })
+  await Promise.resolve()
+  expect(ended).toBe(false)
+  release()
+  await finished
+  expect(await subscription.closed).toEqual({ reason: 'completed' })
+  fixture.close()
+})
+it('copies caller bytes before queuing writes and closes only after the last write', async () => {
+  const writes: number[] = []
+  const fixture = createTestContext(hello, limits, {
+    'host.openWriteFile': () => ({ handle: 'chosen', name: 'sample.log' }),
+    'host.appendFile': (params) => {
+      writes.push((params as { bytes: Uint8Array }).bytes[0])
+      return null
+    },
+    'host.closeFile': () => {
+      writes.push(-1)
+      return null
+    },
+  })
+  const writer = await fixture.context.host.openWriteFile({ extensions: ['log'] })
+  expect(writer?.name).toBe('sample.log')
+  if (!writer) throw new Error('expected a file')
+  const bytes = Uint8Array.of(7)
+  const first = writer.write(bytes)
+  bytes[0] = 8
+  const second = writer.write(bytes)
+  const closing = writer.close()
+  expect(writer.close()).toBe(closing)
+  await Promise.all([closing, first, second])
+  expect(writes).toEqual([7, 8, -1])
+  await expect(writer.write(bytes)).rejects.toMatchObject({ code: 'cancelled' })
   fixture.close()
 })

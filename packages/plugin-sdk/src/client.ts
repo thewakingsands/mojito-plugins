@@ -1,9 +1,9 @@
+import { parse } from 'semver'
 import { ClientClock, clockState } from './clock.js'
 import type { CallContext, PluginContext } from './context.js'
 import { pluginError } from './errors.js'
 import { limitsSnapshot } from './limits.js'
 import type { Envelope } from './messages.js'
-import { pluginApiVersion } from './schema.js'
 import type { RpcClient } from './transport.js'
 import type {
   BatchListener,
@@ -18,7 +18,7 @@ import type {
 import { ViewSender } from './view-sender.js'
 
 export interface Hello {
-  apiVersion: '2.0.0' | typeof pluginApiVersion
+  apiVersion: string
   identity: PluginIdentity
   capabilities: Record<string, Capability>
   clock: ReturnType<ClientClock['state']>
@@ -33,7 +33,8 @@ export function decodeHello(message: Envelope): Hello {
   const identity = object(message.identity)
   if (
     message.kind !== 'hello' ||
-    (message.apiVersion !== '2.0.0' && message.apiVersion !== pluginApiVersion) ||
+    typeof message.apiVersion !== 'string' ||
+    parse(message.apiVersion)?.major !== 2 ||
     identity.activationId !== message.activationId ||
     typeof identity.id !== 'string' ||
     typeof identity.version !== 'string' ||
@@ -237,7 +238,32 @@ export function createPluginContext(client: RpcClient, hello: Hello): PluginCont
         }
       },
     },
-    host: { openExternal: (url, opts) => call('host.openExternal', { url }, opts) },
+    observations: {
+      subscribe: (selection, listener, opts) =>
+        client.subscribe('observations', selection as unknown as Value, listener, opts),
+    },
+    host: {
+      openExternal: (url, opts) => call('host.openExternal', { url }, opts),
+      openWriteFile: async (selection, opts) => {
+        const file = await call<{ handle: string; name: string } | null>('host.openWriteFile', selection, opts)
+        if (!file) return null
+        let pending = Promise.resolve()
+        let closing: Promise<void> | undefined
+        return {
+          name: file.name,
+          write(bytes, options) {
+            if (closing) return Promise.reject(pluginError('cancelled', 'File is closed'))
+            const chunk = Uint8Array.from(bytes)
+            pending = pending.then(() => call<void>('host.appendFile', { handle: file.handle, bytes: chunk }, options))
+            return pending
+          },
+          close() {
+            closing ??= pending.finally(() => call('host.closeFile', { handle: file.handle }))
+            return closing
+          },
+        }
+      },
+    },
     http: { request: (url, opts) => call('http.request', { url, ...options(opts) }, opts) },
     config: {
       get: (key, opts) => call('config.get', { key }, opts),

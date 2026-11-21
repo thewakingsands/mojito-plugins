@@ -22,7 +22,7 @@
 | `views` | 发布最新状态、flush 和接收页面命令；只在同一插件的页面之间通信 |
 | `audio` | `play` 播放包内音频，需 `audio.play` |
 | `tts` | `say` 需 `tts.say`，`provide` 需 `tts.provide`；用户选择声音和播放方式 |
-| `host` | `openExternal` 询问用户后打开 HTTP(S) 地址，返回 `opened` 或 `cancelled` |
+| `host` | `openExternal` 询问用户后打开 HTTP(S) 地址；`openWriteFile` 打开系统保存对话框 |
 | `http` | `request` 需 `http.request` 和 `networkOrigins`，返回状态码、headers、最终 URL 和 body 字节；拒绝时为 `unavailable` |
 | `config` | 按 key 读写 JSON 配置；不支持 bigint 或二进制值 |
 | `storage` | 读取、写入、删除和列举插件自己的文件；二进制用 `Uint8Array` |
@@ -90,3 +90,11 @@ export async function activate(context: PluginContext) {
 ```
 
 `request` 调用方法，`subscribe` 接收服务事件，提供者用 `publish` 发布事件。提供者处理函数收到使用方 ID 和中止信号，并使用提供者自己的 capability。
+
+## 有序观测和所选文件（API 2.2）
+
+`ctx.observations.subscribe(selection, listener)` 将选中的包、事件和内存变化按来源顺序送入同一个订阅。多个独立订阅各自保序。即使时间戳相同，跨订阅的回调也可能以不同顺序到达。选择 `packets`、`events`、`memory` 分别需要 `packets.read`、`events.read`、`game.read`。`initial: true` 还需要 `game.read` 和 `session.read`。只根据已观测的字段重建状态，区分内存中存在的对象与只在包里出现过的对象。
+
+订阅在空闲时等待下一来源。初始状态可以分成多批，以 `snapshotEnd` 为界。当来源没有提供时间时，订阅不会生成初始项。监听函数返回的 Promise 完成后，SDK 才确认该批。由页面或其他外部控制调用 `finish()`，它停止接受新观测，并等待已接受的批次全部得到确认。正常 EOF 也这样排空，`closed` 的 reason 为 `completed`。来源变化、撤权或队列溢出会让记录不完整。对身份有要求的插件应在开始前检查 `ctx.capabilities.get()`，仅在需要的敏感权限可用时打开文件。
+
+`ctx.host.openWriteFile({extensions:['log']})` 每次显示系统保存对话框。取消时返回 null。确认后得到文件名和仅当前 activation 可用的写入句柄，`await file.write(bytes)` 确认该块写入，`await file.close()` 等待文件关闭。大文件请分块写入。

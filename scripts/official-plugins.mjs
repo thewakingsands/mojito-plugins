@@ -1,4 +1,5 @@
 export const officialNativePlugins = [
+  ['ffcafe.act-log', 'packages/act-log'],
   ['ffcafe.matcha', 'packages/matcha'],
   ['ffcafe.skill-display', 'packages/plugin-skill-display'],
   ['ffcafe.combat-statistics', 'packages/combat-statistics'],

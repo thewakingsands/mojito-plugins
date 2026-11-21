@@ -29,6 +29,7 @@ jobs:
           if-no-files-found: error
           path: |
             packages/plugin-sdk/dist
+            packages/act-log/dist
             packages/matcha/dist
             packages/plugin-skill-display/dist
             packages/combat-statistics/dist
