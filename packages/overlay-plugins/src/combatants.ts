@@ -86,8 +86,9 @@ export async function registerCombatants(ctx: PluginContext, channel: string): P
         const ids = [...new Set(entities.map((entity) => worldId(entity.homeWorldId)).filter((id) => id !== undefined))]
         if (ids.length) {
           try {
-            for (const row of await ctx.data.rows('World', ids, 'en', { columns: ['Name'] })) {
-              const name = row.subrows[0]?.cells[0]
+            // World is language-neutral. Its display name follows InternalName in the raw row.
+            for (const row of await ctx.data.rows('World', ids, 'none')) {
+              const name = row.subrows[0]?.cells[1]
               if (name?.type === 'string' && name.value.length) worlds.set(row.rowId, name.value)
             }
           } catch (error) {

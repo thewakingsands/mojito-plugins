@@ -29,6 +29,17 @@ const actor = (id = 16, name = 'Example Player'): CombatantState => ({
   bNpcName: ok(0),
   objectKind: ok(1),
 })
+const world = (rowId: number, name: string) => ({
+  rowId,
+  subrows: [
+    {
+      cells: [
+        { type: 'string', value: `internal-${rowId}` },
+        { type: 'string', value: name },
+      ],
+    },
+  ],
+})
 async function fixture(entities = [actor()]) {
   let command!: (input: Value) => Promise<Value>
   const meta = { sessionId: 'synthetic', source: 'live', characterGeneration: 1, clockGeneration: 0 }
@@ -39,7 +50,7 @@ async function fixture(entities = [actor()]) {
     characterGeneration: 1,
     clock: { generation: 0 },
   }))
-  const rows = vi.fn(async () => [{ rowId: 42, subrows: [{ cells: [{ type: 'string', value: 'Example World' }] }] }])
+  const rows = vi.fn(async () => [world(42, 'Example World')])
   const capabilities = vi.fn(() => ({ 'data.read': { state: 'available' } }))
   const dispose = vi.fn()
   const ctx = {
@@ -86,7 +97,7 @@ it('maps every supported field, preserving zero and ngld coordinate order', asyn
       },
     ],
   })
-  expect(f.rows).toHaveBeenCalledWith('World', [42], 'en', { columns: ['Name'] })
+  expect(f.rows).toHaveBeenCalledWith('World', [42], 'none')
   expect(f.get).toHaveBeenCalledOnce()
   Object.assign(f.entities[0], { position: ok({ x: 0, y: 0, z: 0 }), rotation: ok(0) })
   expect(await f.command({ props: ['PosX', 'PosY', 'PosZ', 'Heading'] })).toEqual({
@@ -126,18 +137,15 @@ it('omits unavailable fields and invalid values without inventing defaults', asy
 })
 it('joins world rows by ID, reads each world once and only when requested', async () => {
   const f = await fixture([actor(1), { ...actor(2), homeWorldId: ok(43) }, actor(3)])
-  f.rows.mockResolvedValue([
-    { rowId: 43, subrows: [{ cells: [{ type: 'string', value: 'Visited' }] }] },
-    { rowId: 42, subrows: [{ cells: [{ type: 'string', value: 'Home' }] }] },
-  ])
+  f.rows.mockResolvedValue([world(43, 'Visited'), world(42, 'Home')])
   expect(await f.command({ props: ['WorldName'] })).toEqual({
     combatants: [{ WorldName: 'Home' }, { WorldName: 'Visited' }, { WorldName: 'Home' }],
   })
-  expect(f.rows).toHaveBeenCalledWith('World', [42, 43], 'en', { columns: ['Name'] })
+  expect(f.rows).toHaveBeenCalledWith('World', [42, 43], 'none')
   f.rows.mockClear()
   await f.command({ props: ['ID'] })
   expect(f.rows).not.toHaveBeenCalled()
-  f.rows.mockResolvedValue([{ rowId: 42, subrows: [{ cells: [{ type: 'string', value: '' }] }] }])
+  f.rows.mockResolvedValue([world(42, '')])
   expect(await f.command({ props: ['WorldName'] })).toEqual({ combatants: [{}, {}, {}] })
 })
 it('degrades only missing world data and rejects stale or failed queries', async () => {
