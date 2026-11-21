@@ -23,7 +23,7 @@ pnpm lint
 `build:official` builds the SDK, Rust CLI, WASM packaging tool and official plugins without a signing key.
 The overlays fetch the upstream URLs and full commits recorded in
 `scripts/overlay-templates/build.mjs`, then apply the checked-in patches and lockfiles.
-Their source archives and licenses are included beside the generated runtime trees.
+Their runtime trees retain source links and applicable licenses.
 Skyline records the pinned upstream commit time as its build date.
 
 ## Packages
@@ -80,10 +80,9 @@ input directories:
 pnpm pack:official /path/to/official.jwk EXPECTED_FINGERPRINT
 ```
 
-The command packs and verifies the existing `dist` trees, reads their signed manifests,
-and writes one `.mojito` package per official plugin (the list is in
-`scripts/pack-official.mjs`), `SHA256SUMS` and template source archives under
-`dist/official`. Plugin versions come from their manifests.
+Run `pnpm build:official` first. The build records fixed GitHub source links in the plugin
+manifests. The signing command clears `dist/official` and writes one verified `.mojito` per
+official plugin and `SHA256SUMS`. Plugin versions come from their manifests.
 
 The `official-v*` tag workflow builds without secrets, transfers the runtime trees and
 CLI through an artifact, then signs in a separate job. Configure `OFFICIAL_SIGNING_JWK`

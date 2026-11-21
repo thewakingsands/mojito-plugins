@@ -72,11 +72,13 @@ jobs:
         with:
           name: official-packages
           if-no-files-found: error
-          path: dist/official
+          path: |
+            dist/official/*.mojito
+            dist/official/SHA256SUMS
       - name: Upload release attachments
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/official/* --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; CI uploads drafts to Mojito server for publication through its administration interface.'
+        run: gh release create "$GITHUB_REF_NAME" dist/official/*.mojito dist/official/SHA256SUMS --verify-tag --title "$GITHUB_REF_NAME" --notes 'Official plugin packages; CI uploads drafts to Mojito server for publication through its administration interface.'
   upload:
     needs: sign
     runs-on: ubuntu-24.04

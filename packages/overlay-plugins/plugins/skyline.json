@@ -28,5 +28,6 @@
         "optional": false
       }
     ]
-  }
+  },
+  "license": "Apache-2.0"
 }

@@ -27,6 +27,8 @@ The overlay UI comes from `vendor/matcha-overlay` and is shared with the ACT ver
 
 The package format and the worker's state publishing use the current Mojito SDK. Plugin API 2.0 is required; capabilities follow the state reported by `context.capabilities.get()`, and changing grants while running needs no restart. Notifications use the SDK's `context.notifications.send`.
 
+The official build points the plugin homepage to the exact Matcha package revision. `SOURCE.txt` records the UI submodule revision. Geist and Geist Mono licenses are copied from the locked dependencies into `third-party/`.
+
 ## Features
 
 - FATE watch list (bulk selection by expansion and area), presets and notifications; notifications for duty matches, zones, bites, critical engagements and treasure hunt results.

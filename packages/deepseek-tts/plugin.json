@@ -8,5 +8,6 @@
   "capabilities": ["ui.register", "tts.provide", "http.request"],
   "networkOrigins": ["https://api.deepseek.com"],
   "author": "FFCafe",
-  "description": "为语音播报提供 DeepSeek 的海星与暗潮两种音色，需配置 DeepSeek API Key。"
+  "description": "为语音播报提供 DeepSeek 的海星与暗潮两种音色，需配置 DeepSeek API Key。",
+  "license": "AGPL-3.0-only"
 }

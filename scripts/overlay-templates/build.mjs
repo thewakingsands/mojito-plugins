@@ -3,9 +3,11 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gitRevision, pluginRepository } from '../source-links.mjs'
 import { extractEmberFonts } from './ember-icons.mjs'
 import { copyFont, pruneFonts } from './fonts.mjs'
 import { writeDependencyNotices } from './licenses.mjs'
+import { officialTemplates } from './templates.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const output = path.join(root, 'packages/overlay-plugins/dist')
@@ -116,6 +118,7 @@ const sources = {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ikegami.git',
     revision: '4ac49d4f1d162829f05c762d9ab99d14dbb3f288',
+    licenses: ['lato'],
     output: 'dist',
     lock: 'ikegami-package-lock.json',
     command: ['npx', '--no-install', 'vite', 'build'],
@@ -139,12 +142,14 @@ const sources = {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/FancyDetail.git',
     revision: 'a31e346ccdd2bea9909edf5578daf78777a54b10',
+    licenses: ['aldrich', 'material-icons'],
     output: '.',
   },
   klondike: {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/klondike.git',
     revision: 'eee2fa5b10ef56c88fe54c215c4c41f9df11a686',
+    licenses: ['lato'],
     output: 'dist',
     lock: 'klondike-package-lock.json',
     command: ['npm', 'run', 'build'],
@@ -164,7 +169,7 @@ const sources = {
 }
 const selected = process.argv.slice(2)
 for (const name of selected) if (!sources[name]) throw new Error(`Unknown template: ${name}`)
-const entries = Object.entries(sources).filter(([name]) => !selected.length || selected.includes(name))
+const entries = (selected.length ? selected : officialTemplates).map((name) => [name, sources[name]])
 /**
  * The upstream version recorded in plugin source metadata. The templates keep it in different places: package.json (skyline), the
  * nearest tag (kagerou) or a "ver.20241209" string in the source (mopimopi2).
@@ -195,7 +200,9 @@ function run(command, args, cwd, env = {}) {
   if (result.status !== 0) throw new Error(`Template build failed: ${command}`)
 }
 await mkdir(cache, { recursive: true })
+await rm(selected.length ? path.join(output, 'sources') : output, { recursive: true, force: true })
 await mkdir(output, { recursive: true })
+const buildRevision = gitRevision(root)
 for (const [name, source] of entries) {
   const { revision, repository } = source
   const original = path.join(cache, 'sources', name),
@@ -252,11 +259,24 @@ for (const [name, source] of entries) {
     for (const file of source.files)
       await cp(path.join(work, source.output, file), path.join(destination, file), { recursive: true })
   } else await cp(path.join(work, source.output), destination, { recursive: true })
+  for (const license of source.licenses ?? []) {
+    await mkdir(path.join(destination, 'licenses'), { recursive: true })
+    await cp(
+      new URL(`./font-licenses/${license}-LICENSE`, import.meta.url),
+      path.join(destination, 'licenses', `${license}-LICENSE`),
+    )
+  }
+  if (source.licenses?.length)
+    await cp(new URL('./font-licenses/README.md', import.meta.url), path.join(destination, 'licenses/FONT-SOURCES.md'))
   await pruneFonts(destination)
   if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(destination, 'ngld.js'))
   if (source.lock) await writeDependencyNotices(work, destination)
   const url = repository.replace(/\.git$/, '')
-  await writeFile(path.join(destination, 'SOURCE.txt'), `${url}/tree/${revision}\n`)
+  const patch = `scripts/overlay-templates/${name}.patch`
+  await writeFile(
+    path.join(destination, 'SOURCE.txt'),
+    `${url}/tree/${revision}\n${pluginRepository}/blob/${buildRevision}/${patch}\n`,
+  )
   for (const file of ['LICENSE', 'LICENSE.md', 'COPYING']) {
     try {
       await cp(path.join(original, file), path.join(destination, file))
@@ -272,40 +292,10 @@ for (const [name, source] of entries) {
         revision,
         version: await upstreamVersion(name, original),
         source: `${url}/tree/${revision}`,
-        patch: `scripts/overlay-templates/${name}.patch`,
+        patch,
       },
       null,
       2,
     ),
-  )
-}
-
-const sourceOutput = path.join(output, 'sources')
-await mkdir(sourceOutput, { recursive: true })
-for (const [name, source] of entries) {
-  const work = path.join(cache, name)
-  const recipe = path.join(work, '.mojito-build')
-  await mkdir(recipe, { recursive: true })
-  for (const file of [`${name}.patch`, ...(source.lock ? [source.lock] : [])])
-    await cp(path.join(root, 'scripts/overlay-templates', file), path.join(recipe, file))
-  if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(recipe, 'ngld.js'))
-  await cp(fileURLToPath(import.meta.url), path.join(recipe, 'build.mjs'))
-  for (const file of ['ember-icons.mjs', 'fonts.mjs', 'licenses.mjs'])
-    await cp(new URL(`./${file}`, import.meta.url), path.join(recipe, file))
-  // GNU tar treats a colon before the first slash as a remote host, which rules out `D:\...` for -f.
-  run(
-    'tar',
-    [
-      '--exclude=node_modules',
-      '--exclude=dist',
-      '--exclude=build',
-      '--exclude=.cache',
-      '--exclude=.parcel-cache',
-      '--exclude=.git',
-      '-czf',
-      path.relative(work, path.join(sourceOutput, `${name}-source.tar.gz`)),
-      '.',
-    ],
-    work,
   )
 }

@@ -28,5 +28,6 @@
         "optional": false
       }
     ]
-  }
+  },
+  "license": "MIT"
 }

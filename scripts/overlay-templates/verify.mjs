@@ -86,4 +86,5 @@ export async function verifyTemplate(directory, name) {
     const scripts = (await filesIn(path.join(directory, 'assets'))).filter((file) => file.endsWith('.js'))
     assert.equal(scripts.length, 1, 'Expected one Skyline frontend bundle')
   }
+  return metadata
 }

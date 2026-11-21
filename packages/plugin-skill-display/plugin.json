@@ -11,5 +11,6 @@
   "capabilities": ["session.read", "events.read", "data.read", "ui.register"],
   "networkOrigins": [],
   "author": "FFCafe",
-  "description": "以时间轴形式显示本人施放的技能，可调整显示时长、图标大小与滚动方向。"
+  "description": "以时间轴形式显示本人施放的技能，可调整显示时长、图标大小与滚动方向。",
+  "license": "AGPL-3.0-only"
 }
