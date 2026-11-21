@@ -1,8 +1,8 @@
 diff --git a/index.html b/index.html
-index 7329948..e77215e 100644
+index 8ab89fa..b9a5918 100644
 --- a/index.html
 +++ b/index.html
-@@ -1,12 +1,13 @@
+@@ -1,17 +1,15 @@
  <!DOCTYPE html>
  <html lang="en">
  <head>
@@ -11,13 +11,17 @@ index 7329948..e77215e 100644
    <meta name="viewport" content="width=device-width, initial-scale=1" />
    <meta name="theme-color" content="#0a0812" />
    <title>FFXIV Glass Overlay</title>
--  <link rel="stylesheet" href="https://overlays.ffcafe.cn/fonts/inter.css">
--  <script src="https://overlays.ffcafe.cn/assets/overlayplugin/common.min.js"></script>
+-  <link rel="preconnect" href="https://fonts.googleapis.com">
+-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+-  <script src="https://overlayplugin.github.io/OverlayPlugin/assets/shared/common.min.js"></script>
 +
-+  
  </head>
  <body>
    <div id="root"></div>
+   <script type="module" src="/src/index.tsx"></script>
+ </body>
+ </html>
 diff --git a/package.json b/package.json
 index 1d41a40..76273c9 100644
 --- a/package.json
@@ -30,96 +34,6 @@ index 1d41a40..76273c9 100644
      "@types/node": "^25.0.8",
      "@types/react": "^19.2.8",
      "@types/react-dom": "^19.2.3",
-diff --git a/public/settings.html b/public/settings.html
-new file mode 100644
-index 0000000..08723cd
---- /dev/null
-+++ b/public/settings.html
-@@ -0,0 +1 @@
-+<!doctype html><html><head><meta charset="utf-8"><title>Glass Overlay Settings</title></head><body></body></html>
-diff --git a/src/components/SettingsWindow/SettingsWindow.tsx b/src/components/SettingsWindow/SettingsWindow.tsx
-index 9c0815c..967fd8e 100644
---- a/src/components/SettingsWindow/SettingsWindow.tsx
-+++ b/src/components/SettingsWindow/SettingsWindow.tsx
-@@ -151,47 +151,42 @@ export function SettingsWindow({
-       windowFeatures += `,left=${savedGeometry.left},top=${savedGeometry.top}`;
-     }
- 
--    const newWindow = window.open('', 'SettingsWindow', windowFeatures);
-+    const settingsUrl = new URL('settings.html', window.location.href).href;
-+    const newWindow = window.open(settingsUrl, 'SettingsWindow', windowFeatures);
- 
-     if (newWindow) {
-       windowRef.current = newWindow;
- 
--      // Set up the window document
--      newWindow.document.title = 'Glass Overlay Settings';
--      newWindow.document.body.innerHTML = '';
--      newWindow.document.body.style.margin = '0';
--      newWindow.document.body.style.padding = '0';
--      newWindow.document.body.style.background = 'rgba(15, 15, 20, 0.98)';
--      newWindow.document.body.style.minHeight = '100vh';
--
--      // Copy styles
--      copyStyles(newWindow.document);
--
--      // Create container for React portal
--      const containerDiv = newWindow.document.createElement('div');
--      containerDiv.id = 'settings-root';
--      containerDiv.className = 'overlay-container theme-default settings-window-container';
--      newWindow.document.body.appendChild(containerDiv);
--      setContainer(containerDiv);
--
--      // Handle window close
--      newWindow.addEventListener('beforeunload', () => {
--        // Save geometry before closing (unless resetting, geometry already saved with defaults)
--        if (!isResettingRef.current && windowRef.current) {
--          saveWindowGeometry(windowRef.current);
-+      // Wait for the declared document; the initial about:blank has no surface authorization.
-+      const ready = window.setInterval(() => {
-+        if (newWindow.closed || windowRef.current !== newWindow) {
-+          window.clearInterval(ready);
-+          if (windowRef.current === newWindow) {
-+            windowRef.current = null;
-+            setContainer(null);
-+            onClose();
-+          }
-+          return;
-         }
--        windowRef.current = null;
--        setContainer(null);
--
--        // If resetting, reopen the window; otherwise call onClose
--        if (isResettingRef.current) {
--          isResettingRef.current = false;
--          // Use setTimeout to allow the close to complete before reopening
--          setTimeout(() => openWindow(), 50);
--        } else {
--          onClose();
--        }
--      });
-+        if (newWindow.location.href !== settingsUrl || newWindow.document.readyState !== 'complete') return;
-+        window.clearInterval(ready);
-+        newWindow.document.body.style.cssText = 'margin:0;padding:0;background:rgba(15,15,20,.98);min-height:100vh';
-+        copyStyles(newWindow.document);
-+        const containerDiv = newWindow.document.createElement('div');
-+        containerDiv.id = 'settings-root';
-+        containerDiv.className = 'overlay-container theme-default settings-window-container';
-+        newWindow.document.body.appendChild(containerDiv);
-+        setContainer(containerDiv);
-+        newWindow.addEventListener('beforeunload', () => {
-+          if (!isResettingRef.current) saveWindowGeometry(newWindow);
-+          windowRef.current = null;
-+          setContainer(null);
-+          if (isResettingRef.current) {
-+            isResettingRef.current = false;
-+            setTimeout(() => openWindow(), 50);
-+          } else onClose();
-+        });
-+      }, 25);
-     }
-   }, [copyStyles, onClose]);
- 
 diff --git a/src/index.tsx b/src/index.tsx
 index 1ba58c3..965b743 100644
 --- a/src/index.tsx
