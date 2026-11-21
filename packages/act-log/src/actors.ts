@@ -92,11 +92,12 @@ export class Names {
   action(skill: number) {
     const type = Math.floor(skill / 0x1000000)
     if (type !== 2 && type !== 13) return this.name('action', skill)
+    // CN 2026.11.03 EXD export (ffxiv-datamining-cn ae29be8): Item.Name is cell 9, Mount.Singular is cell 0.
     const sheet = type === 2 ? 'Item' : 'Mount',
-      column = type === 2 ? 'Name' : 'Singular'
+      column = type === 2 ? 9 : 0
     return this.read(`${sheet}:${skill}`, async () => {
-      const rows = await this.data.rows(sheet, [skill % 0x1000000], this.language, { columns: [column] })
-      const cell = rows[0]?.subrows[0]?.cells[0]
+      const rows = await this.data.rows(sheet, [skill % 0x1000000], this.language)
+      const cell = rows[0]?.subrows[0]?.cells[column]
       if (cell?.type !== 'string') throw new Error(`Missing ${sheet} name`)
       return cell.value
     })
@@ -104,14 +105,15 @@ export class Names {
   world(id: number) {
     if (!id || id === 65535) return Promise.resolve('')
     return this.read(`World:${id}`, async () => {
-      const rows = await this.data.rows('World', [id], this.language, { columns: ['Name'] })
-      const name = rows[0]?.subrows[0]?.cells[0]
+      // World is language-neutral. The display name follows InternalName in the raw row.
+      const rows = await this.data.rows('World', [id], 'none')
+      const name = rows[0]?.subrows[0]?.cells[1]
       if (name?.type !== 'string') throw new Error(`Missing World name for ${id}`)
       return name.value
     })
   }
   async map(id: number) {
-    const rows = await this.data.rows('Map', [id], this.language, {
+    const rows = await this.data.rows('Map', [id], 'none', {
       columns: ['PlaceNameRegion', 'PlaceName', 'PlaceNameSub'],
     })
     const fields = rows[0]?.subrows[0]?.cells
