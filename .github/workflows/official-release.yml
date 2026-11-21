@@ -111,7 +111,7 @@ jobs:
           path: dist/official
       - name: Upload plugin drafts
         env:
-          MOJITO_SERVER_URL: ${{ vars.MOJITO_SERVER_URL }}
+          MOJITO_SERVER_URL: ${{ vars.MOJITO_SERVER_URL || secrets.MOJITO_SERVER_URL }}
         shell: bash
         run: |
           : "${MOJITO_SERVER_URL:?Missing MOJITO_SERVER_URL}"
