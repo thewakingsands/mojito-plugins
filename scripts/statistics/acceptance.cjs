@@ -1,17 +1,27 @@
 // All identities and combat facts are synthetic. Run with the built host's Electron executable.
 const assert = require('node:assert/strict')
+const { appendFileSync } = require('node:fs')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { createRequire } = require('node:module')
 const { generateKeyPairSync, createHash } = require('node:crypto')
 const { execFileSync } = require('node:child_process')
+const { format } = require('node:util')
 const { getHeapCodeStatistics, writeHeapSnapshot } = require('node:v8')
+// Electron and its dependencies can still write to inherited streams.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (error) => {
+    if (error.code !== 'EPIPE') throw error
+  })
+}
 const root = process.env.MOJITO_HOST_ROOT
 const output = process.env.MOJITO_ACCEPTANCE_OUTPUT
 assert(
   root && path.isAbsolute(root) && output && path.isAbsolute(output),
   'Set absolute host and disposable output paths',
 )
+const logFile = path.join(output, 'acceptance.log')
+const log = (...values) => appendFileSync(logFile, `${format(...values)}\n`)
 const fromHost = createRequire(path.join(root, 'packages/@ffcafe/mojito-launcher/package.json'))
 const { app, BrowserWindow } = fromHost('electron')
 const { PluginHost } = fromHost('./dist/main/plugins/host.js')
@@ -225,7 +235,7 @@ async function open(feature) {
   return surface
 }
 function state() {
-  return [...host.active.values()].find((value) => value.id === id)?.views.snapshot('statistics')
+  return [...(host?.active.values() ?? [])].find((value) => value.id === id)?.views.snapshot('statistics')
 }
 async function hashes() {
   const directory = path.join(output, 'installation/plugins', id, 'data/storage/log')
@@ -238,6 +248,7 @@ async function hashes() {
 }
 async function main() {
   await fs.mkdir(output, { recursive: true })
+  await fs.writeFile(logFile, '')
   await app.whenReady()
   host = new PluginHost({
     root: path.join(output, 'installation'),
@@ -247,7 +258,7 @@ async function main() {
     opcodeVersion: () => '7.57',
     log: (record) => {
       if (record.message === '输入源已恢复，统计继续') resumed = true
-      if (record.level === 'error' || record.level === 'warn') console.log(record.level, record.message, record.fields)
+      if (record.level === 'error' || record.level === 'warn') log(record.level, record.message, record.fields)
     },
   })
   const entries = []
@@ -464,12 +475,17 @@ main()
     app.exit(Object.values(result.checks).every(Boolean) ? 0 : 1)
   })
   .catch(async (error) => {
-    console.error(error)
     result.error = error.stack ?? String(error)
     result.lastState = state()
-    await fs.mkdir(output, { recursive: true })
-    await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2))
-    await host?.dispose()
-    window?.destroy()
-    app.exit(1)
+    try {
+      await fs.writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2))
+      log(result.error)
+    } finally {
+      try {
+        await host?.dispose()
+      } finally {
+        window?.destroy()
+        app.exit(1)
+      }
+    }
   })

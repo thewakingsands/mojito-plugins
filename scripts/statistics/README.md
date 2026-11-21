@@ -19,6 +19,8 @@ The Electron driver uses the production host, Worker and feature/settings pages.
 
 `result.json` records commits, versions, exact totals, queue counts, RPC timing in the main process (excluding intentional clock waits), process-tree RSS and cleanup counts. The detailed memory and drain samples are in `round-*.json`; keeping those traces out of the summary prevents the probe from retaining previous rounds in memory. RSS is the sum of Electron process working sets, so shared pages can be counted more than once. A Worker shares its renderer process and is not added again.
 
+The driver writes warnings and failure details to `acceptance.log` in the output directory. On Windows, use a separate process with stdout and stderr redirected when closing the terminal during a run.
+
 The required deterministic checks are exact integer totals, no unacknowledged input at the end, the same subscription/source-timer/window counts after every stop, destroyed Worker owner and feature view, unchanged message counts and log hashes after stop, and matching history after reopening. The page's clear action must remove completed history. The capacity test also requires zero pending allocations after post revisions. A load that repeatedly reaches the bounded drain timeout or whose queue keeps growing needs investigation even if it eventually drains.
 
 After each stop and observation period, the driver takes nine samples one second apart in the same idle state. It runs main-process GC before each sample. For each metric, `memoryTrend` reports the samples, each round's median and range (max minus min), the largest within-round range as the observed fluctuation, and signed differences between consecutive medians. The warm-up is recorded separately.
