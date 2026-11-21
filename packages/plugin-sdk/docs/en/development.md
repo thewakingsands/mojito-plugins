@@ -17,13 +17,20 @@ Register a source on the 插件 (plugins) page of 开发者工具 (developer too
 | plugin.json 的绝对路径 (absolute path of plugin.json) | The `plugin.json` in the project root, for example `D:\my-plugin\plugin.json` |
 | 挂载路径 (mount path) | The same as the development `base` in `vite.config.ts`, for example `/my-plugin/` |
 | Worker 入口 (worker entry) | The background source, for example `src/worker.ts` |
+| 页面热更新（HMR） (page hot updates) | Off by default; enabling it requires a development server origin and HMR enabled in Vite |
 
 After changing code:
 
-- **Pages**: leave the page and come back, and the page reloads the latest code; close an overlay and open it again.
+- **Pages**: with HMR enabled, Vite applies hot updates or reloads the page. Without HMR, leave the page and come back, or close an overlay and open it again.
 - **Background**: in the development plugin's details, click 停止 (stop), then 启动 (start).
 
-The registration form currently has no HMR option; reload pages as described above after changing them.
+## Vite HMR
+
+Set `hmr` to `true` in the configuration from [Pages and overlays](features.md), then select 页面热更新（HMR） in the registration form. HMR updates pages only; after changing background code, stop and restart the plugin.
+
+After clicking 登记来源 (register source), the host confirmation dialog shows the code source, local manifest path and WebSocket address for the browser’s direct connection. The address is derived from the development server origin by changing `http://` to `ws://` or `https://` to `wss://`, then appending the mount path; the form needs no separate HMR origin or path. For example, `http://127.0.0.1:5173` with `/my-plugin/` gives `ws://127.0.0.1:5173/my-plugin/`, which must match Vite’s `ws` settings and development `base`.
+
+Check the address and confirm registration to save the source; cancelling does not save it. When using a development server with HMR unchecked, the dialog shows 页面热更新：关闭 (page hot updates: off).
 
 ## Inspect the running plugin
 
