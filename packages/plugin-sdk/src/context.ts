@@ -85,9 +85,27 @@ export type PlayerField = keyof PlayerFields
 export type CombatantField = keyof CombatantFields
 export type PlayerState = { [K in PlayerField]?: Field<PlayerFields[K]> }
 export type CombatantState = { id: number } & { [K in CombatantField]?: Field<CombatantFields[K]> }
+export interface TargetEnmity {
+  selectedId: Field<number | null>
+  hate: Field<{
+    targetId: number | null
+    entries: { actorId: number; name: Field<string>; enmity: number }[]
+  }>
+  hater: Field<{
+    playerId: number
+    enemies: {
+      actorId: number
+      name: Field<string>
+      hpCur: Field<number>
+      hpMax: Field<number>
+      target: Field<{ actorId: number; name: Field<string>; isMe: boolean } | null>
+    }[]
+  }>
+}
 export interface GameTopics {
   player: PlayerState
   target: Field<number | null>
+  targetEnmity: TargetEnmity
   entities: { entities: CombatantState[]; missingIds: number[] }
   party: { isInParty: Field<boolean>; members: Field<{ slot: number; id: number; name: string; ownParty: boolean }[]> }
   zone: { territoryType: Field<number>; mapId: Field<number> }

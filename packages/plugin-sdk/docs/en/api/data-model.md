@@ -60,3 +60,22 @@ Combat calculations use inputs including `actionEffect`, `statusSlotsChanged`, `
 Live mode uses the host clock; replay uses recording time. `context.clock.now/state/sleep/setTimeout` follow pause and playback rate. `now()` returns `null` when unavailable. Backward replay resets change generations and invalidate work; handle `clock_reset` on pending waits.
 
 API failures use `PluginError` with `code`, `message` and `retryable`. Correct inputs for `invalid_argument`, check declarations for `permission_denied`, handle temporary absence for `unavailable`, discard stale results for `stale_session`, and end work for `cancelled` / `plugin_stopped`. Transport and queue limits still apply; read current values from `context.limits`.
+
+## Targets and enmity
+
+API 2.5 exposes `ctx.game.subscribe('targetEnmity', listener)` with `game.read`.
+`selectedId` is the local player's hard target. The enemy owning the party ranking, `hate.targetId`, may lag behind a selection change.
+`hate.entries[].enmity` holds raw game values. A consumer can calculate percentages within the same ranking.
+`hater.enemies` follows the local player's enemy list in source order, with HP and the actual target of each enemy. A known target carries `isMe`. Each list reports availability independently. Without `identity.read`, player IDs and names use the same per-session aliases at every level.
+
+Check each table independently and verify the ranking owner against the selected target.
+
+```ts
+ctx.game.subscribe('targetEnmity', ({ items }) => {
+  for (const { value } of items) {
+    if (value.hate.state === 'ok' && value.selectedId.state === 'ok' && value.hate.value.targetId === value.selectedId.value) {
+      console.log(value.hate.value.entries)
+    }
+  }
+})
+```

@@ -26,6 +26,44 @@ type ActiveStatus = {
 }
 const known = <T>(field?: Field<T>) => (field?.state === 'ok' ? field.value : undefined)
 
+/** Ember matches these names to CombatData and calculates percentages from the raw values. */
+export function enmityActivity(value: GameTopics['targetEnmity']): Record<string, Json> {
+  const result: Record<string, Json> = {}
+  const selected = known(value.selectedId),
+    hate = known(value.hate),
+    hater = known(value.hater)
+  if (
+    selected != null &&
+    hate?.targetId === selected &&
+    hate.entries.length &&
+    hate.entries.every((entry) => known(entry.name)) &&
+    hate.entries.some((entry) => entry.enmity > 0)
+  ) {
+    result.enmity = { Entries: hate.entries.map((entry) => ({ Name: known(entry.name)!, Enmity: entry.enmity })) }
+  }
+  if (hater?.enemies.length) {
+    result.aggro = {
+      AggroList: hater.enemies.map((enemy) => {
+        const row: Record<string, Json> = { ID: enemy.actorId }
+        const name = known(enemy.name),
+          hp = known(enemy.hpCur),
+          max = known(enemy.hpMax),
+          target = known(enemy.target)
+        if (name !== undefined) row.Name = name
+        if (hp !== undefined) row.CurrentHP = hp
+        if (max !== undefined) row.MaxHP = max
+        if (target === null) row.Target = null
+        else if (target !== undefined) {
+          const name = known(target.name)
+          row.Target = { ID: target.actorId, isMe: target.isMe, ...(name === undefined ? {} : { Name: name }) }
+        }
+        return row
+      }),
+    }
+  }
+  return result
+}
+
 export function observeActivity(ctx: PluginContext, publish: (value: Json, immediate?: boolean) => void): Disposer {
   let current: SessionSnapshot | undefined
   let epoch = 0,
@@ -34,6 +72,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
   let subscriptions: Subscription[] = [],
     entities: Subscription | undefined
   let actions: Action[] = []
+  let enmity: Record<string, Json> = {}
   let lastSnapshot: string | undefined
   let statusDeadlines = new Map<number, number>()
   const actors = new Map<number, Record<string, Json>>()
@@ -56,6 +95,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     return {
       epoch,
       party,
+      ...enmity,
       actors: [...actors.values()].sort((a, b) => Number(a.id) - Number(b.id)),
       actions,
       statuses: [...new Set([...tracked, ...statuses.keys()])]
@@ -109,6 +149,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     entities = undefined
     for (const sub of stale) sub?.dispose()
     actions = []
+    enmity = {}
     statusDeadlines.clear()
     party = null
     actors.clear()
@@ -303,6 +344,17 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
       }),
     )
     subscriptions.push(partySub)
+    const enmitySub = watch(
+      ctx.game.subscribe('targetEnmity', (batch) => {
+        if (!subscriptions.includes(enmitySub)) return
+        for (const { meta, value } of batch.items) {
+          if (!matches(meta)) continue
+          enmity = enmityActivity(value)
+          send()
+        }
+      }),
+    )
+    subscriptions.push(enmitySub)
     // A gap in the source ends the events while the session goes on. The party, actors and statuses
     // read so far are still the last known state, so only this subscription is opened again.
     const openEvents = () => subscriptions.push(watchEvents(openEvents))

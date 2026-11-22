@@ -68,8 +68,8 @@ it('takes TTS channels whose ids are service names, and always has a default cha
   expect(() => manifest({ ...base, tts: { channels: [tts.channels[0], tts.channels[0]] } })).toThrow(/Duplicate/)
 })
 
-it('accepts earlier Plugin API 2 manifests as well as gap-aware 2.5 manifests', () => {
-  expect(pluginApiVersion).toBe('2.5.0')
-  for (const range of ['^2.0.0', '^2.4.0', '^2.5.0']) expect(supportsApiVersion(range)).toBe(true)
-  expect(supportsApiVersion('2.4.0')).toBe(false)
+it('accepts earlier Plugin API 2 manifests as well as target enmity manifests', () => {
+  expect(pluginApiVersion).toBe('2.6.0')
+  for (const range of ['^2.0.0', '^2.4.0', '^2.5.0', '^2.6.0']) expect(supportsApiVersion(range)).toBe(true)
+  expect(supportsApiVersion('<2.6.0')).toBe(false)
 })

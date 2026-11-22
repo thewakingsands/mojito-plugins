@@ -266,3 +266,66 @@ it('reads on after a gap, and invalidates the old sample callbacks on a characte
   void f.stop()
   expect(f.subscriptions.get('session')?.dispose).toHaveBeenCalledOnce()
 })
+
+it('publishes usable rankings and enemy lists independently and drops stale payloads', () => {
+  const f = fixture()
+  const no = { state: 'unavailable', reason: 'fixture' }
+  const enemy = {
+    actorId: 43,
+    name: no,
+    hpCur: ok(0),
+    hpMax: ok(110),
+    target: ok({ actorId: 16, name: no, isMe: true }),
+  }
+  const hate = ok({
+    targetId: 42,
+    entries: [
+      { actorId: 16, name: ok('A'), enmity: 8000 },
+      { actorId: 17, name: ok('B'), enmity: 160 },
+    ],
+  })
+  const hater = ok({ playerId: 16, enemies: [enemy, { ...enemy, actorId: 42, target: ok(null) }] })
+  const value = { selectedId: ok(42), hate, hater }
+  f.send('targetEnmity', samples(value))
+  expect(f.last()).toMatchObject({
+    enmity: {
+      Entries: [
+        { Name: 'A', Enmity: 8000 },
+        { Name: 'B', Enmity: 160 },
+      ],
+    },
+    aggro: {
+      AggroList: [
+        { ID: 43, CurrentHP: 0, MaxHP: 110, Target: { ID: 16, isMe: true } },
+        { ID: 42, Target: null },
+      ],
+    },
+  })
+  expect(f.last().aggro.AggroList[0]).not.toHaveProperty('Name')
+  const before = f.publish.mock.calls.length
+  f.send('targetEnmity', samples(value))
+  f.send('targetEnmity', batch({ value: { ...value, hate: no }, meta: { ...meta, clockGeneration: 17 } }))
+  expect(f.publish).toHaveBeenCalledTimes(before)
+  f.send('targetEnmity', samples({ ...value, selectedId: ok(43) }))
+  expect(f.last()).not.toHaveProperty('enmity')
+  expect(f.last()).toHaveProperty('aggro')
+  f.send('targetEnmity', samples({ ...value, hater: ok({ playerId: 16, enemies: [] }) }))
+  expect(f.last()).toHaveProperty('enmity')
+  expect(f.last()).not.toHaveProperty('aggro')
+  f.send(
+    'targetEnmity',
+    samples({
+      selectedId: ok(42),
+      hater: no,
+      hate: ok({
+        targetId: 42,
+        entries: [
+          { name: no, enmity: 8000 },
+          { name: ok('B'), enmity: 400 },
+        ],
+      }),
+    }),
+  )
+  expect(f.last()).not.toHaveProperty('enmity')
+  f.stop()
+})
