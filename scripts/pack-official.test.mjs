@@ -22,7 +22,15 @@ const templates = [
   'mopimopi1',
   'skyline',
 ]
-const native = ['act-log', 'matcha', 'plugin-skill-display', 'combat-statistics', 'plugin-raidboss', 'deepseek-tts']
+const native = [
+  'act-log',
+  'matcha',
+  'plugin-skill-display',
+  'plugin-deep-dungeon',
+  'combat-statistics',
+  'plugin-raidboss',
+  'deepseek-tts',
+]
 
 test('official packages and checksums contain only the approved plugins', async () => {
   const root = fileURLToPath(new URL('../', import.meta.url))

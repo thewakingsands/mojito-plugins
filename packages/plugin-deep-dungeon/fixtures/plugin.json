@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "example.deep-dungeon-fixture",
+  "name": "深层迷宫 · 合成资料",
+  "version": "0.0.0",
+  "apiVersion": "^2.0.0",
+  "entry": {
+    "kind": "worker",
+    "path": "entry.mjs"
+  },
+  "capabilities": ["session.read", "game.read", "data.read", "ui.register"],
+  "networkOrigins": [],
+  "author": "FFCafe",
+  "description": "选中怪物的信息、怪物图鉴与手动楼层攻略查阅。",
+  "license": "AGPL-3.0-only"
+}

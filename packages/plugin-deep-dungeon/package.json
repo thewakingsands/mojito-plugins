@@ -1,0 +1,17 @@
+{
+  "name": "@ffcafe/mojito-plugin-deep-dungeon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "build:fixture": "tsc --noEmit && vite build --mode fixture",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ffcafe/mojito-plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
+  }
+}
