@@ -12,9 +12,11 @@ A `Field<T>` with `state === 'ok'` contains `value`, `observedAt`, `timeBase` an
 
 ## Territory and map
 
-Both `territoryType` and `mapId` in `game.zone` are `Field<number>`. Live queries and recording share a zone sampler: a nonzero `mapOverride` takes precedence; otherwise it uses `GameMain.mapId` from the same sample. If both are zero, the map is `unknown`. A zero territory or a territory change during the read discards that observation and makes both live fields `unknown`. Read failures produce `unavailable`; subsequent successful samples can recover.
+Both `territoryType` and `mapId` in `game.zone` are `Field<number>`. `mapId` identifies the map at the character's current position. In territories with multiple floors or subdivisions, it identifies the current floor or subdivision, such as a manor floor or a housing district's main division or subdivision. It can therefore change while `territoryType` stays the same.
 
-New recordings store the resolved value in the existing `mapId` field, and replay reads it directly. Older nonzero values are preserved; zero is `unknown`. Packet-only recordings without memory map records report `unavailable`. Replay does not depend on locally installed game data. Recording behavior during loading remains unchanged; replay cannot reconstruct loading states that were not recorded.
+During live capture, both fields are `unknown` while the territory is undetermined, such as during loading between territories. If the territory is known but the map cannot be determined, only `mapId` is `unknown`. Read failures make both fields `unavailable`; subsequent successful reads can recover.
+
+Replay takes map values from the recording, independently of locally installed game data. Nonzero map values in older recordings are preserved; values recorded as zero appear as `unknown`. Packet-only recordings have no map records, so `mapId` is `unavailable`. Replay cannot reconstruct loading states that were not recorded.
 
 ## Subscriptions
 

@@ -12,9 +12,11 @@
 
 ## 区域与地图
 
-`game.zone` 的 `territoryType` 和 `mapId` 都是 `Field<number>`。实时与录制共用区域采样：优先使用非零 `mapOverride`，否则使用同次采样的 `GameMain.mapId`。两者均为零时地图为 `unknown`；区域为零或读取前后不一致时丢弃该次观测，实时区域与地图为 `unknown`。读取失败为 `unavailable`，后续成功采样可恢复。
+`game.zone` 的 `territoryType` 和 `mapId` 都是 `Field<number>`。`mapId` 表示角色当前所在位置的地图；在有多层或多个分区的区域，它对应当前楼层或分区，例如公馆各层、住宅区普通区和扩建区。因此 `mapId` 可以在 `territoryType` 不变时变化。
 
-新录像把取值结果写入现有 `mapId` 字段，回放直接使用文件。旧录像中的非零值保持原值，零值为 `unknown`；纯数据包录像缺少内存地图记录时为 `unavailable`。回放结果不依赖本机游戏资料。加载期间沿用录像已有的记录行为，未记录的加载状态无法在回放中重建。
+实时采集中，区域尚未确定（例如切换区域的加载期间）时，两个字段均为 `unknown`；区域已知但无法确定地图时，只有 `mapId` 为 `unknown`。读取失败时两个字段为 `unavailable`，后续成功读取可恢复。
+
+回放的地图值来自录像，不依赖本机游戏资料。旧录像中已记录的非零地图值保持原值，记录为零的地图值显示为 `unknown`；纯数据包录像缺少地图记录，`mapId` 为 `unavailable`。录像未记录的加载状态无法在回放中重建。
 
 ## 订阅
 
