@@ -51,6 +51,30 @@ index ed0bfae..ff748f5 100644
 +
 +
 +
+diff --git a/css/mopimopi.css b/css/mopimopi.css
+--- a/css/mopimopi.css
++++ b/css/mopimopi.css
+@@ -53,8 +53,6 @@ p {
+ }
+ 
+ .navbar_text {
+-    cursor: move;
+-    -webkit-app-region: drag;
+     overflow: hidden;
+     white-space: nowrap;
+     table-layout: fixed;
+@@ -63,6 +61,11 @@ p {
+     z-index: 0
+ }
+ 
++.navbar_text .time {
++    cursor: move;
++    -webkit-app-region: drag;
++}
++
+ .move {
+     cursor: move;
+     -webkit-app-region: drag;
 diff --git a/index.html b/index.html
 index 54b5037..4133477 100644
 --- a/index.html

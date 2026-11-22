@@ -6,7 +6,7 @@ index dd1a3df..87e1a99 100755
  .encounter>.refreshbtn {right:90px;}
  .encounter>.nickhideshowbtn {right:90px;}
  .encounter>.capturebtn {right:62px;}
-+.encounter>.capture-result {position:absolute; right:62px; top:34px; z-index:1000; padding:4px 8px; background:rgba(0,0,0,.8); color:#FFF; border-radius:4px; pointer-events:none;}
++body>.capture-result {position:fixed; right:62px; top:40px; z-index:1000; padding:4px 8px; background:rgba(0,0,0,.8); color:#FFF; border-radius:4px; pointer-events:none;}
  .encounter>.endencounterbtn {right:34px;}
  
  .menupanel {position:absolute; left:2px; top:36px; right:2px; bottom:2px; background:rgba(0,0,0,0.5); border-bottom-left-radius:3px; border-bottom-right-radius:3px; overflow-x:hidden; overflow-y:auto;}
@@ -27,14 +27,14 @@ index fe887fd..1b26a71 100755
  		<script src="js/jquery-3.2.1.min.js" type="text/javascript"></script>
  		<script src="js/cleaveore.js"></script>
  		<link rel="shortcut icon" href="./favicon.ico">
-@@ -29,6 +30,7 @@
- 				</div>
- 				<div class="refreshbtn" onclick="location.href=location.href"><i class="material-icons">refresh</i></div>
- 				<div class="capturebtn" onclick="Capture();"><i class="material-icons">local_see</i></div>
-+				<div class="capture-result" hidden></div>
+@@ -32,6 +33,7 @@
  				<div class="endencounterbtn" onclick="EndEncounter();"><i class="material-icons">timer_off</i></div>
  				<div class="menubtn"><i class="material-icons">settings</i></div>
  			</div>
+ 		</div>
++		<div class="capture-result" hidden></div>
+ 		<!-- 오버레이 실제 영역 -->
+ 		<div class="notifyarea">
 @@ -70,12 +72,6 @@
  			localStorage.setItem("fancyset", JSON.stringify(option));
  			setCSS();
