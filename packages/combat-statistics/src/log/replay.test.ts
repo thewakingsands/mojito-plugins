@@ -30,10 +30,11 @@ const batch = <T>(items: T[]): Batch<T> => ({
   items,
 })
 const subscription = () => ({ ready: Promise.resolve(), closed: new Promise<never>(() => {}), dispose() {} })
+const SEARING_LIGHT = 2703
 const T = new Date(2026, 9, 26, 20, 0).getTime()
 
 /** Drives the real plugin entry with synthetic inputs; only the parts the combat log needs are modeled. */
-async function plugin(memory = memoryStorage(), npcPartyMember = false) {
+async function plugin(memory = memoryStorage(), npcPartyMember = false, cachedStatuses = false) {
   const listeners = new Map<string, (batch: Batch<never>) => Promise<void>>()
   const timers: (() => Promise<void>)[] = []
   const commands = new Map<string, (input: Value) => Promise<Value>>()
@@ -48,9 +49,21 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
     objectKind: field(1),
     ...extra,
   })
-  const combatants = () => [
-    entity(1, 'Self'),
-    entity(5, 'Ally'),
+  const searingLight = {
+    statusId: SEARING_LIGHT,
+    sourceActorId: 5,
+    param: 0,
+    durationMs: 15000,
+    slot: 0,
+    observedAt: T,
+  }
+  const statusReads: number[] = []
+  const combatants = (fields?: string[]) => [
+    entity(1, 'Self', {
+      ...(cachedStatuses ? { classJob: field(19), level: field(100) } : {}),
+      ...(cachedStatuses && fields?.includes('statuses') ? { statuses: field([searingLight]) } : {}),
+    }),
+    entity(5, 'Ally', cachedStatuses ? { classJob: field(27), level: field(100) } : {}),
     entity(6, 'Stranger'),
     entity(9, 'Boss', { bNpcBase: field(77), objectKind: field(2) }),
     ...(npcPartyMember ? [entity(4, 'Trust', { bNpcBase: field(1000), objectKind: field(2), subKind: field(9) })] : []),
@@ -90,9 +103,10 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
         listeners.set(options?.ids ? 'positions' : topic, listener)
         return subscription()
       },
-      getCombatants: async () => {
+      getCombatants: async (options?: { fields?: string[] }) => {
         if (readsFail) throw { code: 'unavailable' }
-        return { meta: meta(now), value: { missingIds: [], entities: combatants() } }
+        if (options?.fields?.includes('statuses')) statusReads.push(now)
+        return { meta: meta(now), value: { missingIds: [], entities: combatants(options?.fields) } }
       },
     },
     clock: {
@@ -150,6 +164,7 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
   ])
   return {
     memory,
+    statusReads,
     dispose,
     commands,
     serviceRequest,
@@ -177,14 +192,19 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
           },
         } as unknown as Sample<GameTopics['party']>,
       ]),
-    player: (inCombat: boolean | null) =>
+    player: (inCombat: boolean | null, captureGap = false) =>
       send('player', [
         {
           meta: meta(now),
           value: {
             actorId: field(1),
             name: field('Self'),
-            inCombat: inCombat === null ? { state: 'unavailable', reason: 'x' } : field(inCombat),
+            inCombat:
+              inCombat !== null
+                ? field(inCombat)
+                : captureGap
+                  ? { state: 'unknown', reason: 'capture_gap' }
+                  : { state: 'unavailable', reason: 'x' },
           },
         },
       ]),
@@ -741,6 +761,112 @@ it('replays the capture gap before the quiet end with the same damage and qualit
   const records: LogRecord[] = []
   for await (const record of log.read(log.list()[0].id)) records.push(record)
   expect(records.filter(({ kind }) => kind === 'captureGap')).toHaveLength(2)
+  expect((await replay(records)).map((summary) => displaySummary(summary, true))).toEqual([live])
+})
+it('replays one fight when a late gap snapshot follows ordered combat recovery', async () => {
+  const h = await plugin()
+  await h.zone(1263)
+  await h.party([{ id: 1, ownParty: true }])
+  await h.entities()
+  h.at(T + 1000)
+  await h.events([sample(effect(1, 100), T + 1000), sample(combat(2, true), T + 1000)])
+  h.at(T + 2000)
+  await h.events([], true)
+  h.at(T + 2200)
+  await h.events([sample(combat(3, true), T + 2100)])
+  await h.player(null, true)
+  h.at(T + 12000)
+  await h.events([sample(effect(4, 50), T + 12000), sample(combat(5, false), T + 12000)])
+  const [visit] = (h.snapshot('visits') as VisitsState).visits
+  expect(visit.fights).toHaveLength(1)
+  await h.commands.get('statistics')!({ kind: 'select', visitId: visit.id, fightId: visit.fights[0].id })
+  const live = (h.snapshot('statistics') as StatisticsState).selected!
+  expect(live).toMatchObject({ reason: 'outOfCombat', encounterDamage: { value: 150 } })
+  await h.dispose()
+
+  const log = new CombatLog(h.memory.storage, { values: {} } as unknown as Limits, {
+    createdBy: 'test',
+    actors: () => new Map(),
+    names: { zone: () => null, job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  await log.open()
+  const records: LogRecord[] = []
+  for await (const record of log.read(log.list()[0].id)) records.push(record)
+  expect(records).toContainEqual(
+    expect.objectContaining({
+      kind: 'player',
+      t: T + 2200,
+      value: expect.objectContaining({ inCombat: { state: 'unknown', reason: 'capture_gap' } }),
+    }),
+  )
+  expect((await replay(records)).map((summary) => displaySummary(summary, true))).toEqual([live])
+})
+it('keeps booked attribution and relearns status slots after a capture gap', async () => {
+  const h = await plugin(memoryStorage(), false, true)
+  await h.zone(1263)
+  await h.party([
+    { id: 1, ownParty: true },
+    { id: 5, ownParty: true },
+  ])
+  await h.entities()
+  h.at(T + 1000)
+  await h.events([sample(effect(1, 10500), T + 1000), sample(combat(2, true), T + 1000)])
+  const id = h.current()
+  h.at(T + 2000)
+  await h.events([sample(effect(3, 10000), T + 2000)], true)
+  expect(h.statusReads).toHaveLength(1)
+  expect(h.current()).toBe(id)
+  h.at(T + 3000)
+  await h.events([
+    sample(
+      {
+        type: 'statusSlotsChanged',
+        packet: effect(4).packet,
+        data: {
+          actorId: 1,
+          slots: [{ slot: 0, status: { statusId: SEARING_LIGHT, sourceActorId: 5, param: 0 } }],
+          changes: [],
+        },
+      },
+      T + 3000,
+    ),
+    sample(effect(5, 10500), T + 3000),
+    sample(combat(6, false), T + 3000),
+  ])
+  const [visit] = (h.snapshot('visits') as VisitsState).visits
+  expect(visit.fights).toHaveLength(1)
+  await h.commands.get('statistics')!({ kind: 'select', visitId: visit.id, fightId: id })
+  const live = (h.snapshot('statistics') as StatisticsState).selected!
+  expect(live).toMatchObject({
+    id,
+    encounterDamage: { value: 31000 },
+    quality: expect.arrayContaining(['输入不完整：捕获数据缺失']),
+  })
+  expect(live.rows.find(({ actor }) => actor.id === 5)?.contribution).toBeCloseTo(1000)
+  await h.dispose()
+
+  const log = new CombatLog(h.memory.storage, { values: {} } as unknown as Limits, {
+    createdBy: 'test',
+    actors: () => new Map(),
+    names: { zone: () => null, job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  await log.open()
+  const records: LogRecord[] = []
+  for await (const record of log.read(log.list()[0].id)) records.push(record)
+  const hits = records.flatMap((record) => {
+    if (record.kind !== 'event' || record.sample.value.type !== 'damageAttributed') return []
+    const { amount, contributions } = record.sample.value.data
+    return [[amount, contributions.map(({ statusId }) => statusId)]]
+  })
+  expect(hits).toEqual([
+    [10500, [SEARING_LIGHT]],
+    [10000, []],
+    [10500, [SEARING_LIGHT]],
+  ])
   expect((await replay(records)).map((summary) => displaySummary(summary, true))).toEqual([live])
 })
 it('replays a fight ended for an unavailable input into the same summary as the live statistics', async () => {

@@ -436,7 +436,7 @@ async function setup(
     review: (items: Sample<GameEvent>[]) => receiveReview?.(batch(items)),
     scene: (items: Sample<GameEvent>[]) => receiveScene?.(batch(items)),
     warnings,
-    player: async (inCombat: boolean | null, at = now) => {
+    player: async (inCombat: boolean | null, at = now, captureGap = false) => {
       await receivePlayer(
         batch([
           {
@@ -445,9 +445,11 @@ async function setup(
               actorId: field(1),
               name: field('Synthetic'),
               inCombat:
-                inCombat === null
-                  ? { state: 'unavailable', reason: 'missing' }
-                  : { ...field(inCombat), observedAt: at },
+                inCombat !== null
+                  ? { ...field(inCombat), observedAt: at }
+                  : captureGap
+                    ? { state: 'unknown', reason: 'capture_gap' }
+                    : { state: 'unavailable', reason: 'missing' },
             },
           } as Sample<GameTopics['player']>,
         ]),
@@ -575,6 +577,48 @@ it('uses the existing quiet deadline after an empty gap batch even without later
   expect(endedFights(h.frames)).toMatchObject([
     { reason: 'quiet', quality: expect.arrayContaining(['输入不完整：捕获数据缺失']) },
   ])
+  await h.dispose()
+})
+it('marks the fight before a capture-gap snapshot can cause a quiet end', async () => {
+  const h = await setup()
+  h.setSource('live')
+  await h.events([sample(effect(1), 1000), sample(combat(2, true), 1000)])
+  h.setNow(12000)
+  await h.player(null, 12000, true)
+  expect(endedFights(h.frames)).toHaveLength(0)
+  await h.events([], true)
+  expect(endedFights(h.frames)).toMatchObject([
+    { reason: 'quiet', quality: expect.arrayContaining(['输入不完整：捕获数据缺失']) },
+  ])
+  await h.dispose()
+})
+it('does not let capture-gap snapshots advance the cutoff for other player snapshots', async () => {
+  const h = await setup()
+  h.setSource('live')
+  await h.events([sample(effect(1), 1000), sample(combat(2, true), 1000)])
+  h.setNow(2100)
+  await h.player(null, 2100, true)
+  await h.events([sample(combat(3, true), 2000)], true)
+  expect(h.snapshots.get('combat')).toMatchObject({ inCombat: true })
+  await h.player(null, 2050)
+  expect(h.snapshots.get('combat')).toMatchObject({ inCombat: null })
+  await h.dispose()
+})
+it('ignores capture-gap snapshots both while waiting and after an ordered combat recovery', async () => {
+  const h = await setup()
+  h.setSource('live')
+  await h.events([sample(effect(1), 1000), sample(combat(2, true), 1000)])
+  h.setNow(2100)
+  await h.events([], true)
+  await h.player(null, 2100, true)
+  expect(h.snapshots.get('combat')).toMatchObject({ inCombat: null })
+  h.setNow(2250)
+  await h.events([sample(combat(3, true), 2200)])
+  // The first snapshot predates the event; the second was sampled after the packet's ingress time.
+  await h.player(null, 2150, true)
+  expect(h.snapshots.get('combat')).toMatchObject({ inCombat: true })
+  await h.player(null, 2250, true)
+  expect(h.snapshots.get('combat')).toMatchObject({ inCombat: true })
   await h.dispose()
 })
 it('publishes a quiet terminal even when one accept both closes and opens an encounter', async () => {

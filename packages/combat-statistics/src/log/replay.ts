@@ -112,6 +112,7 @@ export async function replay(
         // The snapshot's player value was already applied to the carried combat state.
         if (snapshot) break
         const combat = record.value.inCombat
+        // See "replays one fight when a late gap snapshot follows ordered combat recovery".
         if (combat?.state === 'unknown' && combat.reason === 'capture_gap') break
         encounters.syncCombat(
           id === null ? null : value(combat),

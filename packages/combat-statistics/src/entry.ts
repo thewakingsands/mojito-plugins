@@ -952,7 +952,8 @@ export async function activate(ctx: PluginContext) {
     })
     runnerGeneration = next.generation
     try {
-      // A cached status list can contain slots from before the gap, even after a new slot update.
+      // getCombatants reads statuses from the packet slot cache, even after a live memory sample.
+      // Seed actor profiles after a gap. New statusSlotsChanged events repopulate the slots they report.
       const fields: ('classJob' | 'level' | 'ownerId' | 'statuses')[] = ['classJob', 'level', 'ownerId']
       if (!afterGap) fields.push('statuses')
       const { value } = await ctx.game.getCombatants({ fields })
@@ -1168,6 +1169,8 @@ export async function activate(ctx: PluginContext) {
       name = value(player.name),
       combat = player.inCombat
     const other = id !== null && encounters.localActorId !== null && id !== encounters.localActorId
+    // This watch can overtake the ordered marker or arrive after combat recovers.
+    // See "marks the fight before a capture-gap snapshot can cause a quiet end".
     const orderedGap = combat?.state === 'unknown' && combat.reason === 'capture_gap'
     const inCombatValue = id === null ? null : value(combat),
       combatAt = combat?.state === 'ok' ? combat.observedAt : sample.meta.observedAt
