@@ -665,7 +665,7 @@ index 0021367..ea05c01 100644
 +		ja: ["クリップボードにコピーしました", "撮影に失敗しました。もう一度お試しください。"],
 +		zh: ["已复制到剪贴板", "截图失败，请重试"]
 +	};
-+	feedback.text(messages[userLang][copied ? 0 : 1]).show().delay(3000).fadeOut(150);
++	feedback.text((messages[userLang.substring(0, 2)] || messages.en)[copied ? 0 : 1]).show().delay(3000).fadeOut(150);
  }
  
  function EndEncounter()
