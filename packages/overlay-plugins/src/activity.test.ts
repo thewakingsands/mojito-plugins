@@ -43,13 +43,21 @@ function fixture() {
   vi.useFakeTimers({ now: 101000 })
   const subscriptions = new Map<
     string,
-    { receive: (value: ReturnType<typeof batch>) => void; dispose: ReturnType<typeof vi.fn> }
+    {
+      receive: (value: ReturnType<typeof batch>) => void
+      dispose: ReturnType<typeof vi.fn>
+      close: (value: { reason: string }) => void
+    }
   >()
   const setTimeout = vi.fn()
   const subscribe = (name: string, receive: (value: ReturnType<typeof batch>) => void) => {
     const dispose = vi.fn()
-    subscriptions.set(name, { receive, dispose })
-    return { dispose, ready: Promise.resolve(), closed: new Promise(() => {}) }
+    let close!: (value: { reason: string }) => void
+    const closed = new Promise<{ reason: string }>((resolve) => {
+      close = resolve
+    })
+    subscriptions.set(name, { receive, dispose, close })
+    return { dispose, ready: Promise.resolve(), closed }
   }
   const context = {
     signal: new AbortController().signal,
@@ -234,15 +242,26 @@ it('keeps the retained frame during identical observations and prunes expired st
   f.send('entities', entities({ ...entity, hpCur: ok(98) }))
   expect(f.last()).toMatchObject({ publishedAt: 103500, statuses: [{ actorId: 16, items: [] }] })
 })
-it('invalidates the old sample callbacks on a character change, gap, and stop', () => {
+it('reads on after a gap, and invalidates the old sample callbacks on a character change and stop', async () => {
   const f = fixture()
-  const old = f.subscriptions.get('events')
   f.send('events', samples(action(16, 1)))
+  // A gap in the source ends the events: what was read stays, and they are subscribed to again.
+  const ended = f.subscriptions.get('events')
+  ended?.close({ reason: 'source_incomplete' })
+  await vi.advanceTimersByTimeAsync(0)
+  expect(ended?.dispose).toHaveBeenCalledOnce()
+  expect(f.subscriptions.get('events')).not.toBe(ended)
+  expect(f.last()).toMatchObject({ epoch: 1, actions: [{ key: '16:1' }] })
+  f.send('events', samples(action(16, 2)))
+  expect(f.last()).toMatchObject({ epoch: 1, actions: [{ key: '16:1' }, { key: '16:2' }] })
+  const old = f.subscriptions.get('events')
   f.send('session', batch({ ...session, characterGeneration: 2 }))
   expect(old?.dispose).toHaveBeenCalledOnce()
-  old?.receive(samples(action(16, 2)))
+  old?.receive(samples(action(16, 3)))
   expect(f.last()).toMatchObject({ epoch: 2, actions: [] })
-  f.send('events', { complete: false, items: [] })
+  // The party is read by its own subscription, which is not opened again: its end clears the activity.
+  f.subscriptions.get('party')?.close({ reason: 'stale_session' })
+  await vi.advanceTimersByTimeAsync(0)
   expect(f.last()).toMatchObject({ epoch: 3, actions: [], statuses: [] })
   void f.stop()
   expect(f.subscriptions.get('session')?.dispose).toHaveBeenCalledOnce()

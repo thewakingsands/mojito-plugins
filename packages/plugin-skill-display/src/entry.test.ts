@@ -199,21 +199,30 @@ it('coalesces icons, accepts off-history IDs, and preserves normal placeholders'
   await expect(h.command({ type: 'icon', id: 0 })).rejects.toThrow('Invalid command')
   await h.dispose()
 })
-it('retries incomplete inputs, publishes calibration only once a second, and cleans up', async () => {
+it('reads on after the host ends the events, publishes calibration only once a second, and cleans up', async () => {
   const h = await harness()
   h.views.set.mockClear()
   await vi.advanceTimersByTimeAsync(999)
   expect(h.views.set).not.toHaveBeenCalled()
   await vi.advanceTimersByTimeAsync(1)
   expect(h.views.set).toHaveBeenCalledTimes(1)
-  await h.send([h.event(1)], false)
-  expect(h.state().reason).toContain('不完整')
-  expect(h.state().actions).toEqual([])
-  await vi.advanceTimersByTimeAsync(9000)
-  expect(h.ctx.events.subscribe).toHaveBeenCalledTimes(2)
+  await h.send([h.event(1)])
+  expect(h.state().actions).toHaveLength(1)
+  // A gap in the source or a restart of the host's parser: what is shown stays, and the events are
+  // subscribed to again at once.
+  for (const [count, reason] of [
+    [2, 'source_incomplete'],
+    [3, 'stale_session'],
+  ] as const) {
+    h.subscriptions.at(-1)!.close({ reason })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(h.ctx.events.subscribe).toHaveBeenCalledTimes(count)
+    expect(h.state().reason).toBeNull()
+    expect(h.state().actions).toHaveLength(1)
+  }
   await h.send([h.event(2)])
   expect(h.state().reason).toBeNull()
-  expect(h.state().actions).toHaveLength(1)
+  expect(h.state().actions).toHaveLength(2)
   await h.session({ clock: { ...h.state().clock, paused: true } })
   expect(h.views.flush).toHaveBeenCalled()
   await h.dispose()

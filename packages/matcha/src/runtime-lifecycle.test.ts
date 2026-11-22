@@ -622,6 +622,26 @@ describe('Matcha runtime lifecycle', () => {
     await f.packet('PlayerSetup', setupData(), 0)
     expect(latest(f).notebook).toBeNull()
   })
+  it('keeps what it has read and subscribes again when a capture gap ends the packet subscription', async () => {
+    const f = fixture()
+    await start(f)
+    await f.packet('PlayerSetup', setupData())
+    f.streams[0].close('source_incomplete')
+    await flush()
+    expect(f.context.packets.subscribe).toHaveBeenCalledTimes(2)
+    expect(latest(f).notebook?.characterName).toBe('角色一')
+    await f.packet('PlayerSetup', setupData())
+    expect(latest(f).notebook?.characterName).toBe('角色一')
+  })
+  it('keeps its state when a capability that feeds it no data changes', async () => {
+    const f = fixture()
+    await start(f)
+    await f.packet('PlayerSetup', setupData())
+    f.setCapability('tts.say', { state: 'denied' })
+    await f.advance(1000)
+    expect(latest(f).notebook?.characterName).toBe('角色一')
+    expect(f.context.packets.subscribe).toHaveBeenCalledTimes(1)
+  })
   it('reports a failed packet subscription and disposes the failed registration without retry loops', async () => {
     const f = fixture({ packetsFail: true })
     await start(f)
@@ -951,6 +971,32 @@ describe('Matcha exploration integration boundaries', () => {
     expect(eurekaState(f).entries[0]).toMatchObject({ activity: 'active', progress: 64 })
   })
 
+  it('keeps exploration state and map data when a setting unrelated to game data is saved', async () => {
+    const f = await explorationFixture()
+    await f.zoneChanged(40)
+    await f.zone()
+    await explorationPacket(f, 'InitZone', 40, zonePacket())
+    await explorationPacket(f, 'ActorControlSelf', 41, fatePacket(2364, 64))
+    const generation = () =>
+      (f.publications.findLast((p) => p.channel === 'matcha.status')!.value as { mapDataGeneration: number })
+        .mapDataGeneration
+    const before = generation()
+    await f.command(
+      {
+        action: 'settings.set',
+        settings: { ...defaultSettings, output: { tts: false, toast: true } } as unknown as Json,
+      },
+      view('feature', 'settings'),
+    )
+    expect(eurekaState(f).entries[0]).toMatchObject({ activity: 'active', progress: 64 })
+    expect(generation()).toBe(before)
+    // A changed watch list is still announced.
+    await f.command(
+      { action: 'settings.set', settings: { ...defaultSettings, watch: { fates: [1332] } } as unknown as Json },
+      view('feature', 'settings'),
+    )
+    expect(latest(f).events.find((e) => e.type === 'FateWatchListChanged')?.content).toMatchObject({ fates: [1332] })
+  })
   it('invalidates the extra client catalog when data.read disappears without a session event', async () => {
     const f = await explorationFixture()
     await f.advance(500)

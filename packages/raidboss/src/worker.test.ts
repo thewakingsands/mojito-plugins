@@ -49,6 +49,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   }
   const callbacks: Record<string, (value: any) => void> = {}
   let closeEvents!: (value: any) => void
+  let eventSubscriptions = 0
   const timers = new Set<() => void>()
   const say = vi
     .fn<(text: string, options: { signal: AbortSignal; channel?: string }) => Promise<void>>()
@@ -118,6 +119,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
     events: {
       subscribe(_types: string[], fn: typeof event) {
         event = fn
+        eventSubscriptions++
         return {
           ...subscription(),
           closed: new Promise((resolve) => {
@@ -161,6 +163,8 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   for (const tick of [...timers]) tick()
   await flush()
   expect(catalogs).toHaveLength(published)
+  // Before the first start there are no rules; starting sends them once, without another empty catalog first.
+  expect(catalogs.map((catalog) => catalog.definitions.length)).toEqual([0, 2])
   let seq = 0
   const marker = async (id: number) => {
     event(
@@ -194,6 +198,23 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   await marker(0x3e)
   expect(latest.alerts).toHaveLength(2)
   expect(latest.sourceError).toBeNull()
+  // A sample without the name (the local player is unreadable while a zone loads) is not an error.
+  callbacks.player!(batch({ meta, value: { ...(game.player as object), name: { state: 'unknown' } } }))
+  await flush()
+  expect(latest.sourceError).toBeNull()
+  // The end of a fight starts the engine again with the same rules: the catalog is not sent again.
+  event(
+    batch({
+      meta,
+      value: {
+        type: 'playerCombatChanged',
+        data: { inCombat: false },
+        packet: { seq: ++seq, timestamp: 100000, sourceActorId: 1, targetActorId: 1 },
+      },
+    }),
+  )
+  await flush()
+  expect(catalogs).toHaveLength(published)
   const settings = latest.settings
   await marker(0x3f)
   expect(say).toHaveBeenLastCalledWith('Speech only', { signal: expect.any(AbortSignal) })
@@ -208,11 +229,22 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   await marker(0x3e)
   expect(say).toHaveBeenCalledTimes(4)
   expect(play).toHaveBeenCalledTimes(1)
+  // The host ends the events for a gap in its source: they are subscribed to again and the engine goes on.
+  await marker(0x3f)
+  const shown = latest.alerts.length
+  expect(shown).toBeGreaterThan(0)
   closeEvents({ reason: 'source_incomplete' })
   await flush()
   callbacks.player!(batch({ meta, value: game.player }))
   await flush()
-  expect(latest.sourceError).toContain('source_incomplete')
+  expect(eventSubscriptions).toBe(2)
+  expect(latest.sourceError).toBeNull()
+  expect(latest.alerts).toHaveLength(shown)
+  // The same holds when the host's parser starts over.
+  closeEvents({ reason: 'stale_session' })
+  await flush()
+  expect(eventSubscriptions).toBe(3)
+  expect(latest.sourceError).toBeNull()
   await dispose()
   expect(say.mock.calls[0]![1].signal.aborted).toBe(true)
   expect(timers.size).toBe(0)

@@ -36,6 +36,7 @@ export async function activateRaidboss(
   let session: SessionSnapshot | undefined,
     player: Sample<PlayerState> | undefined,
     party: Sample<GameTopics['party']> | undefined
+  let known: { name: string; job: number } | undefined
   let zone: number | undefined,
     started = '',
     root = new AbortController()
@@ -50,7 +51,8 @@ export async function activateRaidboss(
   let publishing = false,
     dirty = false,
     catalogRevision = 0,
-    catalogKey = ''
+    catalogKey = '',
+    catalogContent = ''
   let published: Promise<void> = Promise.resolve()
   const publish = () => {
     dirty = true
@@ -64,11 +66,17 @@ export async function activateRaidboss(
           const key = `${engine.catalogRevision}|${settings.language}`
           if (key !== catalogKey) {
             catalogKey = key
-            ctx.views.set('raidboss-catalog', {
-              revision: ++catalogRevision,
+            // The engine starts again at every combat end, mostly with the same groups: a catalog
+            // that says the same is not sent again, so the management page keeps its rows as they are.
+            const catalog = {
               definitions: engine.definitions(settings.language),
               configurations: engine.configurations(settings.language),
-            } as unknown as Value)
+            }
+            const content = JSON.stringify(catalog)
+            if (content !== catalogContent) {
+              catalogContent = content
+              ctx.views.set('raidboss-catalog', { revision: ++catalogRevision, ...catalog } as unknown as Value)
+            }
           }
           const state = {
             generation,
@@ -134,8 +142,10 @@ export async function activateRaidboss(
   }
   const start = (force = false, preservePersistent = false) => {
     if (moduleFault || failedSubscription || !player || zone === undefined) return
-    const name = entities.field(player.value.name),
-      job = entities.field(player.value.classJob)
+    // The local player is briefly unreadable while a zone loads: the same character keeps its name and job.
+    const name = entities.field(player.value.name) ?? known?.name,
+      job = entities.field(player.value.classJob) ?? known?.job
+    if (name !== undefined && job !== undefined) known = { name, job }
     if (name === undefined || job === undefined) {
       sourceError = '缺少玩家名称或职业'
       void publish()
@@ -191,23 +201,39 @@ export async function activateRaidboss(
     moduleFault = null
     failedSubscription = null
     player = undefined
+    known = undefined
     party = undefined
     zone = undefined
     started = ''
     bindOverlayQuery(queryBridge(ctx, root.signal))
   }
-  const keep = (sub: Subscription) => {
+  const keep = (open: () => Subscription) => {
+    const sub = open()
     subscriptions.push(sub)
     const gen = generation
-    void sub.ready.catch((error) => {
-      if (gen === generation && !stopped) {
-        sourceError = failedSubscription = String(error)
-        engine.reset()
-        void publish()
-      }
-    })
+    let established = false
+    void sub.ready.then(
+      () => {
+        established = true
+      },
+      (error) => {
+        if (gen === generation && !stopped) {
+          sourceError = failedSubscription = String(error)
+          engine.reset()
+          void publish()
+        }
+      },
+    )
     void sub.closed.then((result) => {
       if (gen !== generation || stopped || root.signal.aborted) return
+      // The host ends an established subscription for a gap in its source or a restart of its parser,
+      // while the session goes on: it is opened again. Alerts, bars and the timeline keep running by
+      // time; only what happened in between is missing. A session that did change clears all of this.
+      if (established) {
+        subscriptions.splice(subscriptions.indexOf(sub), 1)
+        keep(open)
+        return
+      }
       sourceError = failedSubscription = `来源订阅已结束：${result.reason}`
       engine.reset()
       void publish()
@@ -231,7 +257,7 @@ export async function activateRaidboss(
         continue
       }
       sourceError = '等待玩家与区域数据'
-      keep(
+      keep(() =>
         ctx.game.subscribe(
           'entities',
           (batch) => {
@@ -266,7 +292,7 @@ export async function activateRaidboss(
           },
         ),
       )
-      keep(
+      keep(() =>
         ctx.game.subscribe(
           'player',
           (batch) => {
@@ -279,7 +305,7 @@ export async function activateRaidboss(
           { signal: root.signal, fields: ['name', 'classJob', 'hpCur', 'inCombat'] },
         ),
       )
-      keep(
+      keep(() =>
         ctx.game.subscribe(
           'party',
           (batch) => {
@@ -292,7 +318,7 @@ export async function activateRaidboss(
           { signal: root.signal },
         ),
       )
-      keep(
+      keep(() =>
         ctx.game.subscribe(
           'zone',
           (batch) => {
@@ -311,7 +337,7 @@ export async function activateRaidboss(
           { signal: root.signal },
         ),
       )
-      keep(
+      keep(() =>
         ctx.events.subscribe(
           [...eventTypes],
           (batch) => {

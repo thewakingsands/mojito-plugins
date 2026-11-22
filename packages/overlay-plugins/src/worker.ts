@@ -60,7 +60,6 @@ export async function activateOverlay(
   try {
     if (!(await ctx.services.connect(service, '^1.0.0'))) throw pluginError('unavailable', '请先安装并启用战斗统计')
     subscription = ctx.services.subscribe({ service, event: 'state' }, async (batch) => {
-      if (!batch.complete) throw pluginError('source_incomplete')
       for (const value of batch.items) await receive(value)
     })
     void subscription.closed

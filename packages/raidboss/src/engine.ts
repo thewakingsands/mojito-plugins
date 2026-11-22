@@ -185,6 +185,11 @@ export class RaidbossEngine {
   }
 
   reset(): void {
+    this.clear()
+    this.output.changed()
+  }
+
+  private clear(): void {
     ++this.generation
     ++this.catalogRevision
     for (const group of this.groups) {
@@ -199,7 +204,6 @@ export class RaidbossEngine {
     this.bars = []
     this.diagnostics.length = 0
     this.sharedDataWarning = false
-    this.output.changed()
   }
 
   start(zone: number, data: RaidbossData, settings: Settings, preservePersistent = false): void {
@@ -217,7 +221,8 @@ export class RaidbossEngine {
         this.bars = this.bars.filter((item) => item.setId !== group.id)
       }
       this.groups = this.groups.filter((group) => group.set.resetWhenOutOfCombat === false)
-    } else this.reset()
+      // The output is published once, at the end, with the groups this start activates.
+    } else this.clear()
     const active = this.sets.filter(
       ({ set }) =>
         set.zoneId === zone || set.zoneId === null || (Array.isArray(set.zoneId) && set.zoneId.includes(zone)),

@@ -103,12 +103,13 @@ async function main() {
   const bridge = await connectView()
   const command = (value: Value) => bridge.command('settings', value)
 
-  async function refresh() {
+  /** `keepInput` leaves the field as the user typed it, after a save that failed */
+  async function refresh(keepInput = false) {
     const { hasKey, usage } = (await command({ type: 'getSettings' })) as unknown as {
       hasKey: boolean
       usage: Usage | null
     }
-    key.set(hasKey)
+    if (!keepInput) key.set(hasKey)
     $('#no-key').hidden = hasKey
     clear.disabled = !hasKey
     $('#usage').textContent = formatUsage(usage)
@@ -116,15 +117,17 @@ async function main() {
   async function setKey(button: HTMLButtonElement, value: string) {
     button.disabled = true
     button.setAttribute('aria-busy', 'true')
+    let failed = false
     try {
       await command({ type: 'setApiKey', value })
       showError('api-key', null)
     } catch (error) {
+      failed = true
       showError('api-key', error)
     } finally {
       button.disabled = false
       button.removeAttribute('aria-busy')
-      await refresh().catch((error) => showError('api-key', error))
+      await refresh(failed).catch((error) => showError('api-key', error))
     }
   }
   save.addEventListener('click', () => {

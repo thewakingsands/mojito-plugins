@@ -376,8 +376,9 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     stateRevision++
     cancellation.abort()
     cancellation = new AbortController()
-    mapData.reset()
+    // Map data is read from the same game data as the catalog: it only goes when that changes.
     if (catalogKey !== dataKey()) {
+      mapData.reset()
       catalog = emptyCatalog()
       explorationCatalog = null
       catalogRevision++
@@ -410,10 +411,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       'ipc',
       (batch) => {
         if (stopped || epoch !== packetEpoch) return
-        if (!batch.complete) {
-          reset()
-          diagnostic('抓包数据存在缺口，已清除不完整状态。')
-        }
         initialBatch = batch.initial
         try {
           for (const item of batch.items) {
@@ -461,21 +458,20 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       diagnostic('数据包订阅未建立，请检查权限与客户端配置。')
       void flush()
     })
-    void subscription.closed.then(({ reason }) => {
+    void subscription.closed.then(() => {
       if (stopped || epoch !== packetEpoch) return
-      packetEpoch++
-      packetSubscription = undefined
-      reset()
-      if (reason !== 'disposed') diagnostic('数据包订阅已结束；等待新的游戏会话。')
-      void flush()
+      // The host ends the subscription for a gap in the capture while the session goes on: what was
+      // read before it is still the last known state, so reading simply continues. A session that did
+      // change resets everything when it is reported.
+      connectPackets()
     })
   }
-  const capabilityStates = () =>
-    JSON.stringify(
-      Object.entries(context.capabilities.get())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, capability]) => [name, capability.state]),
-    )
+  // The capabilities that decide what Matcha reads; the others (speech, requests, pages) change nothing it keeps.
+  const inputCapabilities = ['packets.read', 'events.read', 'game.read', 'data.read', 'identity.read', 'memory.read']
+  const capabilityStates = () => {
+    const capabilities = context.capabilities.get()
+    return JSON.stringify(inputCapabilities.map((name) => [name, capabilities[name]?.state]))
+  }
   let lastCapabilities = capabilityStates()
   const reconcileCapabilities = () => {
     const current = capabilityStates()
@@ -514,22 +510,24 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const next = settingsFrom(value)
     const watchChanged = JSON.stringify(next.watch.fates) !== JSON.stringify(settings.watch.fates)
     await context.config.set('settings', settingsJson(next))
-    cancellation.abort()
-    cancellation = new AbortController()
-    mapData.reset()
-    pendingNotices.length = pendingEffects.length = 0
     settings = next
     const world = packets.snapshot().world
-    packets.reset()
-    packets.setWorld(world)
+    // Every setting is read where it is used. Only the language changes which game data is read,
+    // and with it everything that was derived from the old data.
     if (catalogKey !== dataKey()) {
+      cancellation.abort()
+      cancellation = new AbortController()
+      mapData.reset()
+      pendingNotices.length = pendingEffects.length = 0
+      packets.reset()
+      packets.setWorld(world)
       catalog = emptyCatalog()
       explorationCatalog = null
       catalogRevision++
+      exploration?.reset(true)
+      notices.reset()
+      fishingService.reset()
     }
-    exploration?.reset(true)
-    notices.reset()
-    fishingService.reset()
     fishingService.setEnabled(settings.fishing.enabled)
     if (watchChanged) {
       initialBatch = true
