@@ -156,8 +156,10 @@ export async function activate(ctx: PluginContext) {
       }
     })
     events = sub
+    let established = false
     void sub.ready
       .then(() => {
+        established = true
         if (events !== sub || stopped) return
         inputError = null
         publish()
@@ -167,9 +169,10 @@ export async function activate(ctx: PluginContext) {
       })
     void sub.closed.then(({ reason }) => {
       if (events !== sub || stopped) return
-      // A gap in the source ends the subscription while the session goes on: the actions already
-      // shown run out by their own time, and new ones are read from a new subscription at once.
-      if (reason === 'source_incomplete') {
+      // The host ends an established subscription for a gap in its source or a restart of its parser,
+      // while the session goes on: the actions already shown run out by their own time, and new ones
+      // are read from a new subscription at once. A session that did change clears the strip itself.
+      if (established) {
         sub.dispose()
         events = null
         subscribeEvents()

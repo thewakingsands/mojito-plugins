@@ -259,8 +259,8 @@ it('reads on after a gap, and invalidates the old sample callbacks on a characte
   expect(old?.dispose).toHaveBeenCalledOnce()
   old?.receive(samples(action(16, 3)))
   expect(f.last()).toMatchObject({ epoch: 2, actions: [] })
-  // Any other end clears the activity until the session reports again.
-  f.subscriptions.get('events')?.close({ reason: 'permission_denied' })
+  // The party is read by its own subscription, which is not opened again: its end clears the activity.
+  f.subscriptions.get('party')?.close({ reason: 'stale_session' })
   await vi.advanceTimersByTimeAsync(0)
   expect(f.last()).toMatchObject({ epoch: 3, actions: [], statuses: [] })
   void f.stop()

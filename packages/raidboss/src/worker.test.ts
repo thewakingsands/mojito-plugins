@@ -229,7 +229,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   await marker(0x3e)
   expect(say).toHaveBeenCalledTimes(4)
   expect(play).toHaveBeenCalledTimes(1)
-  // A gap in the source: the events are subscribed to again and the engine goes on.
+  // The host ends the events for a gap in its source: they are subscribed to again and the engine goes on.
   await marker(0x3f)
   const shown = latest.alerts.length
   expect(shown).toBeGreaterThan(0)
@@ -240,12 +240,11 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   expect(eventSubscriptions).toBe(2)
   expect(latest.sourceError).toBeNull()
   expect(latest.alerts).toHaveLength(shown)
-  // Any other end is reported, as before.
-  closeEvents({ reason: 'permission_denied' })
+  // The same holds when the host's parser starts over.
+  closeEvents({ reason: 'stale_session' })
   await flush()
-  callbacks.player!(batch({ meta, value: game.player }))
-  await flush()
-  expect(latest.sourceError).toContain('permission_denied')
+  expect(eventSubscriptions).toBe(3)
+  expect(latest.sourceError).toBeNull()
   await dispose()
   expect(say.mock.calls[0]![1].signal.aborted).toBe(true)
   expect(timers.size).toBe(0)

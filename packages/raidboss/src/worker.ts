@@ -211,18 +211,25 @@ export async function activateRaidboss(
     const sub = open()
     subscriptions.push(sub)
     const gen = generation
-    void sub.ready.catch((error) => {
-      if (gen === generation && !stopped) {
-        sourceError = failedSubscription = String(error)
-        engine.reset()
-        void publish()
-      }
-    })
+    let established = false
+    void sub.ready.then(
+      () => {
+        established = true
+      },
+      (error) => {
+        if (gen === generation && !stopped) {
+          sourceError = failedSubscription = String(error)
+          engine.reset()
+          void publish()
+        }
+      },
+    )
     void sub.closed.then((result) => {
       if (gen !== generation || stopped || root.signal.aborted) return
-      // A gap in the source ends a subscription while the session goes on. Alerts, bars and the
-      // timeline keep running by time; only what happened inside the gap is missing.
-      if (result.reason === 'source_incomplete') {
+      // The host ends an established subscription for a gap in its source or a restart of its parser,
+      // while the session goes on: it is opened again. Alerts, bars and the timeline keep running by
+      // time; only what happened in between is missing. A session that did change clears all of this.
+      if (established) {
         subscriptions.splice(subscriptions.indexOf(sub), 1)
         keep(open)
         return

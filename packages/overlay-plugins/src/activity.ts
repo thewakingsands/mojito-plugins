@@ -121,11 +121,20 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     current = undefined
     send(true)
   }
-  /** `reopen` replaces a subscription the host ended for a gap in its source; everything else fails it. */
+  /**
+   * `reopen` replaces an established subscription the host ended (a gap in its source, a restart of its
+   * parser) while the session goes on; one that could not be established fails everything.
+   */
   function watch(sub: Subscription, reopen?: () => void) {
-    void sub.ready.catch(() => fail(sub))
-    void sub.closed.then(({ reason }) => {
-      if (reopen && reason === 'source_incomplete' && active && subscriptions.includes(sub)) {
+    let established = false
+    void sub.ready.then(
+      () => {
+        established = true
+      },
+      () => fail(sub),
+    )
+    void sub.closed.then(() => {
+      if (reopen && established && active && subscriptions.includes(sub)) {
         subscriptions = subscriptions.filter((item) => item !== sub)
         sub.dispose()
         reopen()

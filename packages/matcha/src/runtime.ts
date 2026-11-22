@@ -458,16 +458,12 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       diagnostic('数据包订阅未建立，请检查权限与客户端配置。')
       void flush()
     })
-    void subscription.closed.then(({ reason }) => {
+    void subscription.closed.then(() => {
       if (stopped || epoch !== packetEpoch) return
-      // A gap in the capture ends the subscription while the session goes on: what was read before it
-      // is still the last known state, so reading simply continues.
-      if (reason === 'source_incomplete') return connectPackets()
-      packetEpoch++
-      packetSubscription = undefined
-      reset()
-      if (reason !== 'disposed') diagnostic('数据包订阅已结束；等待新的游戏会话。')
-      void flush()
+      // The host ends the subscription for a gap in the capture while the session goes on: what was
+      // read before it is still the last known state, so reading simply continues. A session that did
+      // change resets everything when it is reported.
+      connectPackets()
     })
   }
   // The capabilities that decide what Matcha reads; the others (speech, requests, pages) change nothing it keeps.
