@@ -76,6 +76,36 @@ try {
       data: 'synthetic',
     })
   }
+  async function tabState(selected, focused = null) {
+    const state = await page.evaluate(async () => {
+      const tabs = [...document.querySelectorAll('.mojito-tabs button')]
+      await Promise.all(tabs.flatMap((node) => node.getAnimations()).map((animation) => animation.finished))
+      return {
+        visible: document.querySelector('.floors').hidden ? '怪物' : '楼层',
+        tabs: tabs.map((node) => ({
+          name: node.textContent,
+          selected: node.getAttribute('aria-selected'),
+          weight: getComputedStyle(node).fontWeight,
+          background: getComputedStyle(node).backgroundColor,
+          focus: node.matches(':focus-visible'),
+          outline: getComputedStyle(node).outlineStyle,
+          outlineWidth: getComputedStyle(node).outlineWidth,
+        })),
+      }
+    })
+    assert.equal(state.visible, selected)
+    for (const tab of state.tabs) {
+      assert.equal(tab.selected, String(tab.name === selected))
+      assert.equal(tab.weight, tab.name === selected ? '500' : '400')
+      if (tab.name === focused) {
+        assert.equal(tab.focus, true)
+        assert.equal(tab.outline, 'solid')
+        assert.equal(tab.outlineWidth, '2px')
+      }
+    }
+    assert.notEqual(state.tabs[0].background, state.tabs[1].background)
+    return state
+  }
   async function fits() {
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -102,9 +132,10 @@ try {
   assert.equal(await page.locator('.monster-list button').count(), 0)
   assert.equal(await page.locator('article').textContent(), '没有匹配的怪物')
   await page.getByRole('searchbox').fill('')
-  await page.getByRole('button', { name: '楼层', exact: true }).click()
+  await page.getByRole('tab', { name: '楼层', exact: true }).click()
   assert.equal(await page.locator('.reference-layout').isHidden(), true)
   assert.equal(await page.getByRole('searchbox', { includeHidden: true }).isHidden(), true)
+  await tabState('楼层')
   await page.getByLabel('楼层提示组').selectOption('练习 11–20')
   assert.match(await page.locator('.floors h3').textContent(), /11–20/)
   assert.equal(await page.locator('.floors .notes').textContent(), '用于手动查阅的合成楼层提示。')
@@ -112,29 +143,43 @@ try {
   const floorHeading = await page.locator('.floors h3').boundingBox()
   assert(floorHeading.y - floorSelector.y - floorSelector.height >= 16, 'Floor heading needs separation')
   await shot('reference-floors-light', null)
-  await page.getByRole('button', { name: '怪物', exact: true }).click()
+  await page.getByRole('tab', { name: '怪物', exact: true }).click()
   assert.equal(await page.locator('.floors').isHidden(), true)
+  await tabState('怪物')
   await page.emulateMedia({ colorScheme: 'dark' })
   await shot('reference-long-zh-dark', 910001)
   await page.setViewportSize({ width: 320, height: 700 })
   await fits()
   assert((await page.getByRole('searchbox').boundingBox()).height >= 30)
   await shot('reference-narrow-dark', 910001)
-  await page.getByRole('button', { name: '楼层', exact: true }).focus()
+  await page.mouse.move(310, 690)
+  await page.getByRole('tab', { name: '怪物', exact: true }).focus()
+  await page.keyboard.press('ArrowRight')
+  const focusOnly = await tabState('怪物', '楼层')
   await page.keyboard.press('Enter')
+  const keyboardFloor = await tabState('楼层', '楼层')
   await fits()
   assert.equal(await page.locator('.reference-layout').isHidden(), true)
   await shot('reference-floors-narrow-dark', null)
-  await page.getByRole('button', { name: '怪物', exact: true }).click()
+  await page.keyboard.press('ArrowLeft')
+  await tabState('楼层', '怪物')
+  await page.keyboard.press('Space')
+  await tabState('怪物', '怪物')
+  await page.getByRole('tab', { name: '楼层', exact: true }).click()
+  await page.mouse.move(310, 690)
+  const clickedFloor = await tabState('楼层')
+  await shot('reference-floors-narrow-click-dark', null)
+  await writeFile(path.join(output, 'tabs.json'), JSON.stringify({ focusOnly, keyboardFloor, clickedFloor }, null, 2))
+  await page.getByRole('tab', { name: '怪物', exact: true }).click()
   await page.getByLabel('迷宫', { exact: true }).selectOption('EO')
   assert.equal(await page.locator('.monster-list button').count(), 2)
   await page.getByLabel('迷宫', { exact: true }).selectOption('HoH')
   assert.equal(await page.locator('.monster-list button').count(), 0)
-  await page.getByRole('button', { name: '楼层', exact: true }).click()
+  await page.getByRole('tab', { name: '楼层', exact: true }).click()
   assert.equal(await page.locator('.floors h3').textContent(), '暂无楼层资料')
   assert.equal(await page.getByLabel('楼层提示组').isHidden(), true)
   await page.getByLabel('迷宫', { exact: true }).selectOption('PotD')
-  await page.getByRole('button', { name: '怪物', exact: true }).click()
+  await page.getByRole('tab', { name: '怪物', exact: true }).click()
   await page.evaluate(async () => {
     const { host } = window.deepDungeonFixture
     window.pendingNames = []
@@ -228,7 +273,7 @@ try {
       {
         data: 'synthetic',
         checks:
-          'target clear, missing guide, no notes, long text, English fallback, plain text, search, keyboard, dungeon filter, floor redirect, independent sections, floor heading spacing, grouped controls, late language/dungeon name results, settings, light/dark, 320px layout',
+          'target clear, missing guide, no notes, long text, English fallback, plain text, search, keyboard, dungeon filter, floor redirect, independent sections, click/keyboard tab selection and visible focus after transitions, floor heading spacing, grouped controls, late language/dungeon name results, settings, light/dark, 320px layout',
         screenshots: shots,
         browserErrors: errors,
       },

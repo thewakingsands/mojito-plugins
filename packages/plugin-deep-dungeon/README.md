@@ -2,7 +2,7 @@ English | [简体中文](README.zh-CN.md)
 
 # Deep dungeon bestiary
 
-Native worker and views for selected monster information, a searchable bestiary and manually selected floor notes. Top controls switch between monsters and floors; the overlay groups crowd controls by effective, immune and unknown. The manifest uses Plugin API `^2.0.0`; the code consumes existing target, entity, zone, session and row APIs.
+Native worker and views for selected monster information, a searchable bestiary and manually selected floor notes. Host tabs switch between monsters and floors; arrow keys move focus and Enter or Space activates a view. The overlay groups crowd controls by effective, immune and unknown. The manifest uses Plugin API `^2.0.0`; the code consumes existing target, entity, zone, session and row APIs.
 
 ## Development preview
 

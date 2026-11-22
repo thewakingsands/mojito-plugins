@@ -78,13 +78,31 @@ async function main() {
     let localNames: Record<string, string> = {}
     let request: object | null = null
     let section: 'monsters' | 'floors' = 'monsters'
-    const tabs = element('div', undefined, 'reference-tabs')
-    tabs.setAttribute('role', 'group')
+    const tabs = element('div', undefined, 'mojito-tabs')
+    tabs.setAttribute('role', 'tablist')
     tabs.setAttribute('aria-label', '查阅内容')
     const monstersTab = element('button', '怪物')
     const floorsTab = element('button', '楼层')
     monstersTab.type = floorsTab.type = 'button'
+    for (const [button, id] of [
+      [monstersTab, 'monsters'],
+      [floorsTab, 'floors'],
+    ] as const) {
+      button.id = `${id}-tab`
+      button.setAttribute('role', 'tab')
+      button.setAttribute('aria-controls', id)
+    }
     tabs.append(monstersTab, floorsTab)
+    tabs.onkeydown = (event) => {
+      let button: HTMLButtonElement
+      if (event.key === 'Home') button = monstersTab
+      else if (event.key === 'End') button = floorsTab
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+        button = document.activeElement === monstersTab ? floorsTab : monstersTab
+      else return
+      event.preventDefault()
+      button.focus()
+    }
     const toolbar = element('div', undefined, 'toolbar')
     const dungeonSelect = element('select')
     dungeonSelect.setAttribute('aria-label', '迷宫')
@@ -96,12 +114,18 @@ async function main() {
     search.setAttribute('aria-label', '搜索怪物')
     toolbar.append(dungeonSelect, search)
     const layout = element('div', undefined, 'reference-layout')
+    layout.id = 'monsters'
+    layout.setAttribute('role', 'tabpanel')
+    layout.setAttribute('aria-labelledby', monstersTab.id)
     const list = element('nav', undefined, 'monster-list')
     list.setAttribute('aria-label', '怪物列表')
     const content = element('article', undefined, 'monster-detail')
     content.id = 'monster-detail'
     layout.append(list, content)
     const floors = element('section', undefined, 'floors')
+    floors.id = 'floors'
+    floors.setAttribute('role', 'tabpanel')
+    floors.setAttribute('aria-labelledby', floorsTab.id)
     const floorSelect = element('select')
     floorSelect.setAttribute('aria-label', '楼层提示组')
     const floorTitle = element('h3')
@@ -112,8 +136,10 @@ async function main() {
       layout.hidden = section !== 'monsters'
       search.hidden = section !== 'monsters'
       floors.hidden = section !== 'floors'
-      monstersTab.setAttribute('aria-pressed', String(section === 'monsters'))
-      floorsTab.setAttribute('aria-pressed', String(section === 'floors'))
+      monstersTab.setAttribute('aria-selected', String(section === 'monsters'))
+      floorsTab.setAttribute('aria-selected', String(section === 'floors'))
+      monstersTab.tabIndex = section === 'monsters' ? 0 : -1
+      floorsTab.tabIndex = section === 'floors' ? 0 : -1
     }
     monstersTab.onclick = () => {
       section = 'monsters'

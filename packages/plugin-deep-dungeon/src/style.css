@@ -39,14 +39,8 @@ small {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.reference-tabs {
-  display: flex;
-  gap: var(--mojito-space-group);
+.mojito-tabs {
   margin-bottom: var(--mojito-space-section);
-}
-.reference-tabs button[aria-pressed="true"] {
-  background: var(--mojito-bg-selected);
-  color: var(--mojito-accent);
 }
 .toolbar {
   display: flex;
