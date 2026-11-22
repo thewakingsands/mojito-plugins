@@ -515,6 +515,7 @@ export async function activate(context: PluginContext): Promise<Disposer> {
     const watchChanged = JSON.stringify(next.watch.fates) !== JSON.stringify(settings.watch.fates)
     await context.config.set('settings', settingsJson(next))
     settings = next
+    const world = packets.snapshot().world
     // Every setting is read where it is used. Only the language changes which game data is read,
     // and with it everything that was derived from the old data.
     if (catalogKey !== dataKey()) {
@@ -522,7 +523,6 @@ export async function activate(context: PluginContext): Promise<Disposer> {
       cancellation = new AbortController()
       mapData.reset()
       pendingNotices.length = pendingEffects.length = 0
-      const world = packets.snapshot().world
       packets.reset()
       packets.setWorld(world)
       catalog = emptyCatalog()

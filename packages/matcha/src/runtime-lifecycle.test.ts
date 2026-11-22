@@ -990,6 +990,12 @@ describe('Matcha exploration integration boundaries', () => {
     )
     expect(eurekaState(f).entries[0]).toMatchObject({ activity: 'active', progress: 64 })
     expect(generation()).toBe(before)
+    // A changed watch list is still announced.
+    await f.command(
+      { action: 'settings.set', settings: { ...defaultSettings, watch: { fates: [1332] } } as unknown as Json },
+      view('feature', 'settings'),
+    )
+    expect(latest(f).events.find((e) => e.type === 'FateWatchListChanged')?.content).toMatchObject({ fates: [1332] })
   })
   it('invalidates the extra client catalog when data.read disappears without a session event', async () => {
     const f = await explorationFixture()
