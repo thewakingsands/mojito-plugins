@@ -10,6 +10,12 @@
 
 `Json` 用于配置和日志，符合 JSON 的基本类型；`Value` 还可以携带 `bigint`、`Uint8Array` 和它们组成的数组或对象，用于 API 与视图传输。
 
+## 区域与地图
+
+`game.zone` 的 `territoryType` 和 `mapId` 都是 `Field<number>`。实时与录制共用区域采样：优先使用非零 `mapOverride`，否则使用同次采样的 `GameMain.mapId`。两者均为零时地图为 `unknown`；区域为零或读取前后不一致时丢弃该次观测，实时区域与地图为 `unknown`。读取失败为 `unavailable`，后续成功采样可恢复。
+
+新录像把取值结果写入现有 `mapId` 字段，回放直接使用文件。旧录像中的非零值保持原值，零值为 `unknown`；纯数据包录像缺少内存地图记录时为 `unavailable`。回放结果不依赖本机游戏资料。加载期间沿用录像已有的记录行为，未记录的加载状态无法在回放中重建。
+
 ## 订阅
 
 订阅返回 `ready`、`dispose()` 和 `closed`。等待 `ready` 确认建立；释放订阅后检查 `closed` 的原因和可选错误。回调收到 `Batch<T>`，包含 `items`、顺序号、`initial` 和 `complete`；按顺序消费，关注完整性信息，不把每一批都当作完整快照。
