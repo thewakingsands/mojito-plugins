@@ -77,6 +77,8 @@ export function strip(root: HTMLElement, icon: (id: number) => Promise<string | 
           element.dataset.requested = 'true'
           const current = generation
           void icon(action.id).then((url) => {
+            // A failed read is asked for again with the next state.
+            if (!url) delete element.dataset.requested
             if (!url || current !== generation || !element.isConnected) return
             const image = document.createElement('img')
             image.src = url
@@ -158,7 +160,7 @@ async function main() {
     let request = urls.get(id)
     if (!request) {
       const generation = imageGeneration
-      request = bridge
+      const pending: Promise<string | null> = bridge
         .command('display', { type: 'icon', id })
         .then((result) => {
           const icon = result as unknown as GameIcon | null
@@ -168,6 +170,12 @@ async function main() {
           return url
         })
         .catch(() => null)
+        .then((url) => {
+          // Only an icon that was read is kept; a failure is not remembered.
+          if (!url && urls.get(id) === pending) urls.delete(id)
+          return url
+        })
+      request = pending
       urls.set(id, request)
     }
     return request

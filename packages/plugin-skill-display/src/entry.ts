@@ -121,10 +121,6 @@ export async function activate(ctx: PluginContext) {
     if (stopped || events || !session?.sessionId || !session.character?.actorId || session.state === 'idle') return
     const sub = ctx.events.subscribe(['actionEffect'], (batch) => {
       if (events !== sub || stopped) return
-      if (!batch.complete) {
-        unavailable('动作输入不完整，等待自动重试')
-        return
-      }
       expire()
       const added: Action[] = []
       for (const { meta, value } of batch.items) {
@@ -170,7 +166,14 @@ export async function activate(ctx: PluginContext) {
         if (events === sub) unavailable(`动作输入不可用，等待自动重试：${String(error)}`)
       })
     void sub.closed.then(({ reason }) => {
-      if (events === sub && !stopped) unavailable(`动作输入已中断，等待自动重试：${reason}`)
+      if (events !== sub || stopped) return
+      // A gap in the source ends the subscription while the session goes on: the actions already
+      // shown run out by their own time, and new ones are read from a new subscription at once.
+      if (reason === 'source_incomplete') {
+        sub.dispose()
+        events = null
+        subscribeEvents()
+      } else unavailable(`动作输入已中断，等待自动重试：${reason}`)
     })
   }
   function receive(next: SessionSnapshot) {
@@ -209,12 +212,6 @@ export async function activate(ctx: PluginContext) {
   function subscribeSession() {
     const sub = ctx.session.subscribe((batch) => {
       if (sessionSub !== sub || stopped) return
-      if (!batch.complete) {
-        unavailable('会话输入不完整，等待自动重试')
-        sub.dispose()
-        sessionSub = null
-        return
-      }
       for (const value of batch.items) receive(value)
     })
     sessionSub = sub
