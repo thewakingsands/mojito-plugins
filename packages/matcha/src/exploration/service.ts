@@ -209,7 +209,6 @@ export class ExplorationService {
           'zoneChanged',
           (batch) => {
             if (!current()) return
-            if (!batch.complete) return fail()
             for (const sample of batch.items) {
               if (
                 !this.sourceMatches(sample.meta) ||
@@ -248,7 +247,6 @@ export class ExplorationService {
           'zone',
           (batch) => {
             if (!current()) return
-            if (!batch.complete) return fail()
             for (const sample of batch.items) {
               if (!this.sourceMatches(sample.meta)) continue
               this.zoneSample = sample
@@ -313,7 +311,6 @@ export class ExplorationService {
       clock.source !== this.options.session().state ||
       clock.generation !== this.options.session().clock.generation ||
       !Number.isFinite(observation.timestamp) ||
-      observation.timestamp > clock.now ||
       (this.boundaryAt !== null && observation.timestamp < this.boundaryAt)
     )
       return
@@ -425,9 +422,8 @@ export class ExplorationService {
             (sample) => {
               if (current()) this.entities = this.sourceMatches(sample.meta) ? sample.value.entities : null
             },
-            () => {
-              if (current()) this.entities = null
-            },
+            // As for the player: the last entities stay until the next read, and expire by their own age.
+            () => {},
           )
           .finally(() => {
             this.entitiesBusy = false

@@ -9,9 +9,9 @@ export function freshField<T>(
   boundaryAt: number | null,
 ): Extract<Field<T>, { state: 'ok' }> | null {
   if (field?.state !== 'ok' || context.clock.now === null || context.clock.base !== field.timeBase) return null
+  // The worker's clock can be slightly behind the host's: a sample newer than it is the newest there is.
   const age = context.clock.now - field.observedAt
   return Number.isFinite(field.observedAt) &&
-    age >= 0 &&
     age <= observationLifetimeMs &&
     (boundaryAt === null || field.observedAt >= boundaryAt)
     ? field

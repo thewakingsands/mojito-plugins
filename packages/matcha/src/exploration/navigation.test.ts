@@ -54,10 +54,10 @@ it('retains the static target through stale position, unknown heading and region
   expect(navigationState(context(), catalog(), null, p, null).status).toBe('no-target')
   expect(navigationState(context(), catalog(), { ...target, itemId: 99 }, p, null).status).toBe('unavailable')
 })
-it('rejects old-zone, future and incomparable observations', () => {
+it('rejects old-zone and incomparable observations, and accepts one newer than the clock', () => {
   const p = player()
   expect(navigationState(context(), catalog(), target, p, 10001).player).toBeNull()
-  expect(navigationState(context(9999), catalog(), target, p, null).player).toBeNull()
+  expect(navigationState(context(9999), catalog(), target, p, null).player).not.toBeNull()
   expect(
     navigationState(
       { ...context(), clock: { ...context().clock, base: 'host-monotonic-unix' } },

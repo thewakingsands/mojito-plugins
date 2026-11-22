@@ -207,6 +207,7 @@ function fixture() {
     setNow: (time: number) => {
       now = time
     },
+    clockNow: () => now,
   }
 }
 
@@ -387,6 +388,43 @@ describe('shared exploration collection', () => {
     expect(entry.cooldown.referenceAt).toBe(10500)
     f.service.observeFate({ kind: 'end', fateId: 1332, packetSeq: 12, timestamp: 999999, extra: 0 })
     expect((f.values.get('EurekaState') as unknown as EurekaState).entries[0]?.activity).toBe('active')
+  })
+
+  it('accepts a FATE packet observed slightly after the worker clock', async () => {
+    const f = fixture()
+    f.catalog.eureka[732] = {
+      mapId: 1,
+      fates: [{ id: 1332, name: 'Synthetic NM', position: null }],
+      weatherRates: null,
+      weatherNames: new Map(),
+    }
+    await f.zone(732)
+    // The host observed the packet 30 ms after the time the worker's clock has reached.
+    f.service.observeFate({ kind: 'start', fateId: 1332, packetSeq: 9, timestamp: 10030 })
+    await f.advance(1000)
+    expect((f.values.get('EurekaState') as unknown as EurekaState).entries[0]?.activity).toBe('active')
+  })
+
+  it('shows a hunt target whose sample is newer than the worker clock as observed', async () => {
+    const f = fixture()
+    vi.mocked(f.context.game.getCombatants).mockImplementation(async () =>
+      f.sample({ entities: [f.actor(f.clockNow() + 30)], missingIds: [] }),
+    )
+    await f.zone()
+    await f.advance(500)
+    expect((f.values.get('HuntState') as unknown as HuntState).entries[0]).toMatchObject({ state: 'observed' })
+  })
+
+  it('keeps the hunt targets through one failed read and lets them expire by age', async () => {
+    const f = fixture()
+    await f.zone()
+    await f.advance(500)
+    expect((f.values.get('HuntState') as unknown as HuntState).entries[0]).toMatchObject({ state: 'observed' })
+    vi.mocked(f.context.game.getCombatants).mockRejectedValue(new Error('transient sampling failure'))
+    await f.advance(500)
+    expect((f.values.get('HuntState') as unknown as HuntState).entries[0]).toMatchObject({ state: 'observed' })
+    await f.advance(2500)
+    expect((f.values.get('HuntState') as unknown as HuntState).entries[0]).toMatchObject({ state: 'last-seen' })
   })
 
   it('does not publish the FATE removal burst preceding an island exit as completed NM rounds', async () => {
