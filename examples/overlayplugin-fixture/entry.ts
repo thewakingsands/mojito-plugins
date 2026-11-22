@@ -241,6 +241,7 @@ export async function activate(context: PluginContext) {
   }
   await enqueue(publish)
   await context.views.flush()
+  await context.views.onCommand('combat/say', (input) => input)
   let removeCombatants: Disposer | undefined
   await context.views.onCommand('fixture/combatants', async (input) => {
     await removeCombatants?.()
