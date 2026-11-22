@@ -158,10 +158,16 @@ const sources = {
   glass: {
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ffxiv-glass-overlay.git',
-    revision: '6e81118931322358283a403071cfea58e17a3781',
+    revision: '8a4e0edc15a7555a84d530591486dca997ea8f66',
     output: 'build',
     async build(work) {
       await cp(path.join(work, 'node_modules/@fontsource/inter/LICENSE'), path.join(work, 'build/Inter-LICENSE'))
+      await mkdir(path.join(work, 'build/sounds'), { recursive: true })
+      await cp(new URL('./sounds/glass-alert.wav', import.meta.url), path.join(work, 'build/sounds/glass-alert.wav'))
+      await writeFile(
+        path.join(work, 'build/sounds/SOURCE.txt'),
+        'glass-alert.wav: original synthesized tone by Mojito.\n',
+      )
     },
     lock: 'glass-package-lock.json',
     command: ['npm', 'run', 'build'],

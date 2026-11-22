@@ -1,6 +1,7 @@
 import type { Field, PluginContext } from '@ffcafe/mojito-plugin-sdk'
 import { afterEach, expect, it, vi } from 'vitest'
 import { observeActivity } from './activity.js'
+import { observeGlassActivity } from './glass-activity.js'
 
 const clock = { source: 'replay', base: 'packet-unix', generation: 0 }
 const meta = {
@@ -38,7 +39,7 @@ function batch(...items: unknown[]) {
 function samples(...values: unknown[]) {
   return batch(...values.map((value) => ({ value, meta })))
 }
-function fixture() {
+function fixture(observe = observeActivity) {
   let now = 1000
   vi.useFakeTimers({ now: 101000 })
   const subscriptions = new Map<
@@ -59,6 +60,7 @@ function fixture() {
     subscriptions.set(name, { receive, dispose, close })
     return { dispose, ready: Promise.resolve(), closed }
   }
+  const getCombatants = vi.fn()
   const context = {
     signal: new AbortController().signal,
     clock: {
@@ -68,10 +70,10 @@ function fixture() {
     },
     session: { subscribe: (receive: Parameters<typeof subscribe>[1]) => subscribe('session', receive) },
     events: { subscribe: (_: string[], receive: Parameters<typeof subscribe>[1]) => subscribe('events', receive) },
-    game: { subscribe },
+    game: { subscribe, getCombatants },
   } as unknown as PluginContext
   const publish = vi.fn()
-  const stop = observeActivity(context, publish)
+  const stop = observe(context, publish)
   const send = (name: string, data: ReturnType<typeof batch>) => subscriptions.get(name)?.receive(data)
   send('session', batch(session))
   return {
@@ -83,6 +85,7 @@ function fixture() {
     stop,
     publish,
     subscriptions,
+    getCombatants,
     setTimeout,
     last: () => publish.mock.lastCall?.[0],
   }
@@ -265,4 +268,54 @@ it('reads on after a gap, and invalidates the old sample callbacks on a characte
   expect(f.last()).toMatchObject({ epoch: 3, actions: [], statuses: [] })
   void f.stop()
   expect(f.subscriptions.get('session')?.dispose).toHaveBeenCalledOnce()
+})
+
+it('looks up Glass casters in one batch, including non-party actors, and retains publishedAt for duplicates', async () => {
+  const f = fixture(observeGlassActivity)
+  f.getCombatants.mockResolvedValue({
+    meta,
+    value: {
+      entities: [
+        { id: 16, name: ok('Self') },
+        { id: 17, name: ok('Other') },
+      ],
+    },
+  })
+  f.advance(3000)
+  f.send('events', samples(action(16, 5, 24298), action(16, 5, 24298), action(17, 5, 24305)))
+  await Promise.resolve()
+  expect(f.getCombatants).toHaveBeenCalledExactlyOnceWith(
+    { ids: [16, 17], fields: ['name'] },
+    { signal: expect.any(AbortSignal) },
+  )
+  expect(f.last()).toMatchObject({
+    epoch: 1,
+    publishedAt: 103000,
+    actions: [
+      { key: '16:5', actionId: 24298, casterName: 'Self', ageMs: 2000 },
+      { key: '17:5', actionId: 24305, casterName: 'Other', ageMs: 2000 },
+    ],
+  })
+  f.advance(3100)
+  f.send('events', samples(action(16, 5, 24298)))
+  expect(f.last().publishedAt).toBe(103000)
+  f.stop()
+})
+
+it('does not publish a late Glass name lookup from a previous character generation', async () => {
+  const f = fixture(observeGlassActivity)
+  let complete!: (value: unknown) => void
+  f.getCombatants.mockReturnValue(
+    new Promise((resolve) => {
+      complete = resolve
+    }),
+  )
+  f.send('events', samples(action(16, 7, 24298)))
+  const signal = f.getCombatants.mock.calls[0][1].signal
+  f.send('session', batch({ ...session, characterGeneration: 2, character: { actorId: 17 } }))
+  complete({ meta, value: { entities: [{ id: 16, name: ok('Old name') }] } })
+  await Promise.resolve()
+  expect(signal.aborted).toBe(true)
+  expect(f.last()).toMatchObject({ epoch: 2, actions: [] })
+  f.stop()
 })

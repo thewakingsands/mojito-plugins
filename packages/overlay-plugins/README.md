@@ -6,7 +6,7 @@ Build the SDK and this workspace to produce one runtime tree per OverlayPlugin t
 `kagerou`, `skyline`, `faceroll`, `horizoverlay`, `cmskin`, `mopimopi1`, `ikegami`, `ember`,
 `amethyst`, `klondike` and `glass`. The build fetches the fixed upstream commits into its own temporary directory.
 
-Ember requires Mojito plugin API 2.3.0. The other plugins require API 2.0.0.
+Ember and Glass require Mojito Plugin API 2.4.0. The other plugins require API 2.0.0.
 All require the `ffcafe.combat-statistics/overlay` service v1. Install
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
@@ -14,6 +14,10 @@ consumer to reconnect.
 Ember uses structured game observations for the party list, skill and status timers, and HP/MP warnings.
 Ember loads action and status icons from Mojito's game data through the compatibility page's
 `getGameIcon` call. Its worker resolves the game row and returns an activation-bound image URL.
+Glass uses structured actions for cooldowns and combat statistics for death and encounter alerts.
+For sound alerts, enter the packaged path `sounds/glass-alert.wav` in Glass Settings. Speech uses
+the voice configured in Mojito.
+
 Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.
 
 Use the existing Rust CLI with a private Ed25519 JWK to create each package, for example:

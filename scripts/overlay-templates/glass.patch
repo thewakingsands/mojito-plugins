@@ -137,3 +137,63 @@ index f8ea54e..86dc6b9 100644
    build: {
      outDir: 'build',
      modulePreload: {
+diff --git a/src/i18n/locales/cn.json b/src/i18n/locales/cn.json
+--- a/src/i18n/locales/cn.json
++++ b/src/i18n/locales/cn.json
+@@ -166,7 +166,7 @@
+     "ttsMessagePlaceholder": "警报消息...",
+     "useTTS": "使用 TTS",
+     "soundFile": "音效文件 (可选)",
+-    "soundFilePlaceholder": ".wav文件路径...",
++    "soundFilePlaceholder": "sounds/glass-alert.wav",
+     "useSound": "使用音效",
+     "triggerTypes": {
+       "dps_threshold": "DPS 阈值",
+diff --git a/src/i18n/locales/de.json b/src/i18n/locales/de.json
+--- a/src/i18n/locales/de.json
++++ b/src/i18n/locales/de.json
+@@ -166,7 +166,7 @@
+     "ttsMessagePlaceholder": "Warnungsnachricht...",
+     "useTTS": "TTS verwenden",
+     "soundFile": "Sounddatei (optional)",
+-    "soundFilePlaceholder": "Pfad zur .wav-Datei...",
++    "soundFilePlaceholder": "sounds/glass-alert.wav",
+     "useSound": "Sound verwenden",
+     "triggerTypes": {
+       "dps_threshold": "DPS-Schwellenwert",
+diff --git a/src/i18n/locales/en.json b/src/i18n/locales/en.json
+--- a/src/i18n/locales/en.json
++++ b/src/i18n/locales/en.json
+@@ -166,7 +166,7 @@
+     "ttsMessagePlaceholder": "Alert message...",
+     "useTTS": "Use TTS",
+     "soundFile": "Sound File (optional)",
+-    "soundFilePlaceholder": "Path to .wav file...",
++    "soundFilePlaceholder": "sounds/glass-alert.wav",
+     "useSound": "Use Sound",
+     "triggerTypes": {
+       "dps_threshold": "DPS Threshold",
+diff --git a/src/i18n/locales/fr.json b/src/i18n/locales/fr.json
+--- a/src/i18n/locales/fr.json
++++ b/src/i18n/locales/fr.json
+@@ -166,7 +166,7 @@
+     "ttsMessagePlaceholder": "Message d'alerte...",
+     "useTTS": "Utiliser TTS",
+     "soundFile": "Fichier son (optionnel)",
+-    "soundFilePlaceholder": "Chemin vers le fichier .wav...",
++    "soundFilePlaceholder": "sounds/glass-alert.wav",
+     "useSound": "Utiliser le son",
+     "triggerTypes": {
+       "dps_threshold": "Seuil DPS",
+diff --git a/src/i18n/locales/ja.json b/src/i18n/locales/ja.json
+--- a/src/i18n/locales/ja.json
++++ b/src/i18n/locales/ja.json
+@@ -166,7 +166,7 @@
+     "ttsMessagePlaceholder": "アラートメッセージ...",
+     "useTTS": "TTSを使用",
+     "soundFile": "サウンドファイル（任意）",
+-    "soundFilePlaceholder": ".wavファイルのパス...",
++    "soundFilePlaceholder": "sounds/glass-alert.wav",
+     "useSound": "サウンドを使用",
+     "triggerTypes": {
+       "dps_threshold": "DPS閾値",

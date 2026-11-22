@@ -12,11 +12,17 @@ import type {
   Subscription,
 } from '@ffcafe/mojito-plugin-sdk'
 
-const windowMs = 10000
-const maxActions = 128
+import {
+  addRecentAction,
+  matchesActivitySource,
+  pruneRecentActions,
+  type RecentAction,
+  recentActionFrame,
+  sameActivitySource,
+} from './recent-actions.js'
+
 const fields: CombatantField[] = ['name', 'classJob', 'level', 'hpCur', 'hpMax', 'mpCur', 'mpMax', 'statuses']
 type Party = { isInParty: boolean; members: { slot: number; id: number; name: string; ownParty: boolean }[] }
-type Action = { key: string; actorId: number; actionId: number; at: number }
 type ActiveStatus = {
   slot?: number
   statusId: number
@@ -33,7 +39,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     party: Party | null = null
   let subscriptions: Subscription[] = [],
     entities: Subscription | undefined
-  let actions: Action[] = []
+  let actions: RecentAction[] = []
   let lastSnapshot: string | undefined
   let statusDeadlines = new Map<number, number>()
   const actors = new Map<number, Record<string, Json>>()
@@ -41,16 +47,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
   const tracked = new Set<number>()
 
   function matches(meta: SourceMeta) {
-    const clock = ctx.clock.state()
-    return (
-      active &&
-      current &&
-      meta.sessionId === current.sessionId &&
-      meta.characterGeneration === current.characterGeneration &&
-      meta.source === clock.source &&
-      meta.clockGeneration === clock.generation &&
-      meta.timeBase === clock.base
-    )
+    return active && matchesActivitySource(ctx, current, meta)
   }
   function snapshot() {
     return {
@@ -67,7 +64,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     if (!active || ctx.signal.aborted || JSON.stringify(snapshot()) === lastSnapshot) return
     const publishedAt = Date.now()
     const now = ctx.clock.now()
-    actions = now === null ? [] : actions.filter(({ at }) => now - at < windowMs)
+    actions = pruneRecentActions(actions, now)
     const deadlines = new Map<number, number>()
     for (const [id, items] of statuses) {
       const visible = items.filter(({ expiresAt }) => {
@@ -87,9 +84,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     publish(
       {
         ...value,
-        publishedAt,
-        actions:
-          now === null ? [] : value.actions.map(({ at, ...action }) => ({ ...action, ageMs: Math.max(0, now - at) })),
+        ...recentActionFrame(value.actions, now, publishedAt),
         statuses: value.statuses.map(({ actorId, items }) => ({
           actorId,
           items:
@@ -280,18 +275,7 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     if (!active) return
     const old = current
     current = next
-    if (
-      old &&
-      old.state === next.state &&
-      old.sessionId === next.sessionId &&
-      old.characterGeneration === next.characterGeneration &&
-      old.character?.actorId === next.character?.actorId &&
-      old.clock.generation === next.clock.generation &&
-      old.capabilities['identity.read']?.state === next.capabilities['identity.read']?.state &&
-      old.capabilities['events.read']?.state === next.capabilities['events.read']?.state &&
-      old.capabilities['game.read']?.state === next.capabilities['game.read']?.state
-    )
-      return
+    if (old && sameActivitySource(old, next)) return
     reset()
     send(true)
     if (next.state === 'idle' || next.character?.actorId == null) return
@@ -323,21 +307,9 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
                 items.map((s) => buildStatus(s, s.observedAt, s.slot)),
               )
           } else {
-            const { sourceActorId, sequence, actionId, actionType } = value.data
-            if (
-              sourceActorId === null ||
-              !tracked.has(sourceActorId) ||
-              actionType !== 1 ||
-              !Number.isFinite(meta.observedAt)
-            )
-              continue
-            const now = ctx.clock.now()
-            if (now === null || now - meta.observedAt >= windowMs) continue
-            const key = `${sourceActorId}:${sequence}`
-            if (!actions.some((item) => item.key === key)) {
-              actions.push({ key, actorId: sourceActorId, actionId, at: meta.observedAt })
-              if (actions.length > maxActions) actions.shift()
-            }
+            const { sourceActorId } = value.data
+            if (sourceActorId !== null && tracked.has(sourceActorId))
+              addRecentAction(actions, value.data, meta.observedAt, ctx.clock.now())
           }
         }
         send()

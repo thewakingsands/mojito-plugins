@@ -3,8 +3,8 @@
   "id": "ffcafe.overlay-glass",
   "name": "Glass",
   "description": "半透明玻璃质感的伤害统计悬浮窗，提供默认、深色与浅色三种主题，可切换伤害、治疗与承伤视图。",
-  "version": "0.1.1",
-  "apiVersion": "^2.0.0",
+  "version": "0.1.2",
+  "apiVersion": "^2.4.0",
   "entry": {
     "kind": "worker",
     "path": "entry.mjs"
@@ -17,7 +17,9 @@
     "game.read",
     "events.read",
     "data.read",
-    "identity.read"
+    "identity.read",
+    "audio.play",
+    "tts.say"
   ],
   "networkOrigins": [],
   "services": {
