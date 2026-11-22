@@ -10,6 +10,14 @@ A `Field<T>` with `state === 'ok'` contains `value`, `observedAt`, `timeBase` an
 
 `Json` is the JSON-compatible type used by configuration and logs. `Value` additionally accepts `bigint`, `Uint8Array` and arrays/objects containing them, for API and view transport.
 
+## Territory and map
+
+Both `territoryType` and `mapId` in `game.zone` are `Field<number>`. `mapId` identifies the map at the character's current position. In territories with multiple floors or subdivisions, it identifies the current floor or subdivision, such as a manor floor or a housing district's main division or subdivision. It can therefore change while `territoryType` stays the same.
+
+During live capture, both fields are `unknown` while the territory is undetermined, such as during loading between territories. If the territory is known but the map cannot be determined, only `mapId` is `unknown`. Read failures make both fields `unavailable`; subsequent successful reads can recover.
+
+Replay takes map values from the recording, independently of locally installed game data. Nonzero map values in older recordings are preserved; values recorded as zero appear as `unknown`. Packet-only recordings have no map records, so `mapId` is `unavailable`. Replay cannot reconstruct loading states that were not recorded.
+
 ## Subscriptions
 
 A subscription exposes `ready`, `dispose()` and `closed`. Await `ready` to confirm establishment. Inspect the closure reason and optional error. Callbacks receive `Batch<T>` with `items`, sequence numbers, `initial` and `complete`. Consume in order and handle completeness rather than treating every batch as a full snapshot.

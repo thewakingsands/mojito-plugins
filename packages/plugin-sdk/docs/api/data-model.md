@@ -10,6 +10,14 @@
 
 `Json` 用于配置和日志，符合 JSON 的基本类型；`Value` 还可以携带 `bigint`、`Uint8Array` 和它们组成的数组或对象，用于 API 与视图传输。
 
+## 区域与地图
+
+`game.zone` 的 `territoryType` 和 `mapId` 都是 `Field<number>`。`mapId` 表示角色当前所在位置的地图；在有多层或多个分区的区域，它对应当前楼层或分区，例如公馆各层、住宅区普通区和扩建区。因此 `mapId` 可以在 `territoryType` 不变时变化。
+
+实时采集中，区域尚未确定（例如切换区域的加载期间）时，两个字段均为 `unknown`；区域已知但无法确定地图时，只有 `mapId` 为 `unknown`。读取失败时两个字段为 `unavailable`，后续成功读取可恢复。
+
+回放的地图值来自录像，不依赖本机游戏资料。旧录像中已记录的非零地图值保持原值，记录为零的地图值显示为 `unknown`；纯数据包录像缺少地图记录，`mapId` 为 `unavailable`。录像未记录的加载状态无法在回放中重建。
+
 ## 订阅
 
 订阅返回 `ready`、`dispose()` 和 `closed`。等待 `ready` 确认建立；释放订阅后检查 `closed` 的原因和可选错误。回调收到 `Batch<T>`，包含 `items`、顺序号、`initial` 和 `complete`；按顺序消费，关注完整性信息，不把每一批都当作完整快照。
