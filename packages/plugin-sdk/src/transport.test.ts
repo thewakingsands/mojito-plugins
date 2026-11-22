@@ -270,3 +270,32 @@ it('preserves typed errors from a separately bundled SDK and hides untyped failu
     error: { code: 'internal', message: 'Plugin handler failed' },
   })
 })
+
+it('delivers and acknowledges each gap, including empty batches, after completeness first drops', async () => {
+  const listener = vi.fn()
+  const sub = client.subscribe('events', null, listener)
+  emit('subscribed', { id: 0, subscriptionId: 'sub' })
+  await sub.ready
+  batch()
+  await settle()
+  for (const [id, gapBefore, items] of [
+    [1, true, []],
+    [2, undefined, [2]],
+    [3, true, [3]],
+  ] as const) {
+    emit('batch', {
+      subscriptionId: 'sub',
+      batchId: id,
+      firstSeq: id,
+      lastSeq: id,
+      initial: false,
+      complete: false,
+      ...(gapBefore ? { gapBefore } : {}),
+      items,
+    })
+    await settle()
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ batchId: id, complete: false, items }))
+    expect(listener.mock.lastCall?.[0].gapBefore).toBe(gapBefore)
+    expect(sent.at(-1)).toMatchObject({ kind: 'ack', batchId: id })
+  }
+})

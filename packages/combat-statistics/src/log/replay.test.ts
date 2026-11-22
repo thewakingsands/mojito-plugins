@@ -128,7 +128,15 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
     ui: { registerFeature: async () => () => {} },
   } as unknown as PluginContext
   const dispose = await activate(ctx)
-  const send = <V>(name: string, items: V[]) => listeners.get(name)!(batch(items) as never)
+  let eventsComplete = true
+  const send = <V>(name: string, items: V[], gapBefore = false) => {
+    if (gapBefore) eventsComplete = false
+    return listeners.get(name)!({
+      ...batch(items),
+      complete: name !== 'events' || eventsComplete,
+      ...(gapBefore ? { gapBefore } : {}),
+    } as never)
+  }
   await send('session', [
     {
       state: 'replay',
@@ -151,8 +159,8 @@ async function plugin(memory = memoryStorage(), npcPartyMember = false) {
     at: (value: number) => {
       now = value
     },
-    events: async (items: Sample<GameEvent>[]) => {
-      await send('events', items)
+    events: async (items: Sample<GameEvent>[], gapBefore = false) => {
+      await send('events', items, gapBefore)
       // Runs the publication the plugin delays after events.
       await vi.advanceTimersByTimeAsync(PUBLISH_MS)
     },
@@ -700,6 +708,40 @@ it('finishes and hashes an active fight when the plugin is stopped, including it
   expect(summaries).toHaveLength(1)
   expect(summaries[0].reason).toBe('stopped')
   expect(log.list()[0].integrity).toBe('verified')
+})
+it('replays the capture gap before the quiet end with the same damage and quality as live', async () => {
+  const h = await plugin()
+  await h.zone(1263)
+  await h.party([{ id: 1, ownParty: true }])
+  await h.entities()
+  h.at(T + 1000)
+  await h.events([sample(effect(1, 100), T + 1000), sample(combat(2, true), T + 1000)])
+  h.at(T + 2000)
+  await h.events([sample(effect(3, 50), T + 2000)], true)
+  h.at(T + 13000)
+  await h.events([], true)
+  const [visit] = (h.snapshot('visits') as VisitsState).visits
+  expect(visit.fights).toHaveLength(1)
+  await h.commands.get('statistics')!({ kind: 'select', visitId: visit.id, fightId: visit.fights[0].id })
+  const live = (h.snapshot('statistics') as StatisticsState).selected!
+  expect(live).toMatchObject({
+    reason: 'quiet',
+    encounterDamage: { value: 150 },
+    quality: expect.arrayContaining(['输入不完整：捕获数据缺失']),
+  })
+  await h.dispose()
+  const log = new CombatLog(h.memory.storage, { values: {} } as unknown as Limits, {
+    createdBy: 'test',
+    actors: () => new Map(),
+    names: { zone: () => null, job: () => null },
+    brief: () => ({ result: null, mainEnemy: null }),
+    positions: () => {},
+  })
+  await log.open()
+  const records: LogRecord[] = []
+  for await (const record of log.read(log.list()[0].id)) records.push(record)
+  expect(records.filter(({ kind }) => kind === 'captureGap')).toHaveLength(2)
+  expect((await replay(records)).map((summary) => displaySummary(summary, true))).toEqual([live])
 })
 it('replays a fight ended for an unavailable input into the same summary as the live statistics', async () => {
   const h = await plugin()

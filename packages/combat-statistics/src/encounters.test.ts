@@ -303,6 +303,34 @@ it('counts incoming periodic damage without creating a settlement or projection 
   expect(facts.rows[0].metrics.encDps.value).toBeNull()
   expect(encounters.presentationAnchor()).toBeNull()
 })
+it('preserves booked periodic damage and drops revisions from before the capture gap', () => {
+  const { encounters } = setup()
+  encounters.accept(sample(effect(1), 1000), 1000)
+  const pending = tick({
+    occurredAt: 1500,
+    unknown: 0,
+    shares: [{ sourceId: 1, statusId: 1, amount: 100, basis: 'estimated' }],
+  })
+  encounters.accept(sample({ type: 'periodicTick', data: pending }, 1600), 1600)
+  const before = encounters.snapshot()!
+  expect(before.encounterDamage.value).toBe(200)
+  encounters.captureGap(1700)
+  encounters.accept(
+    sample(
+      {
+        type: 'periodicRevision',
+        data: { estimatorGeneration: 1, ticks: [{ ...pending, phase: 'post', unknown: 100, shares: [] }] },
+      },
+      1800,
+    ),
+    1800,
+  )
+  expect(encounters.snapshot()).toMatchObject({
+    id: before.id,
+    encounterDamage: { value: 200 },
+    endAt: before.endAt,
+  })
+})
 it('keeps a delayed periodic revision on the lifecycle owner after incoming-only tail activity', () => {
   const { encounters } = setup()
   encounters.accept(sample(effect(1), 1000), 1000)
@@ -342,6 +370,17 @@ const heal = (seq: number, amount: number, sequence: number) => {
 }
 const healer = (encounters: Encounters, encounter = encounters.active) =>
   encounters.snapshot(encounter)!.rows.find((row) => row.actor.id === 2)!
+it('keeps booked heals but discards result matching and HP baselines at a capture gap', () => {
+  const { encounters } = setup()
+  encounters.accept(sample(effect(1), 1000), 1000)
+  encounters.accept(sample(hp(2, 1, 5000, 10000, null), 1100), 1100)
+  encounters.accept(sample(heal(3, 8000, 8), 1200), 1200)
+  encounters.captureGap(1250)
+  expect(encounters.hpTracker.current(1)).toBeNull()
+  encounters.accept(sample(hp(4, 1, 10000, 10000, 8), 1300), 1300)
+  expect(healer(encounters).totals).toMatchObject({ healing: 8000, overhealed: 0, unmeasuredHealing: 8000 })
+  expect(encounters.snapshot()).toMatchObject({ id: 'battle-1', encounterDamage: { value: 100 } })
+})
 it('measures a heal against the HP its target had before the EffectResult', () => {
   const { encounters } = setup()
   encounters.accept(sample(effect(1), 1000), 1000)

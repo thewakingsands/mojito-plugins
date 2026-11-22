@@ -125,6 +125,7 @@ export type LogRecord =
       missing: number[]
     }
   | { kind: 'event'; sample: Sample<LogEvent> }
+  | { kind: 'captureGap'; t: number }
   | { kind: 'positions'; t: number; actors: PositionActor[] }
   | { kind: 'fightStart'; fight: number; id: string; startAt: number; scope: Scope }
   | { kind: 'fightEnd'; fight: number; id: string; endAt: number; reason: string }

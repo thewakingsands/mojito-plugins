@@ -22,6 +22,8 @@ Replay takes map values from the recording, independently of locally installed g
 
 A subscription exposes `ready`, `dispose()` and `closed`. Await `ready` to confirm establishment. Inspect the closure reason and optional error. Callbacks receive `Batch<T>` with `items`, sequence numbers, `initial` and `complete`. Consume in order and handle completeness rather than treating every batch as a full snapshot.
 
+`complete` reports cumulative completeness for the subscription and stays `false` after the first gap. In Plugin API 2.5, event and raw packet subscriptions report a detected gap before a batch with `gapBefore: true`. Handle and acknowledge marked batches even when they have no matching items.
+
 The SDK does not send the next batch until an asynchronous callback completes. Each time the host waits for plugins, it waits at most 300ms for each subscription; a subscription that runs over is not waited for until it has processed the data it had received by then, and meanwhile the game state it queries may be newer than the event being processed. Once the backlog exceeds the limit, the subscription closes with `overflow`. Return promptly after retaining needed data. Reflect failure, cancellation, source termination and missing data in feature state.
 
 ## Initial snapshots and invalidation

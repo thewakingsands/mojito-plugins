@@ -89,6 +89,7 @@ async function setup(
   /** Every event selection the plugin subscribed, including the rejected ones */
   const selections: string[][] = []
   let closeEvents: ((result: { reason: string }) => void) | null = null
+  let eventsComplete = true
   let playerFails = false
   let now = 1000
   const icons: number[] = []
@@ -427,8 +428,9 @@ async function setup(
     },
     /** Delivers events without waiting for the delayed publication */
     send: (items: Sample<GameEvent>[]) => receiveEvents(batch(items)),
-    events: async (items: Sample<GameEvent>[]) => {
-      await receiveEvents(batch(items))
+    events: async (items: Sample<GameEvent>[], gapBefore = false) => {
+      if (gapBefore) eventsComplete = false
+      await receiveEvents({ ...batch(items), complete: eventsComplete, ...(gapBefore ? { gapBefore } : {}) })
       await settle()
     },
     review: (items: Sample<GameEvent>[]) => receiveReview?.(batch(items)),
@@ -539,6 +541,40 @@ it('publishes the old terminal frame and history before new activity in the same
   expect(endedFights(h.frames).map((summary) => summary.encounterDamage.value)).toEqual([100])
   await h.player(false, 999)
   expect(h.snapshots.get('combat')).toMatchObject({ inCombat: true })
+  await h.dispose()
+})
+it('keeps the current fight and subscription across a marked batch, then ends it on real disengagement', async () => {
+  const h = await setup()
+  await h.events([sample(effect(1), 1000), sample(combat(2, true), 1000)])
+  const current = () => (h.snapshots.get('statistics') as unknown as StatisticsState).current!
+  const id = current().id
+  const subscriptions = h.selections.length
+  h.setNow(2000)
+  await h.events([sample(effect(3, 200), 2000)], true)
+  expect(current()).toMatchObject({ id, ended: false, encounterDamage: { value: 300 } })
+  expect(current().quality).toContain('输入不完整：捕获数据缺失')
+  expect(h.selections).toHaveLength(subscriptions)
+  await h.events([sample(combat(4, false), 2000)])
+  expect(endedFights(h.frames)).toMatchObject([{ id, reason: 'outOfCombat' }])
+  await h.dispose()
+})
+it('uses the existing quiet deadline after an empty gap batch even without later events', async () => {
+  const h = await setup()
+  await h.events([sample(effect(1), 1000), sample(combat(2, true), 1000)])
+  h.setNow(2000)
+  await h.events([], true)
+  await h.player(true)
+  expect(h.snapshots.get('combat')).toMatchObject({ inCombat: null })
+  h.setNow(8000)
+  await h.events([], true)
+  h.setNow(11000)
+  await h.timers.at(-1)!()
+  expect(endedFights(h.frames)).toHaveLength(0)
+  h.setNow(11001)
+  await h.timers.at(-1)!()
+  expect(endedFights(h.frames)).toMatchObject([
+    { reason: 'quiet', quality: expect.arrayContaining(['输入不完整：捕获数据缺失']) },
+  ])
   await h.dispose()
 })
 it('publishes a quiet terminal even when one accept both closes and opens an encounter', async () => {

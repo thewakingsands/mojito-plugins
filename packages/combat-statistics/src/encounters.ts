@@ -56,6 +56,7 @@ export class Encounters {
   zone: number | null = null
   localActorId: number | null = null
   inCombat: boolean | null = null
+  private awaitingOrderedCombat = false
   private combatSeq: number | null = null
   private combatAt = -Infinity
   private snapshotAt = -Infinity
@@ -121,7 +122,7 @@ export class Encounters {
   /** Snapshots initialize state or invalidate it, but never synthesize a transition. */
   syncCombat(value: boolean | null, at: number, now: number) {
     this.revision++
-    if (at < this.snapshotAt || at <= this.combatAt) return
+    if (this.awaitingOrderedCombat || at < this.snapshotAt || at <= this.combatAt) return
     this.snapshotAt = at
     if (this.combatSeq === null || value === null) {
       this.inCombat = value
@@ -131,12 +132,13 @@ export class Encounters {
   }
   /** Whether syncCombat with these arguments would change the combat state, rather than only the snapshot time */
   syncChanges(value: boolean | null, at: number): boolean {
-    if (at < this.snapshotAt || at <= this.combatAt) return false
+    if (this.awaitingOrderedCombat || at < this.snapshotAt || at <= this.combatAt) return false
     if (this.combatSeq !== null && value !== null) return false
     return this.inCombat !== value || (value === null && this.combatValue !== null)
   }
   resetCombat(at: number) {
     this.revision++
+    this.awaitingOrderedCombat = false
     this.inCombat = null
     this.combatSeq = null
     this.combatValue = null
@@ -275,6 +277,23 @@ export class Encounters {
       afterInput: this.trailing,
     })
   }
+  captureGap(now: number) {
+    this.revision++
+    if (this.active) this.active.ledger.quality.add('输入不完整：捕获数据缺失')
+    for (const encounter of [this.active, ...this.completed]) {
+      encounter?.ledger.discardPending()
+      encounter?.attributed.clear()
+    }
+    this.bindings.clear()
+    this.attributionTicks.clear()
+    this.lastEffect = null
+    this.grace = null
+    this.hpTracker.clear()
+    this.awaitingOrderedCombat = true
+    this.inCombat = null
+    this.combatValue = null
+    this.advance(now)
+  }
   boundary(reason: string, at: number) {
     this.revision++
     this.finish(reason, at, true)
@@ -408,6 +427,7 @@ export class Encounters {
         return
       this.packetSeq = Math.max(this.packetSeq, seq!)
       this.combatSeq = seq!
+      this.awaitingOrderedCombat = false
       this.combatAt = sample.meta.observedAt
       this.inCombat = event.data.inCombat
       const transition = this.combatValue !== this.inCombat

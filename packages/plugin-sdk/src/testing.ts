@@ -18,7 +18,15 @@ export function createTestContext(
   let hostCallId = 0
   const subscriptions = new Map<
     string,
-    { topic: string; params: Value; next: number; batch: number; awaiting: boolean; finishing?: boolean }
+    {
+      topic: string
+      params: Value
+      next: number
+      batch: number
+      awaiting: boolean
+      complete: boolean
+      finishing?: boolean
+    }
   >()
   const send = (kind: Envelope['kind'], fields: Record<string, Value>) =>
     receive({ protocol: 1, activationId: hello.identity.activationId, kind, ...structuredClone(fields) })
@@ -77,6 +85,7 @@ export function createTestContext(
             next: 0,
             batch: 0,
             awaiting: false,
+            complete: true,
           })
           queueMicrotask(() => send('subscribed', { id: message.id, subscriptionId: id }))
         } else if (message.kind === 'ack') {
@@ -100,12 +109,17 @@ export function createTestContext(
   return {
     context: createPluginContext(client, hello),
     requests,
-    publish(topic: string, items: Value[], options: { initial?: boolean; match?: (params: Value) => boolean } = {}) {
+    publish(
+      topic: string,
+      items: Value[],
+      options: { initial?: boolean; gapBefore?: boolean; match?: (params: Value) => boolean } = {},
+    ) {
       for (const [id, sub] of subscriptions) {
         if (sub.finishing || sub.topic !== topic || (options.match && !options.match(sub.params))) continue
         if (sub.awaiting) throw new Error('Test consumer has not acknowledged its prior batch')
         const firstSeq = sub.next
-        sub.next += Math.max(1, items.length)
+        sub.next += Math.max(1, items.length + Number(options.gapBefore ?? false))
+        if (options.gapBefore) sub.complete = false
         sub.awaiting = true
         send('batch', {
           subscriptionId: id,
@@ -113,7 +127,8 @@ export function createTestContext(
           firstSeq,
           lastSeq: sub.next - 1,
           initial: options.initial ?? false,
-          complete: true,
+          complete: sub.complete,
+          ...(options.gapBefore ? { gapBefore: true } : {}),
           items,
         })
       }
