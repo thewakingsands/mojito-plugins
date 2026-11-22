@@ -108,14 +108,16 @@ export async function activate(ctx: PluginContext) {
     entitiesSub: Subscription | null = null,
     zoneSub: Subscription | null = null
   let entityIds = new Set<number>(),
-    partyKnown = false
+    partyKnown = false,
+    /** Whether the party subscription of this source has delivered anything yet */
+    partySeen = false
   let members = new Set<number>(),
     party: { id: number; ownParty: boolean }[] = [],
     inputError: string | null = null
   /** The inputs that do not work, with the reason written to the plugin log; any of them pauses the statistics */
   const unavailable = new Map<string, string>()
   let paused = false,
-    /** Whether this pause was reported; connecting pauses briefly every time, so only a lasting pause is */
+    /** Whether this pause was reported; an input often comes back at the next retry, so only a lasting pause is */
     pauseNotified = false,
     retryTimer: ReturnType<typeof setInterval> | null = null
   const gameCache = new GameDataCache(ctx.storage, ctx.data, ctx.log, {
@@ -834,7 +836,8 @@ export async function activate(ctx: PluginContext) {
    * known: writing the log and publishing the views go on in the queue, ahead of the next batch.
    */
   async function receive(items: Sample<GameEvent>[], units?: InputUnit[], acknowledge?: () => void) {
-    if (stopped || paused) return
+    // Without the party nobody can be told apart yet, so nothing is counted before its first sample.
+    if (stopped || paused || (!partySeen && !allPlayers())) return
     try {
       await actorInputs(items)
     } catch (error) {
@@ -1080,7 +1083,9 @@ export async function activate(ctx: PluginContext) {
   }
   /** Pauses the statistics while an input is unavailable; the fight in progress ends then, and nothing is logged. */
   async function updatePause() {
-    const partyMissing = !partyKnown && !allPlayers()
+    // Until the party subscription has delivered its first sample there is nothing wrong yet: events
+    // are held back (see `receive`), but the statistics are not paused and the fight is not ended.
+    const partyMissing = partySeen && !partyKnown && !allPlayers()
     const next = !stopped && !!session && session.state !== 'idle' && (unavailable.size > 0 || partyMissing)
     if (next !== paused) {
       paused = next
@@ -1218,6 +1223,7 @@ export async function activate(ctx: PluginContext) {
               identities?.source
             )
               continue
+            partySeen = true
             const list = value(sample.value.members)
             // A later sample without the members keeps the last party, so it does not end the fight in progress.
             if (list !== null) partyKnown = true
@@ -1349,7 +1355,7 @@ export async function activate(ctx: PluginContext) {
       zoneSub?.dispose()
       partySub = playerSub = entitiesSub = zoneSub = null
       entityIds = new Set()
-      partyKnown = false
+      partyKnown = partySeen = false
       unavailable.clear()
     }
     if (session?.dataLanguage !== next.dataLanguage) {

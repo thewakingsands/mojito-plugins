@@ -614,14 +614,19 @@ it.each([
   expect(damage(6)).toBe(outside)
   await h.dispose()
 })
-it('pauses in the party scope until the party is known, and not in the all scope', async () => {
+it('counts nothing in the party scope before the first party sample, without pausing', async () => {
   const h = await setup(false, true, [], 'unavailable', new Map(), false)
-  expect(h.paused()).toBe(true)
+  const combat = (h.snapshots.get('statistics') as unknown as StatisticsState).inCombat
+  // Connecting is not a fault: nothing is paused and no fight is ended while the party is on its way.
+  expect(h.paused()).toBe(false)
   await h.events([sample(effect(1), 1000)])
   expect((h.snapshots.get('statistics') as unknown as StatisticsState).current).toBeNull()
+  expect(endedFights(h.frames)).toEqual([])
   // Playing solo gives an empty list, which is a known party.
   await h.party([])
   expect(h.paused()).toBe(false)
+  // The combat state read while connecting is still there.
+  expect((h.snapshots.get('statistics') as unknown as StatisticsState).inCombat).toBe(combat)
   await h.events([sample(effect(2), 1100)])
   expect((h.snapshots.get('statistics') as unknown as StatisticsState).current).not.toBeNull()
   await h.dispose()
@@ -629,6 +634,14 @@ it('pauses in the party scope until the party is known, and not in the all scope
   await all.commands.get('statistics')!(scopeSettings('all'))
   expect(all.paused()).toBe(false)
   await all.dispose()
+})
+it('pauses in the party scope when the party cannot be read', async () => {
+  const h = await setup(false, true, [], 'unavailable', new Map(), false)
+  await h.partyUnknown()
+  expect(h.paused()).toBe(true)
+  await h.party([])
+  expect(h.paused()).toBe(false)
+  await h.dispose()
 })
 it('keeps the fight in progress and the last party when a party sample lacks its members', async () => {
   const h = await setup()
@@ -696,9 +709,9 @@ it('notifies a pause that outlasts the first retry once, and its end', async () 
   expect(h.noticeTitles()).toEqual(['统计已暂停', '统计已恢复'])
   await h.dispose()
 })
-it('does not notify the pause before the party arrives right after connecting', async () => {
+it('neither pauses nor notifies before the party arrives right after connecting', async () => {
   const h = await setup(false, true, [], 'unavailable', new Map(), false)
-  expect(h.paused()).toBe(true)
+  expect(h.paused()).toBe(false)
   await vi.advanceTimersByTimeAsync(5_000)
   await h.party([])
   expect(h.paused()).toBe(false)
