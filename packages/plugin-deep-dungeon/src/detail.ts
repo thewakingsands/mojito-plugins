@@ -59,20 +59,27 @@ export function detail(
     row.append(element('dt', key), element('dd', labels[value] ?? value))
     facts.append(row)
   }
-  for (const key of Object.keys(controls) as (keyof typeof controls)[]) {
-    const row = element('div')
-    row.append(
-      element('dt', controls[key]),
-      element('dd', { effective: '有效', immune: '无效', unknown: '未知' }[monster.weakness[key]]),
-    )
-    facts.append(row)
-  }
   if (monster.undead) {
     const row = element('div')
     row.append(element('dt', '类型'), element('dd', '不死生物'))
     facts.append(row)
   }
-  root.append(facts)
+  const resistances = element('dl', undefined, 'resistances')
+  for (const [state, label] of [
+    ['effective', '有效'],
+    ['immune', '无效'],
+    ['unknown', '未知'],
+  ]) {
+    const names = (Object.keys(controls) as (keyof typeof controls)[])
+      .filter((key) => monster.weakness[key] === state)
+      .map((key) => controls[key])
+    if (names.length) {
+      const row = element('div')
+      row.append(element('dt', label), element('dd', names.join('、')))
+      resistances.append(row)
+    }
+  }
+  root.append(facts, resistances)
   const text = note(monster.notes, language)
   if (text !== null) root.append(element('p', text, 'notes'))
 }

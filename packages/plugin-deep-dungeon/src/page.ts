@@ -21,6 +21,7 @@ async function main() {
     await sub.ready
   }
   let render = () => {}
+  let refreshNames = () => {}
   if (page === 'overlay') {
     let current: Target | null = null
     root.className = 'target'
@@ -76,6 +77,14 @@ async function main() {
       selected: number | null = null
     let localNames: Record<string, string> = {}
     let request: object | null = null
+    let section: 'monsters' | 'floors' = 'monsters'
+    const tabs = element('div', undefined, 'reference-tabs')
+    tabs.setAttribute('role', 'group')
+    tabs.setAttribute('aria-label', '查阅内容')
+    const monstersTab = element('button', '怪物')
+    const floorsTab = element('button', '楼层')
+    monstersTab.type = floorsTab.type = 'button'
+    tabs.append(monstersTab, floorsTab)
     const toolbar = element('div', undefined, 'toolbar')
     const dungeonSelect = element('select')
     dungeonSelect.setAttribute('aria-label', '迷宫')
@@ -98,10 +107,26 @@ async function main() {
     const floorTitle = element('h3')
     const floorText = element('p', undefined, 'notes')
     floors.append(floorSelect, floorTitle, floorText)
-    root.append(toolbar, layout, floors)
+    root.append(tabs, toolbar, layout, floors)
+    function showSection() {
+      layout.hidden = section !== 'monsters'
+      search.hidden = section !== 'monsters'
+      floors.hidden = section !== 'floors'
+      monstersTab.setAttribute('aria-pressed', String(section === 'monsters'))
+      floorsTab.setAttribute('aria-pressed', String(section === 'floors'))
+    }
+    monstersTab.onclick = () => {
+      section = 'monsters'
+      showSection()
+    }
+    floorsTab.onclick = () => {
+      section = 'floors'
+      showSection()
+    }
+    showSection()
     function drawFloor() {
       const floor = catalog.floors.find((item) => item.dungeon === dungeon && item.key === floorSelect.value)
-      floorTitle.textContent = floor ? `${dungeonNames[dungeon]} · ${floor.key}` : ''
+      floorTitle.textContent = floor ? `${dungeonNames[dungeon]} · ${floor.key}` : '暂无楼层资料'
       const text = floor ? floorNote(catalog, floor, display.language) : null
       floorText.textContent = text ?? ''
       floorText.hidden = text === null
@@ -166,17 +191,20 @@ async function main() {
       floorSelect.replaceChildren()
       for (const floor of catalog.floors.filter((item) => item.dungeon === dungeon))
         floorSelect.add(new Option(floor.key, floor.key))
-      floors.hidden = floorSelect.options.length === 0
+      floorSelect.hidden = floorSelect.options.length === 0
       void loadNames()
     }
     dungeonSelect.onchange = changeDungeon
     search.oninput = () => render()
     floorSelect.onchange = drawFloor
+    refreshNames = () => void loadNames()
     changeDungeon()
   }
   await subscribe('display', (value) => {
+    const previous = display.language
     display = value as Display
     render()
+    if (display.language !== previous) refreshNames()
   })
   window.addEventListener(
     'pagehide',

@@ -68,11 +68,13 @@ it('does not guess a language or unverified column, and falls back on a read err
   expect(await names(host.ctx, [910001], 2)).toEqual({ language: 'en', names: {} })
   expect(host.ctx.data.rows).toHaveBeenCalledTimes(1)
 })
-it('discards a read whose dataLanguage changed while it was pending', async () => {
+it('returns the language captured for this request even if the session changes', async () => {
   const host = fixtureHost()
+  const get = vi.spyOn(host.ctx.session, 'get')
   host.ctx.data.rows = async () => {
     host.session({ dataLanguage: 'en' })
     return [{ rowId: 910001, subrows: [{ subrowId: null, cells: [{ type: 'string', value: '旧语言' }] }] }]
   }
-  expect(await names(host.ctx, [910001], 0)).toEqual({ language: 'en', names: {} })
+  expect(await names(host.ctx, [910001], 0)).toEqual({ language: 'chs', names: { 910001: '旧语言' } })
+  expect(get).toHaveBeenCalledTimes(1)
 })

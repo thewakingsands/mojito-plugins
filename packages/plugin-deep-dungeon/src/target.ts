@@ -30,10 +30,6 @@ export function watchTarget(ctx: PluginContext, catalog: Catalog, publish: (valu
       'entities',
       (batch) => {
         if (stopped || entitySub !== sub) return
-        if (!batch.complete) {
-          lost()
-          return
-        }
         for (const { value } of batch.items) {
           entity = value.entities.find((item) => item.id === id) ?? null
           update()
@@ -52,10 +48,6 @@ export function watchTarget(ctx: PluginContext, catalog: Catalog, publish: (valu
     if (stopped || !dungeon || targetSub) return
     const sub = ctx.game.subscribe('target', (batch) => {
       if (stopped || targetSub !== sub) return
-      if (!batch.complete) {
-        lost()
-        return
-      }
       for (const { value } of batch.items) {
         const next = available(value)
         if (next !== id) {
@@ -76,10 +68,6 @@ export function watchTarget(ctx: PluginContext, catalog: Catalog, publish: (valu
     if (stopped || zoneSub) return
     const sub = ctx.game.subscribe('zone', (batch) => {
       if (stopped || zoneSub !== sub) return
-      if (!batch.complete) {
-        lost()
-        return
-      }
       for (const { value } of batch.items) {
         const next = available(value.territoryType)
         if (next !== territory) {

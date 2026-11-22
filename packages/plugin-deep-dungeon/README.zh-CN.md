@@ -2,7 +2,7 @@
 
 # 深层迷宫图鉴
 
-原生 worker 和页面提供选中怪物信息、图鉴搜索与手动楼层攻略。清单使用 Plugin API `^2.0.0`，代码消费已有 target、entity、zone、session 和行查询接口。
+原生 worker 和页面提供选中怪物信息、图鉴搜索与手动楼层攻略。查阅页顶部切换怪物和楼层；悬浮窗按有效、无效和未知分组显示控制抗性。清单使用 Plugin API `^2.0.0`，代码消费已有 target、entity、zone、session 和行查询接口。
 
 ## 开发预览
 
@@ -16,8 +16,10 @@ pnpm exec vitest run packages/plugin-deep-dungeon
 
 常规构建要求存在 `src/generated/catalog.json`，缺失时明确失败。此阶段不提供正式资料或未经实读的 BNpcName 名称列。生成资料排除出 Git，官方打包路径只读取 `dist`，不读取 `dist-fixture`。
 
+接入真实生成资料后，页面检查改用真实 catalog，并删除合成构建模式、catalog、宿主替身、桥接和别名切换。单元测试的小样本保留在测试文件中。
+
 ## 资料边界
 
-后续构建转换提供 `src/data.ts` 中的 `Catalog` 结构，`nameColumn` 必须来自实际客户端读取。合成测试传入任意列号以测试索引和语言透传，这些值不能作为客户端布局证据。名称查询把 `session.dataLanguage` 原样传给不带具名列的 `data.rows`，缺失或无效结果保留上游名称和 ID。
+后续构建转换提供 `src/data.ts` 中的 `Catalog` 结构，`nameColumn` 必须来自实际客户端读取。合成测试传入任意列号以测试索引和语言透传，这些值不能作为客户端布局证据。名称查询把 `session.dataLanguage` 原样传给不带具名列的 `data.rows`，缺失或无效结果保留上游名称和 ID。每次查询使用开始时的会话语言；页面切换语言或迷宫会重新查询，旧请求迟到时不会覆盖新结果。
 
 Linux 测试与预览截图验证合成输入下的插件行为。真实客户端名称与 ID 核验、固定资料转换、真实资料截图、正式包验证及 Windows 游戏验收分别完成。

@@ -17,6 +17,5 @@ export async function names(ctx: PluginContext, ids: number[], column: number | 
       break
     }
   }
-  const current = (await ctx.session.get()).dataLanguage
-  return { language: current, names: current === dataLanguage ? result : {} }
+  return { language: dataLanguage, names: result }
 }

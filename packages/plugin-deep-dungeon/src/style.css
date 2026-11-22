@@ -14,7 +14,8 @@ body:not([data-page="overlay"]) #app {
   max-width: 1100px;
   margin: 0 auto;
 }
-[hidden] {
+[hidden],
+.reference-layout[hidden] {
   display: none;
 }
 h2 {
@@ -37,6 +38,15 @@ small {
 .name-id {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.reference-tabs {
+  display: flex;
+  gap: var(--mojito-space-group);
+  margin-bottom: var(--mojito-space-section);
+}
+.reference-tabs button[aria-pressed="true"] {
+  background: var(--mojito-bg-selected);
+  color: var(--mojito-accent);
 }
 .toolbar {
   display: flex;
@@ -102,20 +112,32 @@ small {
 .facts dd {
   margin: 4px 0 0;
 }
+.resistances {
+  display: block;
+  margin: 0;
+}
+.resistances div {
+  display: flex;
+  gap: var(--mojito-space-group);
+  margin-top: 6px;
+}
+.resistances dt {
+  flex-shrink: 0;
+  color: var(--mojito-fg-secondary);
+}
+.resistances dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .notes {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.75;
   margin: var(--mojito-space-section) 0 0;
 }
-.floors {
-  border-top: 1px solid var(--mojito-border);
-  margin-top: var(--mojito-space-section);
-  padding-top: var(--mojito-space-section);
-}
 .floors h3 {
   font-size: var(--mojito-text-base);
-  margin-bottom: 0;
+  margin: var(--mojito-space-section) 0 0;
 }
 html:has(body[data-page="overlay"]) {
   background: transparent;
@@ -137,6 +159,7 @@ body[data-page="overlay"] {
 }
 .target .name-id,
 .target .facts dt,
+.target .resistances dt,
 .target .empty {
   color: rgb(255 255 255 / 75%);
 }

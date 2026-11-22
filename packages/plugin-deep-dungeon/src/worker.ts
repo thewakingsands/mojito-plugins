@@ -11,28 +11,16 @@ export async function activateCatalog(ctx: PluginContext, catalog: Catalog) {
   const disposers: Disposer[] = []
   const publish = () => ctx.views.set('display', { settings: config, language: language(config, uiLanguage) })
   disposers.push(
-    await ctx.views.onCommand('reference', async (input, view) => {
-      if (
-        view.definitionId !== 'reference' ||
-        view.kind !== 'feature' ||
-        !input ||
-        typeof input !== 'object' ||
-        !('ids' in input) ||
-        !Array.isArray(input.ids)
-      )
+    await ctx.views.onCommand('reference', async (input) => {
+      if (!input || typeof input !== 'object' || !('ids' in input) || !Array.isArray(input.ids))
         throw new Error('Invalid reference command')
       const ids = input.ids
-      if (
-        ids.length > catalog.monsters.length ||
-        !ids.every((id) => typeof id === 'number' && catalog.monsters.some((item) => item.nameId === id))
-      )
-        throw new Error('Invalid name IDs')
+      if (!ids.every((id) => typeof id === 'number')) throw new Error('Invalid name IDs')
       return names(ctx, ids as number[], catalog.nameColumn)
     }),
   )
   disposers.push(
-    await ctx.views.onCommand('display', async (input, view) => {
-      if (view.placement !== 'settings') throw new Error('Settings view required')
+    await ctx.views.onCommand('display', async (input) => {
       const next = settings(input)
       if (!next) throw new Error('Invalid settings')
       const session = await ctx.session.get()
@@ -50,7 +38,7 @@ export async function activateCatalog(ctx: PluginContext, catalog: Catalog) {
       id: 'target',
       name: '选中怪物',
       entry: 'overlay.html',
-      defaultSize: { width: 380, height: 340 },
+      defaultSize: { width: 380, height: 280 },
     }),
   )
   disposers.push(

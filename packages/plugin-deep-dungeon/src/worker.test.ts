@@ -19,7 +19,7 @@ it('registers the views, publishes target fields, and keeps reference selection 
     expect(host.requests.map(({ method, args }) => [method, args[0]])).toEqual([
       [
         'ui.registerOverlay',
-        { id: 'target', name: '选中怪物', entry: 'overlay.html', defaultSize: { width: 380, height: 340 } },
+        { id: 'target', name: '选中怪物', entry: 'overlay.html', defaultSize: { width: 380, height: 280 } },
       ],
       ['ui.registerFeature', { id: 'reference', name: '深层迷宫图鉴', entry: 'reference.html', placement: 'sidebar' }],
       ['ui.registerFeature', { id: 'settings', name: '深层迷宫图鉴', entry: 'settings.html', placement: 'settings' }],
@@ -36,8 +36,17 @@ it('registers the views, publishes target fields, and keeps reference selection 
     await host.commands.get('display')!({ language: 'en' }, settingsView)
     expect(host.snapshots.get('display')).toEqual({ settings: { language: 'en' }, language: 'en' })
     expect(await host.ctx.config.get('display')).toEqual({ language: 'en' })
-    await expect(host.commands.get('display')!({ language: 'en' }, reference)).rejects.toThrow('Settings view required')
-    await expect(host.commands.get('reference')!({ ids: [12161] }, reference)).rejects.toThrow('Invalid name IDs')
+    await host.commands.get('display')!({ language: 'zhCN' }, reference)
+    expect(host.snapshots.get('display')).toEqual({ settings: { language: 'zhCN' }, language: 'zhCN' })
+    expect(await host.commands.get('reference')!({ ids: [919999] }, settingsView)).toEqual({
+      language: 'chs',
+      names: {},
+    })
+    await expect(host.commands.get('display')!({ language: 'invalid' }, reference)).rejects.toThrow('Invalid settings')
+    await expect(host.commands.get('reference')!({ ids: ['910001'] }, reference)).rejects.toThrow('Invalid name IDs')
+    await expect(host.commands.get('reference')!({ ids: 910001 }, reference)).rejects.toThrow(
+      'Invalid reference command',
+    )
   } finally {
     await dispose()
   }

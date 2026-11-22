@@ -93,7 +93,7 @@ it('clears on switches, rejects late or mismatched entities, retries closed inpu
   expect(host.subscriptions).toHaveLength(count)
   expect(host.subscriptions.every((sub) => sub.disposed)).toBe(true)
 })
-it('clears incomplete and closed target/zone input and accepts the next snapshot', async () => {
+it('continues consuming updates after complete becomes cumulatively false', async () => {
   vi.useFakeTimers()
   const host = fixtureHost(),
     publish = vi.fn()
@@ -101,17 +101,44 @@ it('clears incomplete and closed target/zone input and accepts the next snapshot
   host.publish('zone', { territoryType: ok(900001), mapId: ok(1) })
   host.publish('target', ok(101))
   host.publish('entities', { entities: [entity()], missingIds: [] })
-  host.publish('target', ok(101), false)
+  const initial = [...host.subscriptions]
+  for (const hp of [7000, 6000]) {
+    host.publish('zone', { territoryType: ok(900001), mapId: ok(1) }, false)
+    host.publish('target', ok(101), false)
+    host.publish('entities', { entities: [{ ...entity(), hpCur: ok(hp) }], missingIds: [] }, false)
+    expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({ id: 101, hp: { current: hp, max: 10000 } }))
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(host.subscriptions).toEqual(initial)
+    expect(initial.every((sub) => !sub.disposed)).toBe(true)
+  }
+  host.publish('target', ok(102), false)
   expect(publish).toHaveBeenLastCalledWith(null)
-  await vi.advanceTimersByTimeAsync(1000)
-  host.publish('target', ok(101))
-  host.publish('entities', { entities: [entity()], missingIds: [] })
-  host.subscriptions.find((sub) => sub.topic === 'zone')!.close()
-  await vi.advanceTimersByTimeAsync(1000)
+  host.publish('entities', { entities: [entity(102)], missingIds: [] }, false)
+  expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({ id: 102 }))
+  host.publish('zone', { territoryType: ok(1), mapId: ok(1) }, false)
   expect(publish).toHaveBeenLastCalledWith(null)
-  host.publish('zone', { territoryType: ok(900001), mapId: ok(1) })
-  host.publish('target', ok(101))
-  host.publish('entities', { entities: [entity()], missingIds: [] })
-  expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({ id: 101 }))
+  dispose()
+})
+it('clears closed target and zone input, retries and accepts the next snapshot', async () => {
+  vi.useFakeTimers()
+  const host = fixtureHost(),
+    publish = vi.fn()
+  const dispose = watchTarget(host.ctx, catalog, publish)
+  const populate = () => {
+    host.publish('zone', { territoryType: ok(900001), mapId: ok(1) })
+    host.publish('target', ok(101))
+    host.publish('entities', { entities: [entity()], missingIds: [] })
+    expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({ id: 101 }))
+  }
+  populate()
+  for (const topic of ['target', 'zone']) {
+    const closed = host.subscriptions.findLast((sub) => sub.topic === topic)!
+    closed.close()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(publish).toHaveBeenLastCalledWith(null)
+    expect(closed.disposed).toBe(true)
+    expect(host.subscriptions.findLast((sub) => sub.topic === topic)).not.toBe(closed)
+    populate()
+  }
   dispose()
 })
