@@ -202,6 +202,8 @@ Modern 兼容页面可用 `OverlayPluginApi.callHandler(JSON.stringify({ call: '
 
 从 Plugin API 2.4 起，其他非空单段调用名会转发到当前文档所绑定插件的 `${channel}/<调用名>` 命令。除 `call` 和 `rseq` 外，其余字段作为业务参数交给 worker。未注册该命令时，回调收到包含 `{ error: "unsupported_call" }` 的 JSON 字符串。
 
+Modern 兼容悬浮窗的主页面可在截图按钮中调用 `OverlayPluginApi.callHandler(JSON.stringify({ call: 'makeScreenshot' }), callback)`。宿主忽略附加字段，将调用者当前可见区域作为保留透明度的图片复制到系统剪贴板。回调收到 `{ status: 'copied' }` 或错误的 JSON 字符串。
+
 ## 设置搜索
 
 Mojito 的设置搜索和命令面板（Ctrl K）可以找到插件设置页里的设置项。后台用 `setPreferenceItems` 提交条目，每次调用替换全部条目，空数组表示清空：

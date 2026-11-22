@@ -202,6 +202,8 @@ The host forwards `{ type, id }` to the owning plugin's `${channel}/icons` view 
 
 Starting with Plugin API 2.4, other non-empty call names without slashes are forwarded to the `${channel}/<call name>` command of the plugin bound to the current document. The worker receives the fields other than `call` and `rseq` as its payload. If the command is not registered, the callback receives a JSON string containing `{ error: "unsupported_call" }`.
 
+The main page of a modern compatible overlay can call `OverlayPluginApi.callHandler(JSON.stringify({ call: 'makeScreenshot' }), callback)` from its screenshot button. The host ignores extra fields and copies an image of the caller's current viewport to the system clipboard, preserving transparency. The callback receives a JSON string with `{ status: 'copied' }` or an error.
+
 ## Preference search
 
 Mojito's settings search and command palette (Ctrl K) can find settings on a plugin's settings page. The background submits items with `setPreferenceItems`. Each call replaces all items; an empty array clears them:
