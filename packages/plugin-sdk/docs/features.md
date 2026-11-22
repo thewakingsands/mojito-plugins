@@ -200,6 +200,8 @@ const removeOverlay = await context.ui.registerOverlay({
 Modern 兼容页面可用 `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)` 请求技能图标，`type: 'status'` 请求状态图标。
 宿主把 `{ type, id }` 交给该插件的 `${channel}/icons` view command；worker 用已有的 `data.read` 权限查询游戏数据并返回 `data.image` URL 或 `null`。回调参数为 JSON 字符串，包含该 URL、`null` 或 `{ error }`。
 
+从 Plugin API 2.4 起，其他非空单段调用名会转发到当前文档所绑定插件的 `${channel}/<调用名>` 命令。除 `call` 和 `rseq` 外，其余字段作为业务参数交给 worker。未注册该命令时，回调收到包含 `{ error: "unsupported_call" }` 的 JSON 字符串。
+
 ## 设置搜索
 
 Mojito 的设置搜索和命令面板（Ctrl K）可以找到插件设置页里的设置项。后台用 `setPreferenceItems` 提交条目，每次调用替换全部条目，空数组表示清空：

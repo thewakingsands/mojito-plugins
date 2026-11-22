@@ -200,6 +200,8 @@ Starting with Plugin API 2.3, `OverlayState.custom` can carry plugin-defined JSO
 Modern compatibility pages can request action icons with `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)`; use `type: 'status'` for status icons.
 The host forwards `{ type, id }` to the owning plugin's `${channel}/icons` view command. The worker reads game data under its existing `data.read` permission and returns a `data.image` URL or `null`. The callback receives a JSON string containing that URL, `null`, or `{ error }`.
 
+Starting with Plugin API 2.4, other non-empty call names without slashes are forwarded to the `${channel}/<call name>` command of the plugin bound to the current document. The worker receives the fields other than `call` and `rseq` as its payload. If the command is not registered, the callback receives a JSON string containing `{ error: "unsupported_call" }`.
+
 ## Preference search
 
 Mojito's settings search and command palette (Ctrl K) can find settings on a plugin's settings page. The background submits items with `setPreferenceItems`. Each call replaces all items; an empty array clears them:
