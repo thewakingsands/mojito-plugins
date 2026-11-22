@@ -121,9 +121,16 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     current = undefined
     send(true)
   }
-  function watch(sub: Subscription) {
+  /** `reopen` replaces a subscription the host ended for a gap in its source; everything else fails it. */
+  function watch(sub: Subscription, reopen?: () => void) {
     void sub.ready.catch(() => fail(sub))
-    void sub.closed.then(() => fail(sub))
+    void sub.closed.then(({ reason }) => {
+      if (reopen && reason === 'source_incomplete' && active && subscriptions.includes(sub)) {
+        subscriptions = subscriptions.filter((item) => item !== sub)
+        sub.dispose()
+        reopen()
+      } else fail(sub)
+    })
     return sub
   }
   function buildStatus(status: Status, at: number | null, slot?: number): ActiveStatus {
@@ -161,7 +168,6 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
         'entities',
         (batch) => {
           if (entities !== sub) return
-          if (!batch.complete) return fail(sub)
           for (const { meta, value } of batch.items) {
             if (!matches(meta)) continue
             for (const entity of value.entities) {
@@ -284,15 +290,19 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     const partySub = watch(
       ctx.game.subscribe('party', (batch) => {
         if (!subscriptions.includes(partySub)) return
-        if (!batch.complete) return fail(partySub)
         for (const { meta, value } of batch.items) if (matches(meta)) receiveParty(value)
       }),
     )
     subscriptions.push(partySub)
+    // A gap in the source ends the events while the session goes on. The party, actors and statuses
+    // read so far are still the last known state, so only this subscription is opened again.
+    const openEvents = () => subscriptions.push(watchEvents(openEvents))
+    openEvents()
+  }
+  function watchEvents(reopen: () => void) {
     const eventSub = watch(
       ctx.events.subscribe(['actionEffect', 'statusesReplaced', 'statusSlotsChanged'], (batch) => {
         if (!subscriptions.includes(eventSub)) return
-        if (!batch.complete) return fail(eventSub)
         for (const { meta, value } of batch.items) {
           if (!matches(meta)) continue
           if (value.type === 'statusSlotsChanged') receiveSlots(meta, value)
@@ -323,17 +333,12 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
         }
         send()
       }),
+      reopen,
     )
-    subscriptions.push(eventSub)
+    return eventSub
   }
   const session = ctx.session.subscribe((batch) => {
     if (!active) return
-    if (!batch.complete) {
-      reset()
-      current = undefined
-      send(true)
-      return
-    }
     for (const next of batch.items) start(next)
   })
   function loseSession() {
