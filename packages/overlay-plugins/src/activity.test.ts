@@ -267,7 +267,7 @@ it('reads on after a gap, and invalidates the old sample callbacks on a characte
   expect(f.subscriptions.get('session')?.dispose).toHaveBeenCalledOnce()
 })
 
-it('publishes usable rankings and enemy lists independently and drops stale payloads', () => {
+it('publishes usable rankings and enemy lists independently and drops stale payloads', async () => {
   const f = fixture()
   const no = { state: 'unavailable', reason: 'fixture' }
   const enemy = {
@@ -327,5 +327,5 @@ it('publishes usable rankings and enemy lists independently and drops stale payl
     }),
   )
   expect(f.last()).not.toHaveProperty('enmity')
-  f.stop()
+  await f.stop()
 })
