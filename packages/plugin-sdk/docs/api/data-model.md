@@ -63,7 +63,7 @@ API 失败使用带 `code`、`message`、`retryable` 的 `PluginError`。常见�
 
 ## 目标与仇恨
 
-API 2.5 的 `ctx.game.subscribe('targetEnmity', listener)` 使用 `game.read`。
+API 2.6 的 `ctx.game.subscribe('targetEnmity', listener)` 使用 `game.read`。
 `selectedId` 是本人的硬目标。`hate.targetId` 是成员榜的所属敌人；切换目标时两者可能短暂不同。
 `hate.entries[].enmity` 保留游戏读数，页面可在同一榜内计算百分比。`hater.enemies` 按本人的敌对列表顺序提供每只敌人的血量与实际目标，`target.value.isMe` 表示该敌人正盯着本人。两个列表各自报告可用性。未授权 `identity.read` 时，所有层次的玩家 ID 与名称都使用该会话的替代身份。
 

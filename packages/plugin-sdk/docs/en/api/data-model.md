@@ -63,7 +63,7 @@ API failures use `PluginError` with `code`, `message` and `retryable`. Correct i
 
 ## Targets and enmity
 
-API 2.5 exposes `ctx.game.subscribe('targetEnmity', listener)` with `game.read`.
+API 2.6 exposes `ctx.game.subscribe('targetEnmity', listener)` with `game.read`.
 `selectedId` is the local player's hard target. The enemy owning the party ranking, `hate.targetId`, may lag behind a selection change.
 `hate.entries[].enmity` holds raw game values. A consumer can calculate percentages within the same ranking.
 `hater.enemies` follows the local player's enemy list in source order, with HP and the actual target of each enemy. A known target carries `isMe`. Each list reports availability independently. Without `identity.read`, player IDs and names use the same per-session aliases at every level.
