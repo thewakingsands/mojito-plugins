@@ -79,13 +79,13 @@ function fixture() {
     timeBase: 'host-monotonic-unix' as const,
     from: 'memory' as const,
   })
-  const actor = (observedAt = now): CombatantState => ({
+  const actor = (observedAt = now, hp = 100): CombatantState => ({
     id: 7,
     objectKind: field(2),
     bNpcBase: field(10),
     bNpcName: field(11),
     position: field({ x: 10, y: 20, z: 30 }, observedAt),
-    hpCur: field(100),
+    hpCur: field(hp),
     hpMax: field(100),
   })
   let eventListener!: BatchListener<Sample<GameEvent<'zoneChanged'>>>
@@ -231,11 +231,70 @@ describe('shared exploration collection', () => {
     await f.zone()
     f.service.treasure(9, 0, 1000)
     await f.advance(250)
-    expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { observedAt: seen } })
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { x: expect.any(Number) } })
     await f.advance(500)
-    expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { observedAt: seen } })
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'ready', player: { x: expect.any(Number) } })
     await f.advance(1750)
     expect(f.values.get('NavigationState')).toMatchObject({ status: 'unavailable', player: null })
+  })
+
+  it('publishes stationary navigation and hunts only when their displayed data changes', async () => {
+    const f = fixture()
+    await f.zone()
+    f.service.treasure(9, 0, 10000)
+    await f.advance(500)
+    const navigation = f.values.get('NavigationState') as unknown as NavigationState
+    expect(navigation.status).toBe('ready')
+    expect(navigation.context).not.toHaveProperty('clock')
+    expect(navigation.player).not.toHaveProperty('observedAt')
+    expect(f.values.get('HuntState')).toMatchObject({ entries: [{ state: 'observed', lastObservedAt: null }] })
+
+    f.publish.mockClear()
+    for (let i = 0; i < 8; i++) await f.advance(250)
+    expect(f.publish).not.toHaveBeenCalled()
+
+    const observedAt = f.clockNow()
+    vi.mocked(f.context.game.getCombatants).mockResolvedValue(
+      f.sample({ entities: [f.actor(observedAt, 50)], missingIds: [] }),
+    )
+    await f.advance(500)
+    expect(f.values.get('HuntState')).toMatchObject({ entries: [{ hpPercent: 50 }] })
+    vi.mocked(f.context.game.getCombatants).mockImplementation(async () => f.sample({ entities: [], missingIds: [] }))
+    await f.advance(500)
+    expect(f.values.get('HuntState')).toMatchObject({ entries: [{ state: 'last-seen', lastObservedAt: observedAt }] })
+    f.service.treasure(0, 0, f.clockNow())
+    expect(f.values.get('NavigationState')).toMatchObject({ status: 'no-target' })
+  })
+
+  it('publishes NM progress and confirmation changes without resending open windows each tick', async () => {
+    const f = fixture()
+    f.catalog.eureka[732] = {
+      mapId: 1,
+      fates: [{ id: 1332, name: 'Synthetic NM', position: null }],
+      weatherRates: null,
+      weatherNames: new Map(),
+    }
+    await f.zone(732)
+    f.service.observeFate({ kind: 'start', fateId: 1332, packetSeq: 1, timestamp: 10000 })
+    await f.advance(1000)
+    expect(f.values.get('EurekaState')).toMatchObject({
+      entries: [
+        {
+          activity: 'active',
+          conditions: { environmentWindow: { opensAt: null }, estimatedWindow: { opensAt: 7210000 } },
+        },
+      ],
+    })
+    f.publish.mockClear()
+    for (let i = 0; i < 4; i++) await f.advance(1000)
+    expect(f.publish.mock.calls.map(([type]) => type)).not.toContain('EurekaState')
+    f.service.observeFate({ kind: 'progress', fateId: 1332, packetSeq: 2, timestamp: f.clockNow(), progress: 42 })
+    expect(f.values.get('EurekaState')).toMatchObject({ entries: [{ progress: 42 }] })
+    f.service.observeFate({ kind: 'end', fateId: 1332, packetSeq: 3, timestamp: f.clockNow(), extra: 0 })
+    await f.advance(1000)
+    expect(f.values.get('EurekaState')).toMatchObject({ entries: [{ activity: 'active' }] })
+    await f.advance(1000)
+    expect(f.values.get('EurekaState')).toMatchObject({ entries: [{ activity: 'ended' }] })
   })
 
   it('clears the navigation target when the game reports an empty treasure slot', async () => {

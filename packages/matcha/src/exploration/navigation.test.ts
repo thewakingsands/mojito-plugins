@@ -14,7 +14,7 @@ it('uses world X/Z distance and Y height while preserving zero and negative valu
     relativeDegrees: -180,
     near: false,
   })
-  expect(state.player).toMatchObject({ x: 21.5, y: 21.5, observedAt: 10000, headingDegrees: 180 })
+  expect(state.player).toEqual({ x: 21.5, y: 21.5, headingDegrees: 180 })
   expect(mapCoordinate(364.934, 0, 100)).toBeCloseTo(28.8058076)
   expect(mapCoordinate(0, 100, 200)).toBeCloseTo(13.251953125)
 })

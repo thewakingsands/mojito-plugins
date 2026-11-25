@@ -1,4 +1,4 @@
-import type { ExplorationContext } from './types.js'
+import type { ExplorationStateContext } from './types.js'
 
 interface FateObservationBase {
   fateId: number
@@ -26,9 +26,13 @@ export interface EurekaCatalog {
   weatherNames: ReadonlyMap<number, string>
 }
 
-export interface ConditionWindow {
-  opensAt: number
+interface PublishedWindow {
+  /** An open window has no future opening time. */
+  opensAt: number | null
   closesAt: number | null
+}
+export interface ConditionWindow extends PublishedWindow {
+  opensAt: number
 }
 
 export interface EurekaEntry {
@@ -49,14 +53,14 @@ export interface EurekaEntry {
     weatherName: string | null
     nightOnly: boolean
     status: 'open' | 'waiting' | 'unknown'
-    environmentWindow: ConditionWindow | null
-    estimatedWindow: ConditionWindow | null
+    environmentWindow: PublishedWindow | null
+    estimatedWindow: PublishedWindow | null
     otherConditionsUnknown: boolean
   }
 }
 
 export interface EurekaState {
-  context: ExplorationContext
+  context: ExplorationStateContext
   status: 'ready' | 'outside' | 'waiting' | 'unavailable'
   reason: string | null
   mapId: number | null

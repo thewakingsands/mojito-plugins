@@ -239,11 +239,15 @@ describe('local Eureka NM evidence', () => {
   it('clears observations on reset and uses only the supplied source time', () => {
     const tracker = new EurekaTracker()
     tracker.observe(event('start', 1))
+    tracker.observe(event('end', 2))
     const snapshot = entry(tracker)
     const wallClock = vi.spyOn(Date, 'now').mockReturnValue(T + 99_000_000)
     try {
       expect(entry(tracker)).toEqual(snapshot)
-      expect(entry(tracker, T + 5000).conditions.environmentWindow?.opensAt).toBe(T + 5000)
+      expect(entry(tracker, T + 5000)).toMatchObject({
+        activity: 'ended',
+        conditions: { environmentWindow: { opensAt: null } },
+      })
     } finally {
       wallClock.mockRestore()
     }

@@ -2,13 +2,15 @@
 import type { ClockState } from '@ffcafe/mojito-plugin-sdk'
 import type { EurekaCatalog } from './eureka-types.js'
 
-export interface ExplorationContext {
+export interface ExplorationStateContext {
   sessionId: string | null
   characterGeneration: number
   clockGeneration: number
   zoneEpoch: number
   catalogRevision: number
   territoryId: number | null
+}
+export interface ExplorationContext extends ExplorationStateContext {
   clock: ClockState
 }
 export interface WorldPosition {
@@ -71,7 +73,7 @@ export interface ExplorationCatalog {
   mapIssues: Record<number, string>
 }
 export interface NavigationState {
-  context: ExplorationContext
+  context: ExplorationStateContext
   status: 'ready' | 'no-target' | 'waiting' | 'other-territory' | 'unavailable'
   reason: string | null
   target:
@@ -81,7 +83,7 @@ export interface NavigationState {
     | null
   /** Packet time of the first report of the current treasure map. */
   targetSince: number | null
-  player: { x: number; y: number; observedAt: number; headingDegrees: number | null } | null
+  player: { x: number; y: number; headingDegrees: number | null } | null
   guidance: {
     distanceM: number
     heightDifferenceM: number | null
@@ -91,8 +93,7 @@ export interface NavigationState {
   } | null
 }
 export interface LocationState {
-  /** Deduplicated by content, so it carries neither a clock nor a sample time. */
-  context: Omit<ExplorationContext, 'clock'>
+  context: ExplorationStateContext
   status: 'ready' | 'waiting' | 'unavailable'
   reason: string | null
   territoryId: number | null
@@ -115,7 +116,7 @@ export interface HuntEntry {
   heightDifferenceM: number | null
 }
 export interface HuntState {
-  context: ExplorationContext
+  context: ExplorationStateContext
   status: 'ready' | 'waiting' | 'unavailable'
   reason: string | null
   mapId: number | null

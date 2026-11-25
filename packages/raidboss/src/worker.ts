@@ -179,7 +179,7 @@ export async function activateRaidboss(
       const gen = generation
       const tick = () => {
         if (stopped || gen !== generation) return
-        void publish()
+        if (engine.bars.length > 0) void publish()
         cancelTick = ctx.clock.setTimeout(tick, 250)
       }
       cancelTick = ctx.clock.setTimeout(tick, 250)

@@ -139,18 +139,15 @@ export class EurekaTracker {
   }): EurekaState {
     const { context, catalog, available } = options
     const territoryId = context.territoryId
-    const base = { context, reason: null, mapId: catalog?.mapId ?? null, entries: [] }
+    const { clock, ...published } = context
+    const base = { context: published, reason: null, mapId: catalog?.mapId ?? null, entries: [] }
     if (territoryId === null) return { ...base, status: 'waiting', reason: '等待区域资料' }
     if (!(EUREKA_TERRITORIES as readonly number[]).includes(territoryId)) return { ...base, status: 'outside' }
     if (!available) return { ...base, status: 'unavailable', reason: options.reason ?? 'FATE 数据不可用' }
     if (!catalog) return { ...base, status: 'waiting', reason: '等待客户端资料' }
-    const now = context.clock.now
+    const now = clock.now
     const sourceTime =
-      typeof now === 'number' &&
-      Number.isFinite(now) &&
-      now >= 0 &&
-      context.clock.base !== null &&
-      context.clock.source !== null
+      typeof now === 'number' && Number.isFinite(now) && now >= 0 && clock.base !== null && clock.source !== null
         ? now
         : null
     const entries: EurekaEntry[] = []
@@ -204,13 +201,17 @@ export class EurekaTracker {
       known && readyAt !== null
         ? conditionWindow(Math.max(now, readyAt), rule.weatherId, rule.nightOnly, catalog.weatherRates)
         : null
+    const open = environmentWindow !== null && now !== null && environmentWindow.opensAt <= now
     return {
       weatherId: rule.weatherId,
       weatherName,
       nightOnly: rule.nightOnly,
-      status: environmentWindow === null ? 'unknown' : environmentWindow.opensAt <= (now ?? -1) ? 'open' : 'waiting',
-      environmentWindow,
-      estimatedWindow,
+      status: environmentWindow === null ? 'unknown' : open ? 'open' : 'waiting',
+      environmentWindow: open ? { ...environmentWindow, opensAt: null } : environmentWindow,
+      estimatedWindow:
+        estimatedWindow !== null && now !== null && estimatedWindow.opensAt <= now
+          ? { ...estimatedWindow, opensAt: null }
+          : estimatedWindow,
       otherConditionsUnknown: true,
     }
   }

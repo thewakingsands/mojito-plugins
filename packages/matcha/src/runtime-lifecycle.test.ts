@@ -1031,13 +1031,15 @@ describe('Matcha exploration integration boundaries', () => {
 
   it('sends the location of a new zone first even when older states are still queued', async () => {
     const f = await explorationFixture()
-    // Once the player stands still, only the states that carry a clock are published on a tick.
     await f.advance(500)
     const gate = deferred<void>()
     vi.mocked(f.context.views.flush).mockImplementationOnce(() => gate.promise)
-    // The first tick starts a view flush that stays open; the second queues its states behind it.
-    await f.advance(250)
-    await f.advance(250)
+    const bytes = new Uint8Array(40)
+    const data = new DataView(bytes.buffer)
+    data.setUint16(0, 84, true)
+    data.setUint32(4, 9, true)
+    // Hold the old zone's flush while the next zone publishes its first states.
+    await explorationPacket(f, 'ActorControlSelf', 70, bytes)
     const sent = f.publications.length
     await f.zoneChanged(80)
     gate.resolve()

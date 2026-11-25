@@ -50,7 +50,24 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   const callbacks: Record<string, (value: any) => void> = {}
   let closeEvents!: (value: any) => void
   let eventSubscriptions = 0
-  const timers = new Set<() => void>()
+  let now = 100000,
+    paused = false,
+    generation = 1
+  let updateSession!: (value: Batch<any>) => void
+  const timers = new Map<() => void, number>()
+  const advance = async (ms: number) => {
+    const until = now + ms
+    while (!paused) {
+      const next = [...timers].filter(([, due]) => due <= until).sort((a, b) => a[1] - b[1])[0]
+      if (!next) break
+      const [run, due] = next
+      now = due
+      timers.delete(run)
+      run()
+      await flush()
+    }
+    if (!paused) now = until
+  }
   const say = vi
     .fn<(text: string, options: { signal: AbortSignal; channel?: string }) => Promise<void>>()
     .mockResolvedValue(undefined)
@@ -72,10 +89,10 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
     config: { get: async () => null, set: async () => {} },
     capabilities: { get: () => ({ 'audio.play': { state: 'available' }, 'tts.say': { state: 'available' } }) },
     clock: {
-      now: () => 100000,
-      state: () => ({ now: 100000, generation: 1, base: 'packet-unix', source: 'replay', paused: false }),
-      setTimeout: (run: () => void) => {
-        timers.add(run)
+      now: () => now,
+      state: () => ({ now, generation, base: 'packet-unix', source: 'replay', paused }),
+      setTimeout: (run: () => void, ms: number) => {
+        timers.set(run, now + ms)
         return () => {
           timers.delete(run)
         }
@@ -96,6 +113,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
     ui: { registerFeature: register, registerOverlay: register },
     session: {
       subscribe(fn: (value: Batch<any>) => void) {
+        updateSession = fn
         queueMicrotask(() =>
           fn(batch({ sessionId: 'test', characterGeneration: 1, state: 'replay', clock: ctx.clock.state() })),
         )
@@ -140,6 +158,7 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
         set: {
           id: 'one',
           zoneId: 1,
+          timeline: ['0 "Start" InCombat { inGameCombat: "1" } window 0,1', '120 "Timer"'],
           triggers: [
             { id: 'call', type: 'HeadMarker', netRegex: { id: '003E' }, infoText: 'One call' },
             { id: 'speech', type: 'HeadMarker', netRegex: { id: '003F' }, tts: 'Speech only' },
@@ -158,10 +177,10 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
     revision: latest.catalogRevision,
     definitions: [{ triggerId: 'call' }, { triggerId: 'speech' }],
   })
-  // Periodic state updates do not resend the rule catalog.
   const published = catalogs.length
-  for (const tick of [...timers]) tick()
-  await flush()
+  const idleRevision = latest.revision
+  await advance(250)
+  expect(latest.revision).toBe(idleRevision)
   expect(catalogs).toHaveLength(published)
   // Before the first start there are no rules; starting sends them once, without another empty catalog first.
   expect(catalogs.map((catalog) => catalog.definitions.length)).toEqual([0, 2])
@@ -245,6 +264,46 @@ it('starts the ordinary Worker, shares output across views, rejects revision con
   await flush()
   expect(eventSubscriptions).toBe(3)
   expect(latest.sourceError).toBeNull()
+  event(
+    batch({
+      meta: { ...meta, observedAt: now },
+      value: {
+        type: 'playerCombatChanged',
+        data: { inCombat: true },
+        packet: { seq: ++seq, timestamp: now, sourceActorId: 1, targetActorId: 1 },
+      },
+    }),
+  )
+  await advance(100_000)
+  expect(latest.alerts).toHaveLength(0)
+  expect(latest.bars).toMatchObject([{ text: 'Timer' }])
+  const barRevision = latest.revision
+  await advance(250)
+  expect(latest.revision).toBe(barRevision + 1)
+  const announce = () =>
+    updateSession(batch({ sessionId: 'test', characterGeneration: 1, state: 'replay', clock: ctx.clock.state() }))
+  paused = true
+  announce()
+  await flush()
+  expect(latest.clock).toMatchObject({ now, paused: true })
+  const pausedRevision = latest.revision
+  await advance(1000)
+  expect(latest.revision).toBe(pausedRevision)
+  paused = false
+  announce()
+  await flush()
+  expect(latest.clock).toMatchObject({ now, paused: false })
+  // Expired bars stay on screen briefly before the engine removes them.
+  await advance(21_000)
+  expect(latest.bars).toHaveLength(0)
+  const removalRevision = latest.revision
+  await advance(1000)
+  expect(latest.revision).toBe(removalRevision)
+  generation++
+  announce()
+  await flush()
+  expect(latest.clock.generation).toBe(generation)
+  expect(latest.bars).toHaveLength(0)
   await dispose()
   expect(say.mock.calls[0]![1].signal.aborted).toBe(true)
   expect(timers.size).toBe(0)

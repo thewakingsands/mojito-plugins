@@ -10,8 +10,9 @@ export function navigationState(
   player: PlayerState | null,
   boundaryAt: number | null,
 ): NavigationState {
+  const { clock: _, ...published } = context
   const state: NavigationState = {
-    context,
+    context: published,
     status: 'waiting',
     reason: '等待客户端资料',
     target: null,
@@ -38,7 +39,7 @@ export function navigationState(
   const rotation = freshField(player?.rotation, context, boundaryAt)
   const heading = rotation && Number.isFinite(rotation.value) ? headingDegrees(rotation.value) : null
   const point = project(position.value, map)
-  state.player = { x: point.x, y: point.y, observedAt: position.observedAt, headingDegrees: heading }
+  state.player = { x: point.x, y: point.y, headingDegrees: heading }
   state.guidance = guidance(position.value, world, heading)
   state.status = 'ready'
   state.reason = null

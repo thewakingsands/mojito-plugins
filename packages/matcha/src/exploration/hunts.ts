@@ -22,7 +22,8 @@ export class HuntTracker {
     boundaryAt: number | null,
   ): HuntState {
     const mapId = context.territoryId === null ? null : (catalog?.territoryMaps[context.territoryId] ?? null)
-    const result: HuntState = { context, status: 'ready', reason: null, mapId, entries: [] }
+    const { clock: _, ...published } = context
+    const result: HuntState = { context: published, status: 'ready', reason: null, mapId, entries: [] }
     if (!catalog || context.territoryId === null)
       return { ...result, status: 'waiting', reason: '等待客户端资料和当前区域' }
     if (!catalog.huntsAvailable) return { ...result, status: 'unavailable', reason: '狩猎目录不可用' }
@@ -126,7 +127,7 @@ export class HuntTracker {
         entry.distanceM = distance.distanceM
         entry.heightDifferenceM = distance.heightDifferenceM
       }
-      result.entries.push({ ...entry })
+      result.entries.push({ ...entry, lastObservedAt: entry.state === 'observed' ? null : entry.lastObservedAt })
     }
     return result
   }

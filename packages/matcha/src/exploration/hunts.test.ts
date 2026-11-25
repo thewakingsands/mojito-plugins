@@ -10,7 +10,7 @@ it('distinguishes fresh observation from cached coordinates and absent objects',
     state: 'observed',
     distanceM: 5,
     heightDifferenceM: -2,
-    lastObservedAt: 10000,
+    lastObservedAt: null,
   })
   expect(tracker.update(context(13000), c, [m], player(), 9000).entries[0]).toMatchObject({
     state: 'last-seen',
