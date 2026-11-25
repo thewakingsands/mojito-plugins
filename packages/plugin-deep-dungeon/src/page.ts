@@ -215,7 +215,7 @@ async function main() {
       dungeon = dungeonSelect.value as Dungeon
       selected = null
       floorSelect.replaceChildren()
-      for (const floor of catalog.floors.filter((item) => item.dungeon === dungeon))
+      for (const floor of catalog.floors.filter((item) => item.dungeon === dungeon && !item.redirect))
         floorSelect.add(new Option(floor.key, floor.key))
       floorSelect.hidden = floorSelect.options.length === 0
       void loadNames()

@@ -106,6 +106,18 @@ test('official packages and checksums contain only the approved plugins', async 
             `${manifest.homepage}\n${repository}/blob/${revision}/scripts/overlay-templates/${name}.patch\n`,
           )
         }
+        if (manifest.id === 'ffcafe.deep-dungeon') {
+          const read = (name) => execFileSync(cli, ['read', file, name], { encoding: 'utf8' })
+          const catalog = JSON.parse(read('catalog.json'))
+          const source = JSON.parse(read('monsterdex-source.json'))
+          assert.equal(source.commit, gitRevision(path.join(root, 'vendor/monsterdex-data')))
+          assert.equal(source.monsterCount, catalog.monsters.length)
+          assert.equal(catalog.nameColumn, 0)
+          assert.equal(
+            read('licenses/MonsterDex-code-MIT.txt'),
+            await readFile(path.join(root, 'packages/plugin-deep-dungeon/licenses/MonsterDex-code-MIT.txt'), 'utf8'),
+          )
+        }
         if (manifest.id === 'ffcafe.matcha') assert(!files.some(({ path }) => path === 'SOURCE.json'))
       }
       const matcha = manifests.find((m) => m.id === 'ffcafe.matcha')

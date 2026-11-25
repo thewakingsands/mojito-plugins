@@ -11,13 +11,14 @@ const labels: Record<string, string> = {
   Proximity: '距离',
   Sight: '视线',
   Sound: '声音',
-  Blood: '血量',
+  Boss: '首领',
+  Bloodlust: '血量',
   Magic: '魔法',
   Easy: '低',
   Caution: '注意',
-  Danger: '危险',
-  Impossible: '极高',
-  Unknown: '未知',
+  Dangerous: '危险',
+  Vicious: '极高',
+  Undefined: '未知',
 }
 const controls = { stun: '眩晕', heavy: '加重', slow: '减速', sleep: '睡眠', bind: '止步' }
 export function detail(

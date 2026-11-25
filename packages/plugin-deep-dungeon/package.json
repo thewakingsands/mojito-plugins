@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && vite build",
-    "build:fixture": "tsc --noEmit && vite build --mode fixture",
-    "typecheck": "tsc --noEmit"
+    "build": "node scripts/build-data.mjs && tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test:data": "node --test scripts/build-data.test.mjs"
   },
   "dependencies": {
     "@ffcafe/mojito-plugin-sdk": "workspace:*"

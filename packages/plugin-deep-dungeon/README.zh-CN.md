@@ -2,24 +2,19 @@
 
 # 深层迷宫图鉴
 
-原生 worker 和页面提供选中怪物信息、图鉴搜索与手动楼层攻略。查阅页顶部使用宿主标签页切换怪物和楼层，方向键移动焦点，Enter 或空格确认切换；悬浮窗按有效、无效和未知分组显示控制抗性。清单使用 Plugin API `^2.0.0`，代码消费已有 target、entity、zone、session 和行查询接口。
+显示选中怪物的名称、HP、攻略和控制抗性。查阅页可搜索怪物和手动选择楼层攻略。方向键移动标签焦点，Enter 或空格打开当前标签。
 
-## 开发预览
+## 构建
+
+在仓库根目录执行：
 
 ```sh
-pnpm --filter @ffcafe/mojito-plugin-sdk build
-pnpm --filter @ffcafe/mojito-plugin-deep-dungeon build:fixture
-pnpm exec vitest run packages/plugin-deep-dungeon
+git submodule update --init --recursive
+pnpm --filter @ffcafe/mojito-plugin-deep-dungeon build
 ```
 
-用静态服务器提供 `dist-fixture`，同时提供 Mojito 的 `/host/mojito-base.css` 和主题变量。预览页使用合成宿主与资料，并显示合成资料标记；包含长中文备注、无备注、英文回退和手动楼层重定向。预览清单 ID 为 `example.deep-dungeon-fixture`，不作为官方发行包。浏览器检查可用 `window.deepDungeonFixture.select(910001)`、`select(919999)`（无攻略）或 `select(null)`（清除目标）选择合成目标。
+构建离线读取固定的 MonsterDex data 子模块，转换索引中的深层迷宫怪物、英文与简体中文攻略、楼层重定向和区域范围。两处已知重复 ID 必须与预期源记录一致，才会应用修正。生成文件不提交到 Git。
 
-常规构建要求存在 `src/generated/catalog.json`，缺失时明确失败。此阶段不提供正式资料或未经实读的 BNpcName 名称列。生成资料排除出 Git，官方打包路径只读取 `dist`，不读取 `dist-fixture`。
+包内包含转换后的图鉴、来源与署名记录以及 MonsterDex 代码许可原文。固定资料提交未包含独立许可文件。攻略保留上游措辞与换行，缺少中文时使用英文。
 
-接入真实生成资料后，页面检查改用真实 catalog，并删除合成构建模式、catalog、宿主替身、桥接和别名切换。单元测试的小样本保留在测试文件中。
-
-## 资料边界
-
-后续构建转换提供 `src/data.ts` 中的 `Catalog` 结构，`nameColumn` 必须来自实际客户端读取。合成测试传入任意列号以测试索引和语言透传，这些值不能作为客户端布局证据。名称查询把 `session.dataLanguage` 原样传给不带具名列的 `data.rows`，缺失或无效结果保留上游名称和 ID。每次查询使用开始时的会话语言；页面切换语言或迷宫会重新查询，旧请求迟到时不会覆盖新结果。
-
-Linux 测试与预览截图验证合成输入下的插件行为。真实客户端名称与 ID 核验、固定资料转换、真实资料截图、正式包验证及 Windows 游戏验收分别完成。
+客户端名称通过 `session.dataLanguage` 调用 `data.rows`，读取已核实的 BNpcName 第 0 列。名称不可用时，图鉴使用上游名称和 ID。目标、实体、会话和数据接口均由 Plugin API `^2.0.0` 提供。

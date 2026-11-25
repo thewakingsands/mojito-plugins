@@ -1,7 +1,7 @@
 import type { DataRow } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it, vi } from 'vitest'
-import { fixtureHost } from '../fixtures/host.js'
 import { names } from './names.js'
+import { fixtureHost } from './test-host.js'
 
 it('passes the session language, reads the supplied synthetic column, and leaves missing names to the caller', async () => {
   const host = fixtureHost()

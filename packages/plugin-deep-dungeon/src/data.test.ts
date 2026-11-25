@@ -1,14 +1,13 @@
 import { expect, it } from 'vitest'
-import catalog from '../fixtures/catalog.js'
 import { dungeonAt, floorNote, note } from './data.js'
 import { language, settings } from './state.js'
+import catalog from './test-catalog.js'
 
 it('preserves raw notes, uses English for missing Chinese, and omits absent notes', () => {
   expect(note({ zhCN: ' 原文\n', en: 'English' }, 'zhCN')).toBe(' 原文\n')
   expect(note({ zhCN: ' ', en: '<em>English</em>\n' }, 'zhCN')).toBe('<em>English</em>\n')
   expect(note({}, 'zhCN')).toBeNull()
   expect(note({ zhCN: '中文' }, 'en')).toBeNull()
-  expect([...catalog.monsters[0].notes.zhCN!]).toHaveLength(897)
 })
 it('resolves manual floor redirects within the dungeon and terminates cycles', () => {
   expect(floorNote(catalog, catalog.floors[1], 'zhCN')).toBe(catalog.floors[0].notes.zhCN)

@@ -3,7 +3,6 @@ import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
 export async function names(ctx: PluginContext, ids: number[], column: number | null) {
   const { dataLanguage } = await ctx.session.get()
   const result: Record<string, string> = {}
-  // No production column is supplied until both clients have been read.
   if (dataLanguage === null || column === null) return { language: dataLanguage, names: result }
   for (let offset = 0; offset < ids.length; offset += 64) {
     try {

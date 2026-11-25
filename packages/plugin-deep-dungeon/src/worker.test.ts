@@ -1,7 +1,7 @@
 import type { ViewIdentity } from '@ffcafe/mojito-plugin-sdk'
 import { expect, it } from 'vitest'
-import catalog from '../fixtures/catalog.js'
-import { entity, fixtureHost, ok } from '../fixtures/host.js'
+import catalog from './test-catalog.js'
+import { entity, fixtureHost, ok } from './test-host.js'
 import { activateCatalog } from './worker.js'
 
 const reference: ViewIdentity = {
@@ -32,7 +32,7 @@ it('registers the views, publishes target fields, and keeps reference selection 
     const before = host.snapshots.get('target')
     expect(await host.commands.get('reference')!({ ids: [910002] }, reference)).toEqual({ language: 'chs', names: {} })
     expect(host.snapshots.get('target')).toBe(before)
-    expect(host.requests.some((request) => request.method === 'data.rows')).toBe(false)
+    expect(host.requests).toContainEqual({ method: 'data.rows', args: ['BNpcName', [910002], 'chs'] })
     await host.commands.get('display')!({ language: 'en' }, settingsView)
     expect(host.snapshots.get('display')).toEqual({ settings: { language: 'en' }, language: 'en' })
     expect(await host.ctx.config.get('display')).toEqual({ language: 'en' })

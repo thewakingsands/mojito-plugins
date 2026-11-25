@@ -1,9 +1,9 @@
 import type { CombatantState } from '@ffcafe/mojito-plugin-sdk'
 import { afterEach, expect, it, vi } from 'vitest'
-import catalog from '../fixtures/catalog.js'
-import { batch, entity, fixtureHost, ok, sample } from '../fixtures/host.js'
 import { target } from './state.js'
 import { watchTarget } from './target.js'
+import catalog from './test-catalog.js'
+import { batch, entity, fixtureHost, ok, sample } from './test-host.js'
 
 afterEach(() => vi.useRealTimers())
 it('projects only the matching battle NPC and keeps valid HP without guide data', () => {

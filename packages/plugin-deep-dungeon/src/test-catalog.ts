@@ -1,4 +1,4 @@
-import type { Catalog, Monster } from '../src/data.js'
+import type { Catalog, Monster } from './data.js'
 
 const weakness: Monster['weakness'] = {
   stun: 'effective',
@@ -7,11 +7,8 @@ const weakness: Monster['weakness'] = {
   sleep: 'immune',
   bind: 'effective',
 }
-const longNote = '这是用于检验长中文换行和滚动的合成备注。靠近训练石像时观察提示，在窄窗口中也应能完整阅读。\n'
-  .repeat(24)
-  .slice(0, 897)
 const catalog: Catalog = {
-  nameColumn: null,
+  nameColumn: 0,
   territories: [
     { dungeon: 'PotD', first: 900001, last: 900002 },
     { dungeon: 'EO', first: 900003, last: 900003 },
@@ -25,7 +22,7 @@ const catalog: Catalog = {
       threat: 'Caution',
       weakness,
       undead: false,
-      notes: { zhCN: longNote, en: 'Synthetic training note.\nRead the whole passage.' },
+      notes: { zhCN: '测试备注。', en: 'Synthetic training note.\nRead the whole passage.' },
       sourcePath: 'synthetic/long',
     },
     {

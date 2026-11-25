@@ -1,3 +1,7 @@
 [submodule "vendor/matcha-overlay"]
 	path = vendor/matcha-overlay
 	url = https://github.com/thewakingsands/matcha-overlay.git
+[submodule "vendor/monsterdex-data"]
+	path = vendor/monsterdex-data
+	url = https://github.com/wolfcomp/MonsterDex.git
+	branch = data
