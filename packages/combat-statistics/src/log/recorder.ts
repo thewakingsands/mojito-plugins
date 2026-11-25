@@ -273,6 +273,11 @@ export class Recorder {
     const visit = this.visit
     if (visit && !visit.released && this.members().every((member) => member.name !== null)) this.release()
   }
+  captureGap(at: number) {
+    const t = ms(at)
+    this.prelude(t)
+    this.record({ kind: 'captureGap', t }, t)
+  }
   event(sample: Sample<LogEvent>) {
     const t = ms(sample.meta.observedAt)
     // An end decided after this event was applied belongs after its rows; a later input or flush writes it.

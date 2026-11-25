@@ -84,6 +84,7 @@ export interface Batch<T> {
   lastSeq: number
   initial: boolean
   complete: boolean
+  gapBefore?: boolean
   items: T[]
 }
 export interface SubscribeOptions {

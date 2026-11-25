@@ -725,12 +725,20 @@ export class Ledger {
     } else this.pending.set(key, next)
     return true
   }
-  seal() {
-    for (const entry of this.heals.values()) this.settleWithoutResult(entry, entry.at)
+  discardPending() {
+    for (const entry of this.heals.values()) this.settle(entry, null, false, entry.at)
+    this.clearPending()
+  }
+  private clearPending() {
     this.heals.clear()
+    // The provisional periodic allocations were already booked. Freeze their times and discard their revisions.
     this.time.seal()
     this.pending.clear()
     this.processed.clear()
+  }
+  seal() {
+    for (const entry of this.heals.values()) this.settleWithoutResult(entry, entry.at)
+    this.clearPending()
   }
   restore(row: RowSummary) {
     this.rows.set(row.actor.key, structuredClone(row))

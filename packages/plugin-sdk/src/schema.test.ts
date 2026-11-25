@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { ttsChannels } from './manifest.js'
-import { id, manifest, serviceId } from './schema.js'
+import { id, manifest, pluginApiVersion, serviceId, supportsApiVersion } from './schema.js'
 
 const base = {
   schemaVersion: 1,
@@ -66,4 +66,10 @@ it('takes TTS channels whose ids are service names, and always has a default cha
   expect(() => manifest({ ...base, tts: { channels: [{ id: 'alarm', name: '' }] } })).toThrow()
   expect(() => manifest({ ...base, tts: { channels: [{ id: 'alarm', name: 'a', level: 1 }] } })).toThrow()
   expect(() => manifest({ ...base, tts: { channels: [tts.channels[0], tts.channels[0]] } })).toThrow(/Duplicate/)
+})
+
+it('accepts earlier Plugin API 2 manifests as well as gap-aware 2.5 manifests', () => {
+  expect(pluginApiVersion).toBe('2.5.0')
+  for (const range of ['^2.0.0', '^2.4.0', '^2.5.0']) expect(supportsApiVersion(range)).toBe(true)
+  expect(supportsApiVersion('2.4.0')).toBe(false)
 })

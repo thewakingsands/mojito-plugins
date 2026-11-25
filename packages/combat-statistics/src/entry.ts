@@ -930,7 +930,7 @@ export async function activate(ctx: PluginContext) {
     await receive(events, units, acknowledge)
   }
   /** Starts a combat model for the subscription; it is unavailable when the data is for another opcode version */
-  async function startModel(generation: number) {
+  async function startModel(generation: number, afterGap = false) {
     telemetry.invalidate()
     runner?.dispose()
     runner = null
@@ -952,8 +952,12 @@ export async function activate(ctx: PluginContext) {
     })
     runnerGeneration = next.generation
     try {
-      const fields = ['classJob', 'level', 'ownerId', 'statuses'] as const
-      next.reset((await ctx.game.getCombatants({ fields: [...fields] })).value.entities)
+      // getCombatants reads statuses from the packet slot cache, even after a live memory sample.
+      // Seed actor profiles after a gap. New statusSlotsChanged events repopulate the slots they report.
+      const fields: ('classJob' | 'level' | 'ownerId' | 'statuses')[] = ['classJob', 'level', 'ownerId']
+      if (!afterGap) fields.push('statuses')
+      const { value } = await ctx.game.getCombatants({ fields })
+      next.reset(value.entities)
     } catch (error) {
       // The actors come again with their next changes
       ctx.log.debug('读取角色失败，战斗模型从空白开始', { error: String(error) })
@@ -977,10 +981,23 @@ export async function activate(ctx: PluginContext) {
         // Resolved by receive as soon as the batch is taken, or else when its task ends. An error after that is
         // recorded by enqueue and does not close the subscription.
         new Promise<void>((acknowledge, reject) => {
-          enqueue(() => {
-            if (!batch.complete) {
-              telemetry.invalidate()
-              runner?.clearTelemetryState()
+          enqueue(async () => {
+            if (stopped || generation !== eventGeneration) return
+            if (batch.gapBefore) {
+              const at = ctx.clock.now()
+              if (at !== null) log.recorder.captureGap(at)
+              encounters.captureGap(at !== null && !ctx.clock.state().paused ? at : -Infinity)
+              inCombat = encounters.inCombat
+              await startModel(generation, true)
+              if (subscription !== sub || stopped) return
+              timer()
+              if (!batch.items.length) {
+                log.recorder.flushBoundaries()
+                await flushLog()
+                await publishNow()
+                timer()
+                return
+              }
             }
             return receiveCurrent(
               batch.items.filter((item) => item.value.type !== 'actorControl' || isDutyComplete(item.value)),
@@ -1152,6 +1169,9 @@ export async function activate(ctx: PluginContext) {
       name = value(player.name),
       combat = player.inCombat
     const other = id !== null && encounters.localActorId !== null && id !== encounters.localActorId
+    // This watch can overtake the ordered marker or arrive after combat recovers.
+    // See "marks the fight before a capture-gap snapshot can cause a quiet end".
+    const orderedGap = combat?.state === 'unknown' && combat.reason === 'capture_gap'
     const inCombatValue = id === null ? null : value(combat),
       combatAt = combat?.state === 'ok' ? combat.observedAt : sample.meta.observedAt
     // 'watch' marks values handled here, including the snapshot read when a session starts. The row goes before the sync,
@@ -1160,13 +1180,13 @@ export async function activate(ctx: PluginContext) {
       'watch',
       sample.value,
       sample.meta.observedAt,
-      !other && encounters.syncChanges(inCombatValue, combatAt),
+      !other && !orderedGap && encounters.syncChanges(inCombatValue, combatAt),
     )
     if (other) return
     if (id !== null) encounters.localActorId = id
     if (id !== null) members.add(id)
     if (id !== null && name !== null) primary = { id, name }
-    encounters.syncCombat(inCombatValue, combatAt, ctx.clock.now() ?? sample.meta.observedAt)
+    if (!orderedGap) encounters.syncCombat(inCombatValue, combatAt, ctx.clock.now() ?? sample.meta.observedAt)
     inCombat = encounters.inCombat
   }
   /** Subscribes the game states the statistics follow, those not subscribed yet or dropped after failing */

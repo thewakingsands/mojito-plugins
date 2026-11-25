@@ -5,7 +5,7 @@
   "description": "统计小队成员的伤害、治疗与承伤，记录每场战斗并支持回顾分析，同时为悬浮窗插件提供战斗数据。",
   "author": "FFCafe",
   "version": "0.4.1",
-  "apiVersion": "^2.0.0",
+  "apiVersion": "^2.5.0",
   "entry": {
     "kind": "worker",
     "path": "entry.mjs"

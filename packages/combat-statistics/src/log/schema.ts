@@ -303,6 +303,8 @@ export function rowsFor(record: DataRecord): Row[] {
         hpCur: actor.hpCur,
         hpMax: actor.hpMax,
       }))
+    case 'captureGap':
+      return [{ kind: 'captureGap' }]
     case 'event':
       return eventRows(record.sample.value)
   }
@@ -736,6 +738,8 @@ export class Assembler {
   private header(kind: string, row: Row, t: number): LogRecord | null {
     if (NOTE_KINDS.has(kind)) return this.note(kind, row, t)
     switch (kind) {
+      case 'captureGap':
+        return { kind, t }
       case 'source':
         this.source = parse(row)
         return { kind, value: this.source! }

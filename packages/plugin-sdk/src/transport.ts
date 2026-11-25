@@ -329,6 +329,8 @@ export class RpcClient {
           lastSeq < firstSeq ||
           typeof input.initial !== 'boolean' ||
           typeof input.complete !== 'boolean' ||
+          (input.gapBefore !== undefined && typeof input.gapBefore !== 'boolean') ||
+          (input.gapBefore === true && input.complete) ||
           !Array.isArray(input.items) ||
           (!state.complete && input.complete)
         )
@@ -344,6 +346,7 @@ export class RpcClient {
           lastSeq,
           initial: input.initial,
           complete: input.complete,
+          ...(input.gapBefore === undefined ? {} : { gapBefore: input.gapBefore }),
           items: input.items,
         }
         // One outstanding batch bounds this promise chain, even for a hung user callback.
