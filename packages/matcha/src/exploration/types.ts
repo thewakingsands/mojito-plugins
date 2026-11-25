@@ -2,6 +2,7 @@
 import type { ClockState } from '@ffcafe/mojito-plugin-sdk'
 import type { EurekaCatalog } from './eureka-types.js'
 
+/** Published states are deduplicated by content, so their shared context carries neither a clock nor a sample time. */
 export interface ExplorationStateContext {
   sessionId: string | null
   characterGeneration: number
