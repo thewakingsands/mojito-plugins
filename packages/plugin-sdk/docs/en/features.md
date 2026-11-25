@@ -197,7 +197,7 @@ Existing overlays written for ACT/OverlayPlugin can also run as plugins: declare
 
 Starting with Plugin API 2.3, `OverlayState.custom` can carry plugin-defined JSON. Only authorized, bound documents in the same plugin package receive it. Remote documents receive the regular compatibility state. Package pages listen for `mojitoOverlayCustomData` on `document` and read `event.detail`. The existing `overlayProducer` coalescing and message limits apply.
 
-Modern compatibility pages can request action icons with `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)`; use `type: 'status'` for status icons.
+Modern compatibility pages can request action icons with `OverlayPluginApi.callHandler(JSON.stringify({ call: 'getGameIcon', type: 'action', id: 3 }), callback)`; use `type: 'status'` for status icons. Packaged overlays that register a job icon worker can use `type: 'job'` with a ClassJob row ID in modern and legacy pages.
 The host forwards `{ type, id }` to the owning plugin's `${channel}/icons` view command. The worker reads game data under its existing `data.read` permission and returns a `data.image` URL or `null`. The callback receives a JSON string containing that URL, `null`, or `{ error }`.
 
 Starting with Plugin API 2.4, other non-empty call names without slashes are forwarded to the `${channel}/<call name>` command of the plugin bound to the current document. The worker receives the fields other than `call` and `rseq` as its payload. If the command is not registered, the callback receives a JSON string containing `{ error: "unsupported_call" }`.

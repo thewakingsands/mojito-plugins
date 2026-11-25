@@ -12,8 +12,10 @@ and enable combat statistics, then enable the overlay plugin. Restore a stopped 
 consumer to reconnect.
 
 Ember uses structured game observations for the party list, skill and status timers, and HP/MP warnings.
-Ember loads action and status icons from Mojito's game data through the compatibility page's
-`getGameIcon` call. Its worker resolves the game row and returns an activation-bound image URL.
+
+CMSkin, Ember, Faceroll, Glass, Horizoverlay, Ikegami (legacy icon style), Kagerou and MopiMopi1
+read game job icons through `getGameIcon` using the ClassJob row number. A missing image shows the job
+abbreviation. Ember also supports action and status icons.
 Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.
 
 Use the existing Rust CLI with a private Ed25519 JWK to create each package, for example:

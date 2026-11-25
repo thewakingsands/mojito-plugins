@@ -3,7 +3,7 @@
   "id": "ffcafe.overlay-horizoverlay",
   "name": "Horizoverlay",
   "description": "横向单行布局的伤害统计悬浮窗，显示各成员的 DPS、伤害占比与 HPS，以及战斗时长和团队 DPS。",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "apiVersion": "^2.0.0",
   "entry": {
     "kind": "worker",

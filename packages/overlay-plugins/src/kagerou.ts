@@ -1,7 +1,7 @@
 import type { PluginContext } from '@ffcafe/mojito-plugin-sdk'
-import { activateOverlay } from './worker.js'
+import { activateOverlayWithIcons } from './icons.js'
 export const activate = (ctx: PluginContext) =>
-  activateOverlay(ctx, {
+  activateOverlayWithIcons(ctx, {
     id: 'kagerou',
     name: 'Kagerou',
     protocol: 'legacy-dom',

@@ -11,8 +11,9 @@ Ember 需要 Mojito Plugin API 2.3.0，其他插件需要 API 2.0.0。
 再启用悬浮窗插件。服务提供方停止后，恢复它并重新启用使用方即可重新连接。
 
 Ember 通过结构化游戏数据更新队伍名单、技能和状态计时，以及 HP/MP 告警。
-Ember 通过兼容页面的 `getGameIcon` 调用读取 Mojito 游戏数据中的技能和状态图标，worker 查询对应数据行后
-返回属于当前激活的图片 URL。模板构建优先保留 WOFF2，并且只复制页面使用的字体字重。
+
+CMSkin、Ember、Faceroll、Glass、Horizoverlay、Ikegami 的旧式图标模式、Kagerou 和 MopiMopi1 通过 `getGameIcon` 按 ClassJob 行号读取游戏职业图标，缺图时显示职业缩写。Ember 也支持技能和状态图标。
+模板构建优先保留 WOFF2，并且只复制页面使用的字体字重。
 
 用现有的 Rust CLI 和 Ed25519 私钥 JWK 为每个插件生成包，例如：
 

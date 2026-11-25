@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gitRevision, pluginRepository } from '../source-links.mjs'
+import { jobId } from '../../packages/overlay-plugins/src/job-icons.js'
 import { extractEmberFonts } from './ember-icons.mjs'
 import { copyFont, pruneFonts } from './fonts.mjs'
 import { writeDependencyNotices } from './licenses.mjs'
@@ -14,6 +15,8 @@ const output = path.join(root, 'packages/overlay-plugins/dist')
 const cache = path.join(root, '.tmp/overlay-templates')
 const sources = {
   kagerou: {
+    jobIconAtlas: 'share/img/classes.png',
+    jobIconPages: ['overlay/index.html', 'config/index.html'],
     repository: 'https://github.com/ffcafe-overlays/kagerou.git',
     revision: 'cc6bda1264c378f89de2847142392b44f584da69',
     lock: 'kagerou-package-lock.json',
@@ -67,12 +70,17 @@ const sources = {
     output: '.',
   },
   faceroll: {
+    jobIconDirectory: 'jobicon',
+    jobIconAliases: ['cpt', 'botanist'],
+    jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/facerolloverlay.git',
     revision: '7487b1837dfc5313ef2fedda4629bf5d8d272bee',
     output: '.',
   },
   horizoverlay: {
+    jobIconDirectory: 'src/images',
+    jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/horizoverlay.git',
     revision: '2fbde1895a08edc9c6204025eebc06f28727279a',
@@ -85,6 +93,8 @@ const sources = {
     },
   },
   cmskin: {
+    jobIconDirectory: 'public/img/jobs',
+    jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ffxiv-cmskin.git',
     revision: 'c3c84948e9e57ef9cbd613be7f91a42715813b5d',
@@ -99,6 +109,8 @@ const sources = {
     },
   },
   mopimopi1: {
+    jobIconDirectory: 'images/glow',
+    jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/mopimopi.git',
     revision: '4ef3a6f10848aa9042f462258d25a16dc4f2c7ee',
@@ -115,6 +127,8 @@ const sources = {
     },
   },
   ikegami: {
+    jobIconAtlas: 'assets/classes.png',
+    jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ikegami.git',
     revision: '4ac49d4f1d162829f05c762d9ab99d14dbb3f288',
@@ -129,7 +143,13 @@ const sources = {
     output: 'build',
     lock: 'ember-package-lock.json',
     async prepare(work) {
-      for (const relative of ['public/img/buttons', 'public/img/icons/skills', 'public/img/icons/effects'])
+      await cp(path.join(root, 'packages/overlay-plugins/src/job-icons.js'), path.join(work, 'src/mojito-job-icons.js'))
+      for (const relative of [
+        'public/img/buttons',
+        'public/img/icons/skills',
+        'public/img/icons/effects',
+        'public/img/icons/jobs',
+      ])
         await rm(path.join(work, relative), { recursive: true, force: true })
     },
     async build(work) {
@@ -156,6 +176,8 @@ const sources = {
     env: { NODE_OPTIONS: '--openssl-legacy-provider' },
   },
   glass: {
+    jobIconDirectory: 'public/images/icons/jobs',
+    jobIconPages: ['index.html'],
     client: true,
     repository: 'https://github.com/ffcafe-overlays/ffxiv-glass-overlay.git',
     revision: 'ae2114f94a0c7a9385fcc494d425a577a9d99bdb',
@@ -249,6 +271,15 @@ for (const [name, source] of entries) {
     await writeFile(path.join(work, 'package-lock.json'), JSON.stringify(lock, null, 2))
     run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund', '--legacy-peer-deps'], work)
   }
+  if (source.jobIconAtlas) await rm(path.join(work, source.jobIconAtlas))
+  if (source.jobIconDirectory) {
+    const directory = path.join(work, source.jobIconDirectory)
+    for (const file of await readdir(directory)) {
+      const code = path.basename(file, '.png').toLowerCase()
+      if (file.endsWith('.png') && (jobId(code) > 0 || source.jobIconAliases?.includes(code)))
+        await rm(path.join(directory, file))
+    }
+  }
   await source.prepare?.(work)
   if (source.command) run(source.command[0], source.command.slice(1), work, source.env)
   await source.build?.(work)
@@ -268,6 +299,18 @@ for (const [name, source] of entries) {
   }
   if (source.licenses?.length)
     await cp(new URL('./font-licenses/README.md', import.meta.url), path.join(destination, 'licenses/FONT-SOURCES.md'))
+  if (source.jobIconPages) {
+    for (const file of ['job-icons.js', 'job-icon-element.js'])
+      await cp(path.join(root, 'packages/overlay-plugins/src', file), path.join(destination, file))
+    for (const document of source.jobIconPages) {
+      const html = path.join(destination, document)
+      const script = path.posix.relative(path.posix.dirname(document), 'job-icon-element.js')
+      const markup = await readFile(html, 'utf8')
+      const head = markup.match(/<head\b[^>]*>/i) ?? markup.match(/<!doctype html>/i)
+      if (!head) throw new Error(`Cannot locate document head: ${name}/${document}`)
+      await writeFile(html, markup.replace(head[0], `${head[0]}<script type="module" src="${script}"></script>`))
+    }
+  }
   await pruneFonts(destination)
   if (source.client) await cp(new URL('./ngld.js', import.meta.url), path.join(destination, 'ngld.js'))
   if (source.lock) await writeDependencyNotices(work, destination)
