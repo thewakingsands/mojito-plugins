@@ -204,7 +204,7 @@ diff --git a/src/redux/reducers/index.js b/src/redux/reducers/index.js
 index a8091732..217ad249 100644
 --- a/src/redux/reducers/index.js
 +++ b/src/redux/reducers/index.js
-@@ -136,23 +136,35 @@ function rootReducer(state, action) {
+@@ -136,23 +136,37 @@ function rootReducer(state, action) {
  			break;
  
  		case "parseGameData":
@@ -217,11 +217,13 @@ index a8091732..217ad249 100644
 +						...state.internal,
 +						aggro             : [],
 +						data_history      : {},
++						detail_player     : {},
 +						encounter_history : [],
 +						enmity            : {},
-+						game              : null,
++						game              : {},
++						viewing           : "tables",
 +						viewing_history   : false,
-+						...(action.clearPlayer ? { character_id : null, character_name : null } : {}),
++						...(action.clearPlayer ? { character_id : null, character_name : "YOU" } : {}),
 +					},
 +				};
 +				if (action.clearCombatIdentity) {
