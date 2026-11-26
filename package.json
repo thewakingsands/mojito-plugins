@@ -20,7 +20,7 @@
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @ffcafe/mojito-raidboss typecheck:tests && tsc -p examples/tsconfig.json",
-    "test": "vitest run && node --test scripts/overlay-templates/*.test.mjs",
+    "test": "vitest run && node --test scripts/overlay-templates/*.test.mjs && pnpm --filter @ffcafe/mojito-plugin-deep-dungeon test:data",
     "test:package": "pnpm build:package && cargo test --locked --package plugin-protocol && cargo test --locked --package mojito-package --features ffi && cargo build --locked --release --package mojito-package --lib --features ffi && node scripts/package-cli-smoke.mjs && python3 scripts/package-ffi-smoke.py",
     "test:official": "node --test scripts/pack-official.test.mjs",
     "test:package:npm": "pnpm build:package && pnpm build:package:npm && pnpm --filter @ffcafe/mojito-package test && node scripts/package-npm-smoke.mjs"

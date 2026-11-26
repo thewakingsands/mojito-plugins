@@ -41,7 +41,7 @@ const catalog: Catalog = {
       upstreamName: '训练幽灵',
       dungeons: ['PotD', 'EO'],
       aggro: 'Proximity',
-      threat: 'Danger',
+      threat: 'Dangerous',
       weakness: { ...weakness, stun: 'unknown' },
       undead: true,
       notes: { en: 'Synthetic English fallback.\n<em>This stays plain text.</em>' },
