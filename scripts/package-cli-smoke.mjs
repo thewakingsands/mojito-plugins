@@ -33,6 +33,8 @@ assert.deepEqual(JSON.parse(await readFile(path.join(example, 'catalog.json'), '
       downloadUrl: 'https://plugins.example.test/first.mojito',
       size: exampleBytes.length,
       sha256: createHash('sha256').update(exampleBytes).digest('hex'),
+      manifest: inspection.metadata.manifest,
+      signer: inspection.signer.fingerprint,
     },
   ],
 })
