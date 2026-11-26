@@ -11,6 +11,9 @@ All require the `ffcafe.combat-statistics/overlay` service v1. Install
 and enable combat statistics, then enable the overlay plugin. Restore a stopped provider and re-enable the
 consumer to reconnect.
 
+Character names in combat statistics follow the overlay's `identity.read` permission. When it is off, the overlay
+uses stand-in names for players. Ember clears its recent encounter list when the name visibility changes.
+
 Ember uses structured game observations for the party list, skill and status timers, and HP/MP warnings.
 
 CMSkin, Ember, Faceroll, Glass, Horizoverlay, Ikegami (legacy icon style), Kagerou and MopiMopi1

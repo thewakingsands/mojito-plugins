@@ -23,7 +23,9 @@ it('retains an immutable snapshot, publishes revisions and preserves encounter c
   const published: Value[] = [],
     release = vi.fn(),
     end = vi.fn(async () => 'staleEncounter' as const)
+  let identityAllowed = true
   const ctx = {
+    capabilities: { get: () => ({ 'identity.read': { state: identityAllowed ? 'available' : 'denied' } }) },
     services: {
       provide: vi.fn(async (_definition: unknown, receive: typeof handler) => {
         handler = receive
@@ -47,11 +49,18 @@ it('retains an immutable snapshot, publishes revisions and preserves encounter c
   expect(ctx.services.provide).toHaveBeenCalledWith(overlayService, expect.any(Function))
   await expect(handler({ method: 'getState', payload: null })).rejects.toMatchObject({ code: 'unavailable' })
   const input = state()
-  await enqueue(() => service.publish(input))
+  input.primaryPlayer = { id: 0x10000012, name: 'Synthetic Self' }
+  input.availability.primaryPlayer = { state: 'available' }
+  await enqueue(() => service.publish(input, true))
   input.encounterId = 'mutated outside provider'
   expect(await handler({ method: 'getState', payload: null })).toEqual(published[0])
   expect(published[0]).toMatchObject({ revision: 1, state: { encounterId: null } })
-  await enqueue(() => service.publish(state()))
+  identityAllowed = false
+  expect(await handler({ method: 'getState', payload: null })).toMatchObject({
+    revision: 1,
+    state: { primaryPlayer: null, availability: { primaryPlayer: { state: 'unavailable' } } },
+  })
+  await enqueue(() => service.publish(state(), false))
   expect(await handler({ method: 'getState', payload: null })).toMatchObject({ revision: 2 })
   expect(await handler({ method: 'endEncounter', payload: { encounterId: 'shown' } })).toEqual({
     result: 'staleEncounter',
@@ -62,5 +71,5 @@ it('retains an immutable snapshot, publishes revisions and preserves encounter c
   await service.dispose()
   expect(release).toHaveBeenCalledOnce()
   await expect(handler({ method: 'getState', payload: null })).rejects.toMatchObject({ code: 'plugin_stopped' })
-  await expect(service.publish(state())).rejects.toMatchObject({ code: 'plugin_stopped' })
+  await expect(service.publish(state(), false)).rejects.toMatchObject({ code: 'plugin_stopped' })
 })

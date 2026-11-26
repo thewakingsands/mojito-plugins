@@ -10,6 +10,9 @@ Ember 需要 Mojito Plugin API 2.3.0，其他插件需要 API 2.0.0。
 所有插件都需要 `ffcafe.combat-statistics/overlay` 服务 v1。先安装并启用战斗统计，
 再启用悬浮窗插件。服务提供方停止后，恢复它并重新启用使用方即可重新连接。
 
+战斗统计中的角色名受悬浮窗的 `identity.read` 权限控制。关闭权限时，悬浮窗显示玩家的替身名。
+角色名可见性改变时，Ember 会清空最近场次列表。
+
 Ember 通过结构化游戏数据更新队伍名单、技能和状态计时，以及 HP/MP 告警。
 
 CMSkin、Ember、Faceroll、Glass、Horizoverlay、Ikegami 的旧式图标模式、Kagerou 和 MopiMopi1 通过 `getGameIcon` 按 ClassJob 行号读取游戏职业图标，缺图时显示职业缩写。Ember 也支持技能和状态图标。

@@ -1,4 +1,4 @@
-import type { Disposer, Json, PluginContext, Subscription, Value } from '@ffcafe/mojito-plugin-sdk'
+import type { Disposer, Json, PluginContext, SessionSnapshot, Subscription, Value } from '@ffcafe/mojito-plugin-sdk'
 import { pluginError } from '@ffcafe/mojito-plugin-sdk/errors'
 import {
   type OverlayCompatibility,
@@ -7,6 +7,7 @@ import {
   overlayState,
 } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { fields, object } from '@ffcafe/mojito-plugin-sdk/schema'
+import { maskOverlayIdentity } from './overlay-identity.js'
 
 const service = 'ffcafe.combat-statistics/overlay'
 export async function activateOverlay(
@@ -25,6 +26,10 @@ export async function activateOverlay(
     queue = Promise.resolve()
   let subscription: Subscription | undefined
   let current: OverlayState | undefined, custom: Json | undefined
+  let session: SessionSnapshot | undefined
+  let hostMasked = false
+  const canReadIdentity = () => ctx.capabilities.get()['identity.read']?.state === 'available'
+  let identityAllowed = canReadIdentity()
   const disposers: Disposer[] = []
   const producer = overlayProducer(ctx.views, 'combat')
   let stopping: Promise<void> | undefined
@@ -42,17 +47,53 @@ export async function activateOverlay(
     })
     return stopping
   }
-  const receive = (input: Value) => {
+  const publish = async (immediate = false) => {
+    if (!current) return
+    const allowed = canReadIdentity()
+    const masked = hostMasked || !allowed
+    const standIn = session?.capabilities['identity.read']?.state === 'denied' ? session.character?.actorId : null
+    const state = masked && !hostMasked ? maskOverlayIdentity(current, standIn ?? null) : current
+    const combatData = state.combatData
+    const activity = allowed === identityAllowed ? custom : undefined
+    const pageCustom =
+      definition.id === 'ember' && masked && !combatData
+        ? {
+            ...(activity && typeof activity === 'object' && !Array.isArray(activity) ? activity : {}),
+            clearCombatIdentity: true,
+            clearPrimaryPlayer: state.primaryPlayer === null,
+          }
+        : activity
+    await producer.publish({
+      ...state,
+      ...(definition.id === 'ember' && combatData
+        ? {
+            combatData: {
+              ...combatData,
+              Encounter: { ...combatData.Encounter, mojitoIdentity: masked ? 'masked' : 'visible' },
+            },
+          }
+        : {}),
+      ...(pageCustom === undefined ? {} : { custom: pageCustom }),
+    })
+    if (immediate) await ctx.views.flush()
+  }
+  const receive = (input: Value, refresh = false) => {
     const next = queue.then(async () => {
       if (!live || ctx.signal.aborted) return
       const value = object(input)
       fields(value, ['revision', 'state'])
       if (!Number.isSafeInteger(value.revision) || Number(value.revision) <= 0) throw pluginError('invalid_argument')
-      const { custom: _providerCustom, ...state } = overlayState(value.state)
-      if (Number(value.revision) <= revision) return
+      const nextRevision = Number(value.revision)
+      if (nextRevision < revision || (!refresh && nextRevision === revision)) return
+      const { custom: providerCustom, ...state } = overlayState(value.state)
+      hostMasked =
+        providerCustom !== null &&
+        typeof providerCustom === 'object' &&
+        !Array.isArray(providerCustom) &&
+        providerCustom.identityMasked === true
       current = state
-      await producer.publish(custom === undefined ? state : { ...state, custom })
-      revision = Number(value.revision)
+      await publish(refresh)
+      revision = nextRevision
     })
     queue = next.catch(() => {})
     return next
@@ -70,17 +111,37 @@ export async function activateOverlay(
       })
       .catch(() => {})
     await subscription.ready
+    const sessionSub = ctx.session.subscribe(async (batch) => {
+      session = batch.items.at(-1)
+      const allowed = canReadIdentity()
+      if (allowed === identityAllowed) return
+      identityAllowed = allowed
+      custom = undefined
+      const update = queue.then(async () => {
+        if (live && !ctx.signal.aborted) await publish(true)
+      })
+      queue = update.catch(() => {})
+      await update
+      try {
+        const input = await ctx.services.request(service, 'getState', null)
+        if (allowed === canReadIdentity()) await receive(input, true)
+      } catch (error) {
+        if (live && !ctx.signal.aborted) ctx.log.warn('悬浮窗身份状态刷新失败', { error: String(error) })
+      }
+    })
+    disposers.push(() => sessionSub.dispose())
+    await sessionSub.ready
     await receive(await ctx.services.request(service, 'getState', null))
     if (!live || ctx.signal.aborted) throw pluginError('cancelled')
     if (activity)
       disposers.push(
         activity((value, immediate) => {
+          const allowed = canReadIdentity()
           queue = queue
             .then(async () => {
-              if (!live || ctx.signal.aborted || !current) return
+              if (!live || ctx.signal.aborted || allowed !== canReadIdentity()) return
               custom = value
-              await producer.publish({ ...current, custom })
-              if (immediate) await ctx.views.flush()
+              await publish(immediate)
             })
             .catch((error) => ctx.log.warn('悬浮窗活动更新失败', { error: String(error) }))
         }),
