@@ -308,7 +308,7 @@ index 6c08d238..2f8ff698 100644
 +	}
 +});
 diff --git a/src/components/Parser/AggroTable/Monster.js b/src/components/Parser/AggroTable/Monster.js
-index 58d5639..652ca67 100644
+index 58d5639..27691c5 100644
 --- a/src/components/Parser/AggroTable/Monster.js
 +++ b/src/components/Parser/AggroTable/Monster.js
 @@ -1,4 +1,5 @@
@@ -317,8 +317,24 @@ index 58d5639..652ca67 100644
  
  import PlayerProcessor from "../../../processors/PlayerProcessor";
  import MonsterProcessor from "../../../processors/MonsterProcessor";
-@@ -47,7 +48,7 @@ class Monster extends React.Component {
- 					const job        = player.Job.toUpperCase();
+@@ -37,17 +38,12 @@ class Monster extends React.Component {
+-					let player = this.props.encounter.Combatant[value];
+-
+-					if (monster._is_current && !player) {
+-						player = this.props.encounter.Combatant.YOU;
+-					}
+-
+-					if (!player) {
+-						player = fallback_player;
+-					}
+-
+-					const job        = player.Job.toUpperCase();
++					const combatants = this.props.encounter.Combatant;
++					const actor_suffix = Number.isSafeInteger(player.ID) ? ` [${player.ID.toString(16)}]` : null;
++					const actor_key = actor_suffix && Object.keys(combatants).find(key => key.endsWith(actor_suffix));
++					const combatant = (monster._is_current && combatants.YOU) ||
++						(actor_key && combatants[actor_key]) || (Object.hasOwn(combatants, value) && combatants[value]);
++					const job        = (combatant?.Job || "").toUpperCase();
  					const icon_blur  = (this.props.blur && this.props.icon_blur) ? "blur" : "";
  					const icon_style = (icon_blur) ? { WebkitFilter : "blur(4px)" } : {};
 -					const icon_image = (job) ? <img src={"img/icons/jobs/" + job + ".png"} className={"icon " + icon_blur} style={icon_style} alt={job + " icon"}></img> : "";
@@ -326,6 +342,62 @@ index 58d5639..652ca67 100644
  					const icon       = <div className='column icon' key='player-data-icon'>{icon_image}</div>;
  
  					if (this.props.short_names !== "no_short") {
+diff --git a/src/components/Parser/AggroTable/Monster.test.js b/src/components/Parser/AggroTable/Monster.test.js
+new file mode 100644
+index 0000000..eca656a
+--- /dev/null
++++ b/src/components/Parser/AggroTable/Monster.test.js
+@@ -0,0 +1,50 @@
++import React from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++import Monster from "./Monster";
++
++jest.mock("../../../processors/PlayerProcessor", () => ({
++	getDataValue: (key, player) => player[key],
++}));
++jest.mock("../../../processors/MonsterProcessor", () => ({}));
++jest.mock("../PercentBar", () => () => null);
++jest.mock("../JobIcon", () => ({ job }) => job);
++
++const combatants = {
++	"YOU": { Job: "WAR" },
++	"Synthetic Ally@21 [10a0]": { Job: "WHM" },
++	"Synthetic Ally@22 [10b0]": { Job: "PLD" },
++	"Legacy Ally": { Job: "SCH" },
++};
++
++function renderTarget(target) {
++	return renderToStaticMarkup(
++		<Monster
++			monster={{ Target: target, _is_current: target?.isMe }}
++			encounter={{ Combatant: combatants }}
++			columns={["player_Name"]}
++			short_names="no_short"
++		/>
++	);
++}
++
++test("selects the combatant by target ID when two characters share a name", () => {
++	const html = renderTarget({ ID: 0x10b0, Name: "Synthetic Ally" });
++	expect(html).toContain("PLD");
++	expect(html).not.toContain("WHM");
++	expect(html).toContain("Synthetic Ally");
++});
++
++test("matches the target by ID when display names differ or are missing", () => {
++	expect(renderTarget({ ID: 0x10a0, Name: "Ally 1" })).toContain("WHM");
++	expect(renderTarget({ ID: 0x10a0 })).toContain("WHM");
++});
++
++test("renders the self and legacy name-keyed jobs", () => {
++	expect(renderTarget({ ID: 1, Name: "Synthetic Self", isMe: true })).toContain("WAR");
++	expect(renderTarget({ ID: 2, Name: "Legacy Ally" })).toContain("SCH");
++});
++
++test("leaves an empty icon for an unknown or absent target", () => {
++	expect(renderTarget({ ID: 3, Name: "Synthetic Ally" })).toContain('class="column icon"></div>');
++	expect(renderTarget(null)).toContain('class="column icon"></div>');
++});
 diff --git a/src/components/Parser/JobIcon.js b/src/components/Parser/JobIcon.js
 new file mode 100644
 index 0000000..a63fb1b
