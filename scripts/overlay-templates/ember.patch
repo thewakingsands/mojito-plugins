@@ -204,10 +204,34 @@ diff --git a/src/redux/reducers/index.js b/src/redux/reducers/index.js
 index a8091732..217ad249 100644
 --- a/src/redux/reducers/index.js
 +++ b/src/redux/reducers/index.js
-@@ -136,23 +136,13 @@ function rootReducer(state, action) {
+@@ -136,23 +136,37 @@ function rootReducer(state, action) {
  			break;
  
  		case "parseGameData":
++			const identity       = action.payload?.Encounter?.mojitoIdentity;
++			const prior_identity = state.internal.encounter_history[0]?.game?.Encounter?.mojitoIdentity;
++			if (action.clearCombatIdentity || (identity && state.internal.encounter_history.length && identity !== prior_identity)) {
++				state = {
++					...state,
++					internal : {
++						...state.internal,
++						aggro             : [],
++						data_history      : {},
++						detail_player     : {},
++						encounter_history : [],
++						enmity            : {},
++						game              : {},
++						viewing           : "tables",
++						viewing_history   : false,
++						...(action.clearPlayer ? { character_id : null, character_name : "YOU" } : {}),
++					},
++				};
++				if (action.clearCombatIdentity) {
++					new_state = state;
++					break;
++				}
++			}
++
 -			// When the encounter is inactive and the new data is also inactive, do nothing
 -			if (
 -				state.internal.game &&
@@ -243,7 +267,7 @@ index 0739ee76..f2ef24a6 100644
  import UsageService from "./UsageService";
  import MessageProcessor from "../processors/MessageProcessor";
  
-@@ -11,26 +9,18 @@ class PluginService extends PluginServiceAbstract {
+@@ -11,26 +9,23 @@ class PluginService extends PluginServiceAbstract {
  	constructor() {
  		super();
  
@@ -262,7 +286,12 @@ index 0739ee76..f2ef24a6 100644
  		this.structured_activity = false;
 +		if (window.__mojitoOverlayTransport) {
 +			this.setActivitySource(receive => {
-+				document.addEventListener("mojitoOverlayCustomData", ({ detail }) => receive(detail));
++				document.addEventListener("mojitoOverlayCustomData", ({ detail }) => {
++					if (detail?.clearCombatIdentity) {
++						store.dispatch({ type : "parseGameData", clearCombatIdentity : true, clearPlayer : detail.clearPrimaryPlayer });
++					}
++					receive(detail);
++				});
 +			});
 +		}
  

@@ -104,7 +104,13 @@ export function observeActivity(ctx: PluginContext, publish: (value: Json, immed
     }
   }
   function send(immediate = false) {
-    if (!active || ctx.signal.aborted || JSON.stringify(snapshot()) === lastSnapshot) return
+    if (
+      !active ||
+      ctx.signal.aborted ||
+      (current && current.capabilities['identity.read']?.state !== ctx.capabilities.get()['identity.read']?.state) ||
+      JSON.stringify(snapshot()) === lastSnapshot
+    )
+      return
     const publishedAt = Date.now()
     const now = ctx.clock.now()
     actions = now === null ? [] : actions.filter(({ at }) => now - at < windowMs)

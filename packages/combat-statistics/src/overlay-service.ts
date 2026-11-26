@@ -10,7 +10,19 @@ export async function provideOverlayService(
   enqueue: <T>(task: () => T | Promise<T>) => Promise<T>,
   endEncounter: (id: string) => Promise<EndEncounterResult>,
 ) {
-  let latest: { revision: number; state: OverlayState } | null = null
+  let latest: { revision: number; state: OverlayState; identityAllowed: boolean } | null = null
+  const payload = ({ revision, state, identityAllowed }: NonNullable<typeof latest>) => {
+    if (identityAllowed && ctx.capabilities.get()['identity.read']?.state !== 'available') {
+      const hidden = { state: 'unavailable' as const, reason: '角色身份权限已变更' }
+      state = {
+        ...state,
+        combatData: null,
+        primaryPlayer: null,
+        availability: { ...state.availability, combatData: hidden, primaryPlayer: hidden },
+      }
+    }
+    return { revision, state } as unknown as Value
+  }
   let stopped = false
   const dispose = await ctx.services.provide(overlayService, (request) =>
     enqueue(async () => {
@@ -18,7 +30,7 @@ export async function provideOverlayService(
       if (request.method === 'getState') {
         if (request.payload !== null) throw pluginError('invalid_argument')
         if (!latest) throw pluginError('unavailable')
-        return structuredClone(latest) as unknown as Value
+        return structuredClone(payload(latest))
       }
       if (request.method === 'endEncounter') {
         const value = object(request.payload)
@@ -29,10 +41,13 @@ export async function provideOverlayService(
     }),
   )
   return {
-    async publish(state: OverlayState) {
+    async publish(
+      state: OverlayState,
+      identityAllowed = ctx.capabilities.get()['identity.read']?.state === 'available',
+    ) {
       if (stopped) throw pluginError('plugin_stopped')
-      latest = { revision: (latest?.revision ?? 0) + 1, state: overlayState(state) }
-      await ctx.services.publish(overlayService.name, 'state', latest as unknown as Value)
+      latest = { revision: (latest?.revision ?? 0) + 1, state: overlayState(state), identityAllowed }
+      await ctx.services.publish(overlayService.name, 'state', payload(latest))
     },
     async dispose() {
       stopped = true

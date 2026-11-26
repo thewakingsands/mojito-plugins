@@ -61,6 +61,7 @@ function fixture() {
   }
   const context = {
     signal: new AbortController().signal,
+    capabilities: { get: () => session.capabilities },
     clock: {
       state: () => clock,
       now: () => now,

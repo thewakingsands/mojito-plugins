@@ -444,7 +444,7 @@ export async function activate(ctx: PluginContext) {
         { actions: gameCache.all('action') },
       )
       if (!dequal(frame, lastCombatFrame)) {
-        await producer.publish(frame)
+        await producer.publish(frame, session?.capabilities?.['identity.read']?.state === 'available')
         lastCombatFrame = frame
       }
     }
@@ -1341,13 +1341,16 @@ export async function activate(ctx: PluginContext) {
   async function changeSession(next: SessionSnapshot) {
     const key =
       next.sessionId === null ? null : `${next.sessionId}:${next.characterGeneration}:${next.clock.generation}`
+    const identityChanged =
+      session !== null && session.capabilities?.['identity.read']?.state !== next.capabilities?.['identity.read']?.state
     // Snapshots also carry the clock, which moves all the time during a replay.
     const changed =
+      identityChanged ||
       identities?.source !== key ||
       session?.state !== next.state ||
       session?.dataLanguage !== next.dataLanguage ||
       session?.character?.actorId !== next.character?.actorId
-    if (identities?.source !== key) {
+    if (identityChanged || identities?.source !== key) {
       ++eventGeneration
       subscription?.dispose()
       subscription = null
@@ -1358,6 +1361,10 @@ export async function activate(ctx: PluginContext) {
       runner?.dispose()
       runner = null
       encounters.boundary('sourceChanged', ctx.clock.now() ?? 0)
+      if (identityChanged) {
+        compatibilityLatest = null
+        terminalFrames.length = 0
+      }
       encounters.zone = null
       dutyNames.clear()
       await flushLog()

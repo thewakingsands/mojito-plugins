@@ -1,4 +1,4 @@
-import type { Batch, PluginContext, Value } from '@ffcafe/mojito-plugin-sdk'
+import type { Batch, PluginContext, SessionSnapshot, Value } from '@ffcafe/mojito-plugin-sdk'
 import type { OverlayState } from '@ffcafe/mojito-plugin-sdk/overlayplugin'
 import { expect, it, vi } from 'vitest'
 import { activateOverlay } from './worker.js'
@@ -36,6 +36,8 @@ function fixture() {
   const initial = deferred<Value>(),
     closed = deferred<{ reason: string }>()
   let listener!: (batch: Batch<Value>) => Promise<void>
+  let identityAllowed = true
+  let sessionListener!: (batch: { items: Partial<SessionSnapshot>[] }) => Promise<void>
   let command!: (input: Value) => Promise<Value>
   const calls: string[] = [],
     values: Value[] = []
@@ -47,6 +49,13 @@ function fixture() {
   )
   const ctx = {
     signal: new AbortController().signal,
+    capabilities: { get: () => ({ 'identity.read': { state: identityAllowed ? 'available' : 'denied' } }) },
+    session: {
+      subscribe: (receive: typeof sessionListener) => {
+        sessionListener = receive
+        return { ready: Promise.resolve(), dispose: vi.fn() }
+      },
+    },
     services: {
       connect: async () => ({ service: 'ffcafe.combat-statistics/overlay', version: '1.0.0' }),
       request,
@@ -71,7 +80,7 @@ function fixture() {
     ui: { registerOverlay: vi.fn(async () => removeOverlay) },
     log: { warn: vi.fn(), error: vi.fn() },
   } as unknown as PluginContext
-  const send = async (revision: number, encounterId: string) =>
+  const send = async (revision: number, next: string | OverlayState) =>
     listener({
       subscriptionId: 'synthetic',
       batchId: revision,
@@ -79,13 +88,19 @@ function fixture() {
       lastSeq: revision,
       initial: false,
       complete: true,
-      items: [{ revision, state: state(encounterId) } as unknown as Value],
+      items: [{ revision, state: typeof next === 'string' ? state(next) : next } as unknown as Value],
     })
   return {
     ctx,
     initial,
     closed,
     send,
+    async allowIdentity(allowed: boolean) {
+      identityAllowed = allowed
+      await sessionListener({
+        items: [{ capabilities: ctx.capabilities.get(), character: { actorId: 0x10000001, contentId: null } }],
+      })
+    },
     calls,
     values,
     request,
@@ -141,4 +156,60 @@ it('clears and unregisters a running overlay when service authorization ends', a
   await expect(h.command({ kind: 'endEncounter', encounterId: 'current' })).rejects.toMatchObject({
     code: 'unavailable',
   })
+})
+
+it('masks cached names immediately on revocation and restores the same revision on regrant', async () => {
+  const h = fixture()
+  const frame: OverlayState = {
+    ...state('synthetic'),
+    combatData: {
+      Encounter: { damage: '100' },
+      Combatant: {
+        YOU: { name: 'YOU', Job: 'PLD' },
+        'Synthetic Ally@42 [10000420]': { name: 'Synthetic Ally', Job: 'WHM', damage: '80' },
+        'Limit Break': { name: 'Limit Break', Job: 'Limit Break', damage: '20' },
+      },
+      isActive: 'true',
+    },
+    primaryPlayer: { id: 0x10000320, name: 'Synthetic Self' },
+    custom: { name: 'Synthetic Provider Custom' },
+  }
+  frame.availability.combatData = frame.availability.primaryPlayer = { state: 'available' }
+  h.initial.resolve({ revision: 1, state: frame } as unknown as Value)
+  const stop = await activateOverlay(h.ctx, { ...definition, id: 'ember' })
+  expect(h.values.at(-1)).toMatchObject({ primaryPlayer: frame.primaryPlayer })
+  await h.allowIdentity(false)
+  const redacted = h.values.at(-1)
+  expect(JSON.stringify(redacted)).not.toMatch(/Synthetic (Ally|Self|Provider)|10000420/)
+  expect(redacted).toMatchObject({
+    primaryPlayer: { id: 0x10000001, name: 'Player' },
+    combatData: {
+      Encounter: { damage: '100', mojitoIdentity: 'masked' },
+      Combatant: { YOU: { name: 'YOU' }, 'Player 2': { Job: 'WHM', damage: '80' }, 'Limit Break': { damage: '20' } },
+    },
+  })
+  expect(h.calls.at(-1)).toBe('flush')
+
+  await h.send(1, frame)
+  expect(h.values.at(-1)).toEqual(redacted)
+  await h.allowIdentity(true)
+  expect(h.values.at(-1)).toMatchObject({
+    primaryPlayer: frame.primaryPlayer,
+    combatData: { Encounter: { mojitoIdentity: 'visible' }, Combatant: frame.combatData?.Combatant },
+  })
+  await stop()
+})
+
+it('uses stand-in identity supplied by the host without rewriting it again', async () => {
+  const h = fixture()
+  const frame = state('synthetic')
+  frame.primaryPlayer = { id: 0x10000001, name: 'HyPLD' }
+  frame.availability.primaryPlayer = { state: 'available' }
+  frame.custom = { identityMasked: true }
+  h.initial.resolve({ revision: 1, state: frame } as unknown as Value)
+  const stop = await activateOverlay(h.ctx, definition)
+  await h.allowIdentity(false)
+  expect(h.values.at(-1)).toMatchObject({ primaryPlayer: frame.primaryPlayer })
+  expect(h.values.at(-1)).not.toHaveProperty('custom')
+  await stop()
 })
