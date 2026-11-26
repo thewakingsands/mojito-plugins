@@ -123,6 +123,13 @@ export function compatibility(
   return state
 }
 const jobs: Record<number, string> = {
+  1: 'GLA',
+  2: 'PGL',
+  3: 'MRD',
+  4: 'LNC',
+  5: 'ARC',
+  6: 'CNJ',
+  7: 'THM',
   19: 'PLD',
   20: 'MNK',
   21: 'WAR',
@@ -130,8 +137,10 @@ const jobs: Record<number, string> = {
   23: 'BRD',
   24: 'WHM',
   25: 'BLM',
+  26: 'ACN',
   27: 'SMN',
   28: 'SCH',
+  29: 'ROG',
   30: 'NIN',
   31: 'MCH',
   32: 'DRK',

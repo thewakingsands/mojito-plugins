@@ -27,6 +27,33 @@ it('formats the numeric aliases consumed by original templates without turning u
   expect(next.inCombat).toBeNull()
 })
 
+it.each([
+  [1, 'GLA'],
+  [2, 'PGL'],
+  [3, 'MRD'],
+  [4, 'LNC'],
+  [5, 'ARC'],
+  [6, 'CNJ'],
+  [7, 'THM'],
+  [26, 'ACN'],
+  [29, 'ROG'],
+  [null, ''],
+  [0, ''],
+  [8, ''],
+  [255, ''],
+])('reports the ACT Job for ClassJob %s as "%s"', (job, expected) => {
+  const encounters = new Encounters(
+    () => 'jobs',
+    () => {},
+  )
+  const roster = actors()
+  roster.set(1, { ...roster.get(1)!, job })
+  encounters.updateActors(roster)
+  encounters.accept(sample(effect(1), 1000), 1000)
+  const state = compatibility(encounters.snapshot(), { id: 1, name: 'Example' }, null, 'en', null)
+  expect(state.combatData?.Combatant.YOU.Job).toBe(expected)
+})
+
 it('names the limit break row as ACT does', () => {
   const encounters = new Encounters(
     () => 'limit-break',

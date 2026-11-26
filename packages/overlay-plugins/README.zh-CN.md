@@ -15,6 +15,8 @@ Ember 通过结构化游戏数据更新队伍名单、技能和状态计时，�
 CMSkin、Ember、Faceroll、Glass、Horizoverlay、Ikegami 的旧式图标模式、Kagerou 和 MopiMopi1 通过 `getGameIcon` 按 ClassJob 行号读取游戏职业图标，缺图时显示职业缩写。Ember 也支持技能和状态图标。
 模板构建优先保留 WOFF2，并且只复制页面使用的字体字重。
 
+Horizoverlay 默认在战斗统计列表中显示基础战斗职业。开启无职业选项后，也会显示没有识别出职业的统计行。
+
 用现有的 Rust CLI 和 Ed25519 私钥 JWK 为每个插件生成包，例如：
 
 ```sh

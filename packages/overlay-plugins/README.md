@@ -18,6 +18,8 @@ read game job icons through `getGameIcon` using the ClassJob row number. A missi
 abbreviation. Ember also supports action and status icons.
 Template builds retain WOFF2 wherever available and copy only the font weights used by the pages.
 
+Horizoverlay includes base combat classes in the default combatant list. Enable its jobless setting to show rows with no recognized job.
+
 Use the existing Rust CLI with a private Ed25519 JWK to create each package, for example:
 
 ```sh
